@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
 
 env:
-  _RUST_BUILD_CONFIG=release
-  _DOTNET_BUILD_CONFIG=Debug
+  _RUST_BUILD_CONFIG: release
+  _DOTNET_BUILD_CONFIG: Debug
 
 jobs:
   build-win-x64:
