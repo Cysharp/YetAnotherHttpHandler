@@ -2,26 +2,34 @@ name: Build
 on:
   workflow_dispatch:
 
+env:
+  _RUST_BUILD_CONFIG=release
+  _DOTNET_BUILD_CONFIG=Debug
+
 jobs:
   build-win-x64:
     name: Build Native library (win-x64)
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v3
-      - run: cargo build --target x86_64-pc-windows-msvc --release
+      - run: cargo build --target x86_64-pc-windows-msvc --${{ env._RUST_BUILD_CONFIG }}
         working-directory: native
       - uses: actions/upload-artifact@v3
         with:
-          name: win-x64
-          path: native/target/x86_64-pc-windows-msvc/yaha_native.dll
+          name: native-win-x64
+          path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
   build-dotnet:
     name: Build and pack .NET library
     needs: [ build-win-x64 ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: dotnet build -c ${{ env.BUILD_CONFIG }} ./YetAnotherHttpHandler.sln
-      - run: dotnet pack -c ${{ env.BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source --no-build -o ./publish
+      - uses: actions/download-artifact@v3
+        with:
+          path: native/artifacts
+      - run: ls -lFaR native/artifacts
+      - run: dotnet build -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln
+      - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source --no-build -o ./publish
       - uses: actions/upload-artifact@v3
         with:
           name: nuget-packages
