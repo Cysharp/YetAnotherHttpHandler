@@ -29,7 +29,7 @@ jobs:
         with:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
-  build-macos-x64:
+  build-osx-x64:
     name: Build Native library (osx-x64)
     runs-on: macos-latest
     steps:
@@ -40,7 +40,7 @@ jobs:
         with:
           name: osx-x64
           path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
-  build-macos-arm64:
+  build-osx-arm64:
     name: Build Native library (osx-arm64)
     runs-on: macos-latest
     steps:
