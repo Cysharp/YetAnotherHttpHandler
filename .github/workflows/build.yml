@@ -31,7 +31,7 @@ jobs:
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
   build-dotnet:
     name: Build and pack .NET library
-    needs: [ build-win-x64 ]
+    needs: [ build-win-x64, build-linux-x64 ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
