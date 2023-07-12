@@ -1,0 +1,28 @@
+name: Build
+on:
+  workflow_dispatch:
+
+jobs:
+  build-win-x64:
+    name: Build Native library (win-x64)
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo build --target x86_64-pc-windows-msvc --release
+        working-directory: native
+      - uses: actions/upload-artifact@v3
+        with:
+          name: win-x64
+          path: native/target/x86_64-pc-windows-msvc/yaha_native.dll
+  build-dotnet:
+    name: Build and pack .NET library
+    needs: [ build-win-x64 ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: dotnet build -c ${{ env.BUILD_CONFIG }} ./YetAnotherHttpHandler.sln
+      - run: dotnet pack -c ${{ env.BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source --no-build -o ./publish
+      - uses: actions/upload-artifact@v3
+        with:
+          name: nuget-packages
+          path: ./publish/
