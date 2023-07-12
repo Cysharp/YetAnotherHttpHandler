@@ -16,8 +16,19 @@ jobs:
         working-directory: native
       - uses: actions/upload-artifact@v3
         with:
-          name: native-win-x64
+          name: win-x64
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+  build-linux-x64:
+    name: Build Native library (linux-x64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo build --target x86_64-unknown-linux-gnu --${{ env._RUST_BUILD_CONFIG }}
+        working-directory: native
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux-x64
+          path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
   build-dotnet:
     name: Build and pack .NET library
     needs: [ build-win-x64 ]
@@ -30,6 +41,7 @@ jobs:
       - run: ls -lFaR native/artifacts
       - run: dotnet build -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln
       - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source --no-build -o ./publish
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Packaging.Test
       - uses: actions/upload-artifact@v3
         with:
           name: nuget-packages
