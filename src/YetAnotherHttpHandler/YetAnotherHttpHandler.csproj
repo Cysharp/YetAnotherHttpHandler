@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+    <!--<Nullable>enable</Nullable>-->
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <AssemblyName>Cysharp.Net.Http.YetAnotherHttpHandler</AssemblyName>
+    <RootNamespace>Cysharp.Net.Http</RootNamespace>
+
+    <!-- NuGet Package -->
+    <PackageId>YetAnotherHttpHandler</PackageId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\native\artifacts\win-x64\yaha_native.dll" Link="runtimes\win-x64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll" Condition="Exists('..\..\native\artifacts\win-x64\yaha_native.dll')">
+      <PackagePath>runtimes\win-x64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\win-arm64\yaha_native.dll" Link="runtimes\win-x64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll" Condition="Exists('..\..\native\artifacts\win-arm64\yaha_native.dll')">
+      <PackagePath>runtimes\win-arm64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\macos-x64\libyaha_native.so" Link="runtimes\macos-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\macos-x64\libyaha_native.dylib')">
+      <PackagePath>runtimes\macos-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\macos-arm64\libyaha_native.so" Link="runtimes\macos-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\macos-arm64\libyaha_native.dylib')">
+      <PackagePath>runtimes\macos-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\linux-x64\libyaha_native.so" Link="runtimes\linux-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\linux-x64\libyaha_native.so')">
+      <PackagePath>runtimes\linux-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

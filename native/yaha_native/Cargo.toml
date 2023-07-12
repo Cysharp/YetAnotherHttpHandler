@@ -1,0 +1,24 @@
+[package]
+name = "yaha_native"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[build-dependencies]
+csbindgen = "1.7.0"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+hyper = { version = "0.14", features = ["client", "http1", "http2" ] }
+hyper-rustls = { optional = true, version = "0.24.0", default-features = false, features = ["webpki-tokio", "http1", "http2", "tls12", "logging"] }
+rustls = { optional = true, version = "0.21.1", default-features = false, features = ["dangerous_configuration"] }
+hyper-tls = { optional = true, version = "0.5.0" }
+
+[features]
+default = [ "rustls" ]
+rustls = [ "hyper-rustls", "dep:rustls" ]
+native = [ "hyper-tls" ]

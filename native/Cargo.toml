@@ -1,0 +1,4 @@
+[workspace]
+members = [
+    "yaha_native",
+]
