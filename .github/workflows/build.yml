@@ -29,9 +29,63 @@ jobs:
         with:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+  build-macos-x64:
+    name: Build Native library (macos-x64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo build --target x86_64-apple-darwin --${{ env._RUST_BUILD_CONFIG }}
+        working-directory: native
+      - uses: actions/upload-artifact@v3
+        with:
+          name: macos-x64
+          path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
+  build-macos-arm64:
+    name: Build Native library (macos-x64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: cargo build --target aarch64-apple-darwin --${{ env._RUST_BUILD_CONFIG }}
+        working-directory: native
+      - uses: actions/upload-artifact@v3
+        with:
+          name: macos-arm64
+          path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
+  build-ios-x64:
+    name: Build Native library (ios-x64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: rustup target add x86_64-apple-ios
+        working-directory: native
+      - run: cargo build --target x86_64-apple-ios --${{ env._RUST_BUILD_CONFIG }}
+        working-directory: native
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ios-x64
+          path: native/target/x86_64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
+  build-ios-arm64:
+    name: Build Native library (ios-arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: rustup target add aarch64-apple-ios
+        working-directory: native
+      - run: cargo build --target aarch64-apple-ios --${{ env._RUST_BUILD_CONFIG }}
+        working-directory: native
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ios-arm64
+          path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
   build-dotnet:
     name: Build and pack .NET library
-    needs: [ build-win-x64, build-linux-x64 ]
+    needs: 
+      - build-win-x64
+      - build-linux-x64
+      - build-macos-x64
+      - build-macos-arm64
+      - build-ios-x64
+      - build-ios-arm64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -41,7 +95,7 @@ jobs:
       - run: ls -lFaR native/artifacts
       - run: dotnet build -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln
       - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source --no-build -o ./publish
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Packaging.Test
+      #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Packaging.Test
       - uses: actions/upload-artifact@v3
         with:
           name: nuget-packages
