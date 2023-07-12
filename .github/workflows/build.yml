@@ -45,6 +45,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
+      - run: rustup target add aarch64-apple-darwin
+        working-directory: native
       - run: cargo build --target aarch64-apple-darwin --${{ env._RUST_BUILD_CONFIG }}
         working-directory: native
       - uses: actions/upload-artifact@v3
