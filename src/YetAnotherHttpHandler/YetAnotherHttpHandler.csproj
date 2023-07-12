@@ -26,18 +26,28 @@
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\native\artifacts\macos-x64\libyaha_native.so" Link="runtimes\macos-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\macos-x64\libyaha_native.dylib')">
-      <PackagePath>runtimes\macos-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
+    <None Include="..\..\native\artifacts\osx-x64\libyaha_native.so" Link="runtimes\osx-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\osx-x64\libyaha_native.dylib')">
+      <PackagePath>runtimes\osx-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\native\artifacts\macos-arm64\libyaha_native.so" Link="runtimes\macos-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\macos-arm64\libyaha_native.dylib')">
-      <PackagePath>runtimes\macos-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
+    <None Include="..\..\native\artifacts\osx-arm64\libyaha_native.so" Link="runtimes\osx-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\osx-arm64\libyaha_native.dylib')">
+      <PackagePath>runtimes\osx-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="..\..\native\artifacts\linux-x64\libyaha_native.so" Link="runtimes\linux-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\linux-x64\libyaha_native.so')">
       <PackagePath>runtimes\linux-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\ios-x64\libyaha_native.a" Link="runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\ios-x64\libyaha_native.a')">
+      <PackagePath>runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\ios-arm64\libyaha_native.a" Link="runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\ios-arm64\libyaha_native.a')">
+      <PackagePath>runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a</PackagePath>
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
