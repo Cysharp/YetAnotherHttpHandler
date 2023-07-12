@@ -247,6 +247,9 @@ namespace Cysharp.Net.Http
                     Content = new YetAnotherHttpHttpContent(Reader, requestContext),
                     Version = HttpVersion.Version10,
                 };
+#if NETSTANDARD2_0
+                _message.EnsureTrailingHeaders();
+#endif
             }
 
             public void Write(ReadOnlySpan<byte> data)
