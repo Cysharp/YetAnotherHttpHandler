@@ -8,7 +8,9 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
 
-    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);..\..\src\YetAnotherHttpHandler\bin\Debug\;</RestoreAdditionalProjectSources>
+    <RestoreAdditionalProjectSources Condition="Exists('..\..\src\YetAnotherHttpHandler\bin\Debug')">$(RestoreAdditionalProjectSources);..\..\src\YetAnotherHttpHandler\bin\Debug\</RestoreAdditionalProjectSources>
+    <RestoreAdditionalProjectSources Condition="Exists('..\..\src\YetAnotherHttpHandler\bin\Release')">$(RestoreAdditionalProjectSources);..\..\src\YetAnotherHttpHandler\bin\Release\</RestoreAdditionalProjectSources>
+    <RestoreAdditionalProjectSources Condition="Exists('..\..\src\YetAnotherHttpHandler\pubilsh')">$(RestoreAdditionalProjectSources);..\..\src\YetAnotherHttpHandler\publish\</RestoreAdditionalProjectSources>
 
     <RootNamespace>_$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
   </PropertyGroup>
