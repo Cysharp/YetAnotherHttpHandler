@@ -22,7 +22,7 @@ public class NativeLibraryResolver
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                platform = "macos";
+                platform = "osx";
                 prefix = "lib";
                 ext = ".dylib";
             }
