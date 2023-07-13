@@ -103,7 +103,7 @@ jobs:
         working-directory: native
     steps:
       - uses: actions/checkout@v3
-      - run: sudo apt-get install gcc-multilib
+      - run: sudo apt update && apt install gcc-multilib
       - run: rustup target add aarch64-linux-android
       - run: cargo install cargo-ndk
       - run: cargo ndk -t arm64-v8a build --${{ env._RUST_BUILD_CONFIG }}
