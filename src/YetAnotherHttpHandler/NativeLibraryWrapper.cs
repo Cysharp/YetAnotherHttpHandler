@@ -11,6 +11,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+#if UNITY_2019_1_OR_NEWER
+using AOT;
+#endif
 
 namespace Cysharp.Net.Http
 {
@@ -102,7 +105,7 @@ namespace Cysharp.Net.Http
             NativeMethods.yaha_request_set_has_body(_ctx, reqCtx, request.Content != null);
 
             // Begin request
-            var requestContextManaged = new RequestContext(_ctx, reqCtx);
+            var requestContextManaged = new RequestContext(_ctx, reqCtx, request);
             _inflightRequests[requestSequence] = requestContextManaged;
 
             VerifyPointer(_ctx, reqCtx);
@@ -143,11 +146,11 @@ namespace Cysharp.Net.Http
             public Response Response => _response;
             public PipeWriter Writer => _pipe.Writer;
 
-            internal unsafe RequestContext(YahaNativeContext* ctx, YahaNativeRequestContext* requestContext)
+            internal unsafe RequestContext(YahaNativeContext* ctx, YahaNativeRequestContext* requestContext, HttpRequestMessage requestMessage)
             {
                 _ctx = ctx;
                 _requestContext = requestContext;
-                _response = new Response(this);
+                _response = new Response(requestMessage, this);
                 _readRequestTask = default;
             }
 
@@ -239,11 +242,12 @@ namespace Cysharp.Net.Http
 
             public PipeReader Reader => _pipe.Reader;
 
-            internal Response(RequestContext requestContext)
+            internal Response(HttpRequestMessage requestMessage, RequestContext requestContext)
             {
                 _responseTask = new TaskCompletionSource<HttpResponseMessage>();
                 _message = new HttpResponseMessage()
                 {
+                    RequestMessage = requestMessage,
                     Content = new YetAnotherHttpHttpContent(Reader, requestContext),
                     Version = HttpVersion.Version10,
                 };
