@@ -51,7 +51,7 @@
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\native\artifacts\android-arm64\libyaha_native.a" Link="runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\android-arm64\libyaha_native.so')">
+    <None Include="..\..\native\artifacts\android-arm64\libyaha_native.so" Link="runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\android-arm64\libyaha_native.so')">
       <PackagePath>runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so</PackagePath>
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
