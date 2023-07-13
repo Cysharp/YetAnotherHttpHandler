@@ -41,13 +41,18 @@
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\native\artifacts\ios-x64\libyaha_native.a" Link="runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\ios-x64\libyaha_native.a')">
+    <None Include="..\..\native\artifacts\ios-x64\libyaha_native.a" Link="runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a" Condition="Exists('..\..\native\artifacts\ios-x64\libyaha_native.a')">
       <PackagePath>runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a</PackagePath>
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\native\artifacts\ios-arm64\libyaha_native.a" Link="runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\ios-arm64\libyaha_native.a')">
+    <None Include="..\..\native\artifacts\ios-arm64\libyaha_native.a" Link="runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a" Condition="Exists('..\..\native\artifacts\ios-arm64\libyaha_native.a')">
       <PackagePath>runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a</PackagePath>
+      <Pack>true</Pack>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\native\artifacts\android-arm64\libyaha_native.a" Link="runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\android-arm64\libyaha_native.so')">
+      <PackagePath>runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so</PackagePath>
       <Pack>true</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

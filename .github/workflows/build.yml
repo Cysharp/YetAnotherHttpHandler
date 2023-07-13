@@ -10,10 +10,13 @@ jobs:
   build-win-x64:
     name: Build Native library (win-x64)
     runs-on: windows-2019
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v3
       - run: cargo build --target x86_64-pc-windows-msvc --${{ env._RUST_BUILD_CONFIG }}
-        working-directory: native
       - uses: actions/upload-artifact@v3
         with:
           name: win-x64
@@ -21,10 +24,13 @@ jobs:
   build-linux-x64:
     name: Build Native library (linux-x64)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v3
       - run: cargo build --target x86_64-unknown-linux-gnu --${{ env._RUST_BUILD_CONFIG }}
-        working-directory: native
       - uses: actions/upload-artifact@v3
         with:
           name: linux-x64
@@ -32,10 +38,13 @@ jobs:
   build-osx-x64:
     name: Build Native library (osx-x64)
     runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v3
       - run: cargo build --target x86_64-apple-darwin --${{ env._RUST_BUILD_CONFIG }}
-        working-directory: native
       - uses: actions/upload-artifact@v3
         with:
           name: osx-x64
@@ -43,12 +52,14 @@ jobs:
   build-osx-arm64:
     name: Build Native library (osx-arm64)
     runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v3
       - run: rustup target add aarch64-apple-darwin
-        working-directory: native
       - run: cargo build --target aarch64-apple-darwin --${{ env._RUST_BUILD_CONFIG }}
-        working-directory: native
       - uses: actions/upload-artifact@v3
         with:
           name: osx-arm64
@@ -56,12 +67,14 @@ jobs:
   build-ios-x64:
     name: Build Native library (ios-x64)
     runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v3
       - run: rustup target add x86_64-apple-ios
-        working-directory: native
       - run: cargo build --target x86_64-apple-ios --${{ env._RUST_BUILD_CONFIG }}
-        working-directory: native
       - uses: actions/upload-artifact@v3
         with:
           name: ios-x64
@@ -69,16 +82,35 @@ jobs:
   build-ios-arm64:
     name: Build Native library (ios-arm64)
     runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
     steps:
       - uses: actions/checkout@v3
       - run: rustup target add aarch64-apple-ios
-        working-directory: native
       - run: cargo build --target aarch64-apple-ios --${{ env._RUST_BUILD_CONFIG }}
-        working-directory: native
       - uses: actions/upload-artifact@v3
         with:
           name: ios-arm64
           path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
+  build-android-arm64:
+    name: Build Native library (android-arm64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v3
+      - run: sudo apt-get install gcc-multilib
+      - run: rustup target add aarch64-linux-android
+      - run: cargo install cargo-ndk
+      - run: cargo ndk -t arm64-v8a build --${{ env._RUST_BUILD_CONFIG }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ios-arm64
+          path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
   build-dotnet:
     name: Build and pack .NET library
     needs: 
@@ -88,6 +120,7 @@ jobs:
       - build-osx-arm64
       - build-ios-x64
       - build-ios-arm64
+      - build-android-arm64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
