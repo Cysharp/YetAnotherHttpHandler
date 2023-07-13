@@ -109,7 +109,7 @@ jobs:
       - run: cargo ndk -t arm64-v8a build --${{ env._RUST_BUILD_CONFIG }}
       - uses: actions/upload-artifact@v3
         with:
-          name: ios-arm64
+          name: anrdoid-arm64
           path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
   build-dotnet:
     name: Build and pack .NET library
