@@ -1,8 +1,8 @@
 using System.Net;
+using System.Runtime.ExceptionServices;
 using _YetAnotherHttpHandler.Test.Helpers;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -13,12 +13,27 @@ public class Http1Test : UseTestServerTestBase
     }
 
     [Fact]
-    public async Task Ok()
+    public async Task FailedToConnect()
     {
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<Http1TestServer>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
+        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await httpClient.GetAsync($"http://localhost.exmample/"));
+
+        // Assert
+        Assert.IsType<HttpRequestException>(ex);
+    }
+
+    [Fact]
+    public async Task Get_Ok()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        var httpClient = new HttpClient(httpHandler);
+        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/");
@@ -31,12 +46,12 @@ public class Http1Test : UseTestServerTestBase
     }
 
     [Fact]
-    public async Task NotOk()
+    public async Task Get_NotOk()
     {
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<Http1TestServer>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
+        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/not-found");
@@ -49,12 +64,12 @@ public class Http1Test : UseTestServerTestBase
     }
 
     [Fact]
-    public async Task ResponseHeaders()
+    public async Task Get_ResponseHeaders()
     {
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<Http1TestServer>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
+        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only, TestOutputHelper);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/response-headers");
@@ -64,23 +79,5 @@ public class Http1Test : UseTestServerTestBase
         Assert.Equal(new string[] {"foo"}, response.Headers.GetValues("x-test"));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("__OK__", responseBody);
-    }
-
-    class Http1TestServer : ITestServerBuilder
-    {
-        public static WebApplication BuildApplication(WebApplicationBuilder builder)
-        {
-            var app = builder.Build();
-
-            app.MapGet("/", () => Results.Content("__OK__"));
-            app.MapGet("/not-found", () => Results.Content("__Not_Found__", statusCode: 404));
-            app.MapGet("/response-headers", (HttpContext ctx) =>
-            {
-                ctx.Response.Headers["x-test"] = "foo";
-                return Results.Content("__OK__");
-            });
-
-            return app;
-        }
     }
 }
