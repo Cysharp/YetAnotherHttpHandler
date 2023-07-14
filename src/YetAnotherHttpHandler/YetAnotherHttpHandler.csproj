@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
-    <!--<Nullable>enable</Nullable>-->
+    <Nullable>enable</Nullable>
+    <LangVersion>9.0</LangVersion>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <AssemblyName>Cysharp.Net.Http.YetAnotherHttpHandler</AssemblyName>
     <RootNamespace>Cysharp.Net.Http</RootNamespace>
@@ -15,47 +16,40 @@
     <PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <_NativeLibraryOriginalName>yaha_native</_NativeLibraryOriginalName>
+    <_NativeLibraryName>Cysharp.Net.Http.YetAnotherHttpHandler.Native</_NativeLibraryName>
+  </PropertyGroup>
   <ItemGroup>
-    <None Include="..\..\native\artifacts\win-x64\yaha_native.dll" Link="runtimes\win-x64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll" Condition="Exists('..\..\native\artifacts\win-x64\yaha_native.dll')">
-      <PackagePath>runtimes\win-x64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\win-arm64\yaha_native.dll" Link="runtimes\win-x64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll" Condition="Exists('..\..\native\artifacts\win-arm64\yaha_native.dll')">
-      <PackagePath>runtimes\win-arm64\native\Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\osx-x64\libyaha_native.dylib" Link="runtimes\osx-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\osx-x64\libyaha_native.dylib')">
-      <PackagePath>runtimes\osx-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\osx-arm64\libyaha_native.dylib" Link="runtimes\osx-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib" Condition="Exists('..\..\native\artifacts\osx-arm64\libyaha_native.dylib')">
-      <PackagePath>runtimes\osx-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.dylib</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\linux-x64\libyaha_native.so" Link="runtimes\linux-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\linux-x64\libyaha_native.so')">
-      <PackagePath>runtimes\linux-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\ios-x64\libyaha_native.a" Link="runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a" Condition="Exists('..\..\native\artifacts\ios-x64\libyaha_native.a')">
-      <PackagePath>runtimes\ios-x64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\ios-arm64\libyaha_native.a" Link="runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a" Condition="Exists('..\..\native\artifacts\ios-arm64\libyaha_native.a')">
-      <PackagePath>runtimes\ios-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.a</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="..\..\native\artifacts\android-arm64\libyaha_native.so" Link="runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so" Condition="Exists('..\..\native\artifacts\android-arm64\libyaha_native.so')">
-      <PackagePath>runtimes\android-arm64\native\libCysharp.Net.Http.YetAnotherHttpHandler.Native.so</PackagePath>
-      <Pack>true</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <_NativeArtifactTarget Include="win-x86" RustTarget="i686-pc-windows-msvc" Prefix="" Ext=".dll" />
+    <_NativeArtifactTarget Include="win-x64" RustTarget="x86_64-pc-windows-msvc" Prefix="" Ext=".dll" />
+    <_NativeArtifactTarget Include="win-arm64" RustTarget="aarch64-pc-windows-msvc" Prefix="" Ext=".dll" />
+    <_NativeArtifactTarget Include="linux-x64" RustTarget="x86_64-unknown-linux-gnu" Prefix="lib" Ext=".so" />
+    <_NativeArtifactTarget Include="linux-arm64" RustTarget="aarch64-unknown-linux-gnu" Prefix="lib" Ext=".so" />
+    <_NativeArtifactTarget Include="osx-x64" RustTarget="x86_64-apple-darwin" Prefix="lib" Ext=".dylib" />
+    <_NativeArtifactTarget Include="osx-arm64" RustTarget="aarch64-apple-darwin" Prefix="lib" Ext=".dylib" />
+    <_NativeArtifactTarget Include="ios-x64" RustTarget="x86_64-apple-ios" Prefix="lib" Ext=".a" />
+    <_NativeArtifactTarget Include="ios-arm64" RustTarget="aarch64-apple-ios" Prefix="lib" Ext=".a" />
+    <_NativeArtifactTarget Include="android-arm64" RustTarget="aarch64-linux-android" Prefix="lib" Ext=".so" />
   </ItemGroup>
+  <Target Name="IncludeNativeArtifacts" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <_NativeArtifact Include="@(_NativeArtifactTarget->'..\..\native\artifacts\%(Identity)\%(Prefix)$(_NativeLibraryOriginalName)%(Ext)')">
+        <RustOutputDebug>..\..\native\target\%(RustTarget)\debug\%(Prefix)$(_NativeLibraryOriginalName)%(Ext)</RustOutputDebug>
+        <RustOutputRelease>..\..\native\target\%(RustTarget)\release\%(Prefix)$(_NativeLibraryOriginalName)%(Ext)</RustOutputRelease>
+        <Rid>%(Identity)</Rid>
+
+        <!-- for None -->
+        <Link>runtimes\%(_NativeArtifact.Rid)\native\%(_NativeArtifact.Prefix)$(_NativeLibraryName)%(Ext)</Link>
+        <PackagePath>runtimes\%(_NativeArtifact.Rid)\native\%(_NativeArtifact.Prefix)$(_NativeLibraryName)%(Ext)</PackagePath>
+        <Pack>true</Pack>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </_NativeArtifact>
+
+      <None Include="@(_NativeArtifact)" Condition="Exists('%(_NativeArtifact.Identity)') and !Exists('%(_NativeArtifact.RustOutputDebug)')" />
+      <None Include="@(_NativeArtifact->'%(RustOutputDebug)')" Condition="Exists('%(_NativeArtifact.RustOutputDebug)')" />
+
+    </ItemGroup>
+  </Target>
 
 </Project>
