@@ -7,8 +7,6 @@
 using System;
 using System.Runtime.InteropServices;
 
-using nuint = System.UIntPtr;
-
 namespace Cysharp.Net.Http
 {
     internal static unsafe partial class NativeMethods
@@ -19,6 +17,12 @@ namespace Cysharp.Net.Http
         const string __DllName = "Cysharp.Net.Http.YetAnotherHttpHandler.Native";
 #endif
         
+
+        [DllImport(__DllName, EntryPoint = "yaha_get_last_error", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern ByteBuffer* yaha_get_last_error();
+
+        [DllImport(__DllName, EntryPoint = "yaha_free_byte_buffer", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_free_byte_buffer(ByteBuffer* s);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void yaha_init_runtime_on_status_code_and_headers_receive_delegate(int req_seq, int status_code, YahaHttpVersion version);
@@ -69,12 +73,6 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_request_complete_body", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool yaha_request_complete_body(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
-
-        [DllImport(__DllName, EntryPoint = "yaha_request_get_last_error", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ByteBuffer* yaha_request_get_last_error(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
-
-        [DllImport(__DllName, EntryPoint = "yaha_request_free_byte_buffer", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void yaha_request_free_byte_buffer(ByteBuffer* s);
 
         [DllImport(__DllName, EntryPoint = "yaha_request_response_get_headers_count", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern int yaha_request_response_get_headers_count(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);

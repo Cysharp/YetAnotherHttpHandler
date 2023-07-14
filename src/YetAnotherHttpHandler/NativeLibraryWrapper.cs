@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 #if UNITY_2019_1_OR_NEWER
@@ -82,23 +83,13 @@ namespace Cysharp.Net.Http
             }
             
             // Set HTTP version
-            YahaHttpVersion version;
-            if (request.Version == HttpVersion.Version10)
+            var version = request.Version switch
             {
-                version = YahaHttpVersion.Http10;
-            }
-            else if (request.Version == HttpVersion.Version11)
-            {
-                version = YahaHttpVersion.Http11;
-            }
-            else if (request.Version == HttpVersionShim.Version20)
-            {
-                version = YahaHttpVersion.Http2;
-            }
-            else
-            {
-                throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'");
-            }
+                var v when v == HttpVersion.Version10 => YahaHttpVersion.Http10,
+                var v when v == HttpVersion.Version11 => YahaHttpVersion.Http11,
+                var v when v == HttpVersionShim.Version20 => YahaHttpVersion.Http2,
+                _ => throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'"),
+            };
             NativeMethods.yaha_request_set_version(_ctx, reqCtx, version);
 
             // Prepare body channel
@@ -116,19 +107,26 @@ namespace Cysharp.Net.Http
         }
 
         [Conditional("__VERIFY_POINTER")]
-        private unsafe static void VerifyPointer(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx)
+        private static unsafe void VerifyPointer(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx)
         {
             if (ctx == null) throw new ArgumentNullException(nameof(ctx));
             if (reqCtx == null) throw new ArgumentNullException(nameof(reqCtx));
         }
 
-        private unsafe static void ThrowIfFailed(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx, bool result)
+        private static unsafe void ThrowIfFailed(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx, bool result)
         {
             if (!result)
             {
                 VerifyPointer(ctx, reqCtx);
-                NativeMethods.yaha_request_get_last_error(ctx, reqCtx);
-                throw new InvalidOperationException("Something went wrong.");
+                var buf = NativeMethods.yaha_get_last_error();
+                try
+                {
+                    throw new InvalidOperationException(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()));
+                }
+                finally
+                {
+                    NativeMethods.yaha_free_byte_buffer(buf);
+                }
             }
         }
         
@@ -140,7 +138,7 @@ namespace Cysharp.Net.Http
             internal unsafe YahaNativeContext* _ctx;
             internal unsafe YahaNativeRequestContext* _requestContext;
 
-            private Task _readRequestTask;
+            private Task? _readRequestTask;
             private Response _response;
 
             public Response Response => _response;
@@ -294,13 +292,13 @@ namespace Cysharp.Net.Http
 
             internal void SetVersion(YahaHttpVersion version)
             {
-                switch (version)
+                _message.Version = version switch
                 {
-                    case YahaHttpVersion.Http10: _message.Version = HttpVersion.Version10; break;
-                    case YahaHttpVersion.Http11: _message.Version = HttpVersion.Version11; break;
-                    case YahaHttpVersion.Http2: _message.Version = HttpVersionShim.Version20; break;
-                    default: _message.Version = HttpVersionShim.Unknown; break;
-                }
+                    YahaHttpVersion.Http10 => HttpVersion.Version10,
+                    YahaHttpVersion.Http11 => HttpVersion.Version11,
+                    YahaHttpVersion.Http2 => HttpVersionShim.Version20,
+                    _ => HttpVersionShim.Unknown,
+                };
             }
 
             public void SetTrailer(string name, string value)
@@ -332,7 +330,22 @@ namespace Cysharp.Net.Http
             {
                 //Console.WriteLine("Response.Complete");
                 _pipe.Writer.Complete();
-                _responseTask.SetException(new HttpRequestException(errorMessage));
+
+                var ex = new HttpRequestException(errorMessage);
+#if NET5_OR_GREATER
+                ExceptionDispatchInfo.SetCurrentStackTrace(ex);
+#else
+                try
+                {
+                    throw new HttpRequestException(errorMessage);
+                }
+                catch (HttpRequestException e)
+                {
+                    ex = e;
+                }
+#endif
+                _responseTask.SetException(ex);
+
             }
 
             public async Task<HttpResponseMessage> GetResponseAsync()
@@ -370,8 +383,8 @@ namespace Cysharp.Net.Http
                         }
                         finally
                         {
-                            NativeMethods.yaha_request_free_byte_buffer(bufKey);
-                            NativeMethods.yaha_request_free_byte_buffer(bufValue);
+                            NativeMethods.yaha_free_byte_buffer(bufKey);
+                            NativeMethods.yaha_free_byte_buffer(bufValue);
                         }
                     }
                 }
@@ -413,8 +426,8 @@ namespace Cysharp.Net.Http
                             }
                             finally
                             {
-                                NativeMethods.yaha_request_free_byte_buffer(bufKey);
-                                NativeMethods.yaha_request_free_byte_buffer(bufValue);
+                                NativeMethods.yaha_free_byte_buffer(bufKey);
+                                NativeMethods.yaha_free_byte_buffer(bufValue);
                             }
                         }
                     }
@@ -423,18 +436,14 @@ namespace Cysharp.Net.Http
                 }
                 else
                 {
-                    var buf = NativeMethods.yaha_request_get_last_error(requestContext._ctx, requestContext._requestContext);
+                    var buf = NativeMethods.yaha_get_last_error();
                     try
                     {
-#if !NETSTANDARD2_0
-                        requestContext.Response.CompleteAsFailed(Encoding.UTF8.GetString(buf->AsSpan()));
-#else
-                        requestContext.Response.CompleteAsFailed(Encoding.UTF8.GetString(buf->ptr, buf->length));
-#endif
+                        requestContext.Response.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()));
                     }
                     catch
                     {
-                        NativeMethods.yaha_request_free_byte_buffer(buf);
+                        NativeMethods.yaha_free_byte_buffer(buf);
                     }
                 }
             }

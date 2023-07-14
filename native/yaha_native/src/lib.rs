@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     ptr::null,
     sync::{Arc, Mutex},
 };
@@ -23,6 +24,27 @@ type OnStatusCodeAndHeadersReceive =
     extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion) -> ();
 type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8) -> ();
 type OnComplete = extern "C" fn(req_seq: i32, has_error: u8) -> ();
+
+thread_local! {
+    static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_get_last_error() -> *const ByteBuffer {
+    match LAST_ERROR.with(|p| p.borrow_mut().take()) {
+        Some(e) => {
+            let buf = ByteBuffer::from_vec(e.clone().into_bytes());
+            Box::into_raw(Box::new(buf))
+        }
+        None => null(),
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn yaha_free_byte_buffer(s: *mut ByteBuffer) {
+    let buf = Box::from_raw(s);
+    buf.destroy();
+}
 
 pub struct YahaNativeContext;
 
@@ -135,7 +157,6 @@ pub struct YahaNativeRequestContextInternal {
     builder: Option<hyper::http::request::Builder>,
     sender: Option<Sender>,
     has_body: bool,
-    last_error: Option<String>,
     completed: bool,
 
     response_version: YahaHttpVersion,
@@ -178,7 +199,6 @@ pub unsafe extern "C" fn yaha_request_new(
         builder: Some(builder),
         sender: None,
         has_body: false,
-        last_error: None,
         completed: false,
 
         response_version: YahaHttpVersion::Http10,
@@ -231,6 +251,7 @@ pub unsafe extern "C" fn yaha_request_set_uri(
 }
 
 #[repr(i32)]
+#[derive(Debug)]
 pub enum YahaHttpVersion {
     Http09,
     Http10,
@@ -306,7 +327,6 @@ pub extern "C" fn yaha_request_begin(
 
     {
         let mut req_ctx = req_ctx.lock().unwrap();
-        req_ctx.last_error = None;
 
         if req_ctx.has_body {
             let sender;
@@ -331,10 +351,9 @@ pub extern "C" fn yaha_request_begin(
             // Send a request and wait for response status and headers.
             let res = ctx.client.request(req).await;
             if let Err(err) = res {
-                {
-                    let mut req_ctx = req_ctx.lock().unwrap();
-                    req_ctx.last_error = Some(err.to_string());
-                }
+                LAST_ERROR.with(|v| {
+                    *v.borrow_mut() = Some(err.to_string());
+                });
                 (ctx.on_complete)(seq, 1);
                 return;
             }
@@ -378,10 +397,9 @@ pub extern "C" fn yaha_request_begin(
                             }
                             Err(err) => {
                                 //println!("body.data: on_complete_error");
-                                {
-                                    let mut req_ctx = req_ctx.lock().unwrap();
-                                    req_ctx.last_error = Some(err.to_string());
-                                }
+                                LAST_ERROR.with(|v| {
+                                    *v.borrow_mut() = Some(err.to_string());
+                                });
                                 (ctx.on_complete)(seq, 1);
                                 return;
                             }
@@ -464,28 +482,6 @@ pub extern "C" fn yaha_request_complete_body(
 
     req_ctx.try_complete();
     true
-}
-
-#[no_mangle]
-pub extern "C" fn yaha_request_get_last_error(
-    ctx: *const YahaNativeContext,
-    req_ctx: *const YahaNativeRequestContext,
-) -> *const ByteBuffer {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
-
-    match &req_ctx.last_error {
-        Some(e) => {
-            let buf = ByteBuffer::from_vec(e.clone().into_bytes());
-            Box::into_raw(Box::new(buf))
-        }
-        None => null(),
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn yaha_request_free_byte_buffer(s: *mut ByteBuffer) {
-    let buf = Box::from_raw(s);
-    buf.destroy();
 }
 
 #[no_mangle]
