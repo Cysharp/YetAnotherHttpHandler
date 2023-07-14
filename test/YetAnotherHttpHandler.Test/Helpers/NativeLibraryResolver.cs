@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace _YetAnotherHttpHandler.Test;
+namespace _YetAnotherHttpHandler.Test.Helpers;
 
 public class NativeLibraryResolver
 {

@@ -32,22 +32,23 @@
     <_NativeArtifactTarget Include="ios-arm64" RustTarget="aarch64-apple-ios" Prefix="lib" Ext=".a" />
     <_NativeArtifactTarget Include="android-arm64" RustTarget="aarch64-linux-android" Prefix="lib" Ext=".so" />
   </ItemGroup>
-  <Target Name="IncludeNativeArtifacts" BeforeTargets="PrepareForBuild">
+
+  <Target Name="IncludeNativeArtifacts" BeforeTargets="GetNativeManifest">
     <ItemGroup>
       <_NativeArtifact Include="@(_NativeArtifactTarget->'..\..\native\artifacts\%(Identity)\%(Prefix)$(_NativeLibraryOriginalName)%(Ext)')">
         <RustOutputDebug>..\..\native\target\%(RustTarget)\debug\%(Prefix)$(_NativeLibraryOriginalName)%(Ext)</RustOutputDebug>
         <RustOutputRelease>..\..\native\target\%(RustTarget)\release\%(Prefix)$(_NativeLibraryOriginalName)%(Ext)</RustOutputRelease>
         <Rid>%(Identity)</Rid>
 
-        <!-- for None -->
+        <!-- for Content -->
         <Link>runtimes\%(_NativeArtifact.Rid)\native\%(_NativeArtifact.Prefix)$(_NativeLibraryName)%(Ext)</Link>
         <PackagePath>runtimes\%(_NativeArtifact.Rid)\native\%(_NativeArtifact.Prefix)$(_NativeLibraryName)%(Ext)</PackagePath>
         <Pack>true</Pack>
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </_NativeArtifact>
 
-      <None Include="@(_NativeArtifact)" Condition="Exists('%(_NativeArtifact.Identity)') and !Exists('%(_NativeArtifact.RustOutputDebug)')" />
-      <None Include="@(_NativeArtifact->'%(RustOutputDebug)')" Condition="Exists('%(_NativeArtifact.RustOutputDebug)')" />
+      <Content Include="@(_NativeArtifact)" Condition="Exists('%(_NativeArtifact.Identity)') and !Exists('%(_NativeArtifact.RustOutputDebug)')" />
+      <Content Include="@(_NativeArtifact->'%(RustOutputDebug)')" Condition="Exists('%(_NativeArtifact.RustOutputDebug)')" />
 
     </ItemGroup>
   </Target>
