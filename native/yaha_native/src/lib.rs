@@ -5,25 +5,21 @@ use std::{
 };
 
 use hyper::{
-    body::{Bytes, HttpBody, Sender},
-    client::HttpConnector,
+    body::{Bytes, HttpBody},
     http::{HeaderName, HeaderValue},
-    Body, Client, Request, StatusCode, Version,
+    Body, Request, StatusCode, Version,
 };
 
-#[cfg(feature = "rustls")]
-use hyper_rustls::{ConfigBuilderExt, HttpsConnector};
-#[cfg(feature = "native")]
-use hyper_tls::HttpsConnector;
-
-use interop::{ByteBuffer, StringBuffer};
-
+mod context;
 mod interop;
+mod primitives;
 
-type OnStatusCodeAndHeadersReceive =
-    extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion);
-type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8);
-type OnComplete = extern "C" fn(req_seq: i32, has_error: u8);
+use context::{
+    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext,
+    YahaNativeRequestContextInternal,
+};
+use interop::{ByteBuffer, StringBuffer};
+use primitives::YahaHttpVersion;
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -44,68 +40,6 @@ pub extern "C" fn yaha_get_last_error() -> *const ByteBuffer {
 pub unsafe extern "C" fn yaha_free_byte_buffer(s: *mut ByteBuffer) {
     let buf = Box::from_raw(s);
     buf.destroy();
-}
-
-pub struct YahaNativeContext;
-
-pub struct YahaNativeContextInternal {
-    runtime: tokio::runtime::Runtime,
-    client: Client<HttpsConnector<HttpConnector>, hyper::Body>,
-    on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
-    on_receive: OnReceive,
-    on_complete: OnComplete,
-}
-
-impl YahaNativeContextInternal {
-    pub fn from_raw_context(ctx: *mut YahaNativeContext) -> &'static mut Self {
-        unsafe { &mut *(ctx as *mut Self) }
-    }
-
-    pub fn new(
-        on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
-        on_receive: OnReceive,
-        on_complete: OnComplete,
-    ) -> Self {
-        #[cfg(feature = "rustls")]
-        fn new_connector() -> HttpsConnector<HttpConnector> {
-            let mut tls_config = rustls::ClientConfig::builder()
-                .with_safe_defaults()
-                //.with_native_roots()
-                .with_webpki_roots()
-                .with_no_client_auth();
-
-            tls_config
-                .dangerous()
-                .set_certificate_verifier(Arc::new(crate::danger::NoCertificateVerification {}));
-
-            let https = hyper_rustls::HttpsConnectorBuilder::new()
-                .with_tls_config(tls_config)
-                .https_or_http()
-                .enable_http2()
-                .build();
-
-            https
-        }
-
-        #[cfg(feature = "native")]
-        fn new_connector() -> HttpsConnector<HttpConnector> {
-            let https = HttpsConnector::new();
-            https
-        }
-
-        let https = new_connector();
-        let client: Client<_, hyper::Body> = Client::builder()
-            //.http2_only(true)
-            .build(https);
-
-        YahaNativeContextInternal {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
-            client: client,
-            on_status_code_and_headers_receive,
-            on_receive,
-            on_complete,
-        }
-    }
 }
 
 #[no_mangle]
@@ -150,43 +84,6 @@ mod danger {
     }
 }
 
-#[repr(C)]
-pub struct YahaNativeRequestContext;
-pub struct YahaNativeRequestContextInternal {
-    seq: i32,
-    builder: Option<hyper::http::request::Builder>,
-    sender: Option<Sender>,
-    has_body: bool,
-    completed: bool,
-
-    response_version: YahaHttpVersion,
-    response_status: StatusCode,
-    response_headers: Option<Vec<(String, String)>>,
-    response_trailers: Option<Vec<(String, String)>>,
-}
-
-impl YahaNativeRequestContextInternal {
-    fn try_complete(&mut self) {
-        if self.sender.is_some() {
-            self.sender = None;
-        }
-    }
-}
-impl Drop for YahaNativeRequestContextInternal {
-    fn drop(&mut self) {
-        //println!("YahaNativeRequestContextInternal.Drop");
-    }
-}
-
-trait Internalizable<T> {}
-impl Internalizable<Mutex<YahaNativeRequestContextInternal>> for YahaNativeRequestContext {}
-fn to_internal<'a, T: Internalizable<U>, U>(v: *const T) -> &'a U {
-    unsafe { &(*(v as *const U)) }
-}
-fn to_internal_arc<'a, T: Internalizable<U>, U>(v: *const T) -> Arc<U> {
-    unsafe { Arc::from_raw(v as *const U) }
-}
-
 #[no_mangle]
 pub unsafe extern "C" fn yaha_request_new(
     ctx: *const YahaNativeContext,
@@ -215,7 +112,7 @@ pub unsafe extern "C" fn yaha_request_set_method(
     req_ctx: *const YahaNativeRequestContext,
     value: *const StringBuffer,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     assert!(req_ctx.builder.is_some());
 
     let builder = req_ctx.builder.take().unwrap();
@@ -229,7 +126,7 @@ pub unsafe extern "C" fn yaha_request_set_has_body(
     req_ctx: *const YahaNativeRequestContext,
     value: bool,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     assert!(req_ctx.builder.is_some());
 
     req_ctx.has_body = value;
@@ -242,35 +139,12 @@ pub unsafe extern "C" fn yaha_request_set_uri(
     req_ctx: *const YahaNativeRequestContext,
     value: *const StringBuffer,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     assert!(req_ctx.builder.is_some());
 
     let builder = req_ctx.builder.take().unwrap();
     req_ctx.builder = Some(builder.uri((*value).to_str()));
     true
-}
-
-#[repr(i32)]
-#[derive(Debug)]
-pub enum YahaHttpVersion {
-    Http09,
-    Http10,
-    Http11,
-    Http2,
-    Http3,
-}
-
-impl From<Version> for YahaHttpVersion {
-    fn from(value: Version) -> Self {
-        match value {
-            Version::HTTP_09 => YahaHttpVersion::Http09,
-            Version::HTTP_10 => YahaHttpVersion::Http10,
-            Version::HTTP_11 => YahaHttpVersion::Http11,
-            Version::HTTP_2 => YahaHttpVersion::Http2,
-            Version::HTTP_3 => YahaHttpVersion::Http3,
-            _ => panic!("Unsupported Version"),
-        }
-    }
 }
 
 #[no_mangle]
@@ -279,7 +153,7 @@ pub unsafe extern "C" fn yaha_request_set_version(
     req_ctx: *const YahaNativeRequestContext,
     value: YahaHttpVersion,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     assert!(req_ctx.builder.is_some());
 
     let builder = req_ctx.builder.take().unwrap();
@@ -300,7 +174,7 @@ pub unsafe extern "C" fn yaha_request_set_header(
     key: *const StringBuffer,
     value: *const StringBuffer,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     assert!(req_ctx.builder.is_some());
 
     // TODO: Handle invalid header values
@@ -323,7 +197,7 @@ pub extern "C" fn yaha_request_begin(
     // Begin request on async runtime.
     let body;
     let runtime_handle = ctx.runtime.handle().clone();
-    let req_ctx = to_internal_arc(req_ctx); // NOTE: we must call `Arc::into_raw` at last of the method.
+    let req_ctx = context::to_internal_arc(req_ctx); // NOTE: we must call `Arc::into_raw` at last of the method.
 
     {
         let mut req_ctx = req_ctx.lock().unwrap();
@@ -460,7 +334,7 @@ pub extern "C" fn yaha_request_write_body(
     buf: *const u8,
     len: usize,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     let slice = unsafe { std::slice::from_raw_parts(buf, len) };
@@ -477,7 +351,7 @@ pub extern "C" fn yaha_request_write_body(
                 *v.borrow_mut() = Some("Failed to write request body.".to_string());
             });
             false
-        },
+        }
     }
 }
 
@@ -486,7 +360,7 @@ pub extern "C" fn yaha_request_complete_body(
     ctx: *const YahaNativeContext,
     req_ctx: *const YahaNativeRequestContext,
 ) -> bool {
-    let mut req_ctx = to_internal(req_ctx).lock().unwrap();
+    let mut req_ctx = context::to_internal(req_ctx).lock().unwrap();
     //debug_assert!(!req_ctx.completed);
 
     req_ctx.try_complete();
@@ -498,7 +372,7 @@ pub unsafe extern "C" fn yaha_request_response_get_headers_count(
     ctx: *const YahaNativeContext,
     req_ctx: *const YahaNativeRequestContext,
 ) -> i32 {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
+    let req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     match req_ctx.response_headers.as_ref() {
@@ -513,7 +387,7 @@ pub unsafe extern "C" fn yaha_request_response_get_header_key(
     req_ctx: *const YahaNativeRequestContext,
     index: i32,
 ) -> *const ByteBuffer {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
+    let req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     let headers = req_ctx.response_headers.as_ref().unwrap();
@@ -528,7 +402,7 @@ pub unsafe extern "C" fn yaha_request_response_get_header_value(
     req_ctx: *const YahaNativeRequestContext,
     index: i32,
 ) -> *const ByteBuffer {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
+    let req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     let headers = req_ctx.response_headers.as_ref().unwrap();
@@ -542,7 +416,7 @@ pub unsafe extern "C" fn yaha_request_response_get_trailers_count(
     ctx: *const YahaNativeContext,
     req_ctx: *const YahaNativeRequestContext,
 ) -> i32 {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
+    let req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     match req_ctx.response_trailers.as_ref() {
@@ -557,7 +431,7 @@ pub unsafe extern "C" fn yaha_request_response_get_trailers_key(
     req_ctx: *const YahaNativeRequestContext,
     index: i32,
 ) -> *const ByteBuffer {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
+    let req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     let trailers = req_ctx.response_trailers.as_ref().unwrap();
@@ -572,7 +446,7 @@ pub unsafe extern "C" fn yaha_request_response_get_trailers_value(
     req_ctx: *const YahaNativeRequestContext,
     index: i32,
 ) -> *const ByteBuffer {
-    let req_ctx = to_internal(req_ctx).lock().unwrap();
+    let req_ctx = context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     let trailers = req_ctx.response_trailers.as_ref().unwrap();
@@ -586,6 +460,6 @@ pub extern "C" fn yaha_request_destroy(
     ctx: *const YahaNativeContext,
     req_ctx: *const YahaNativeRequestContext,
 ) -> bool {
-    let req_ctx = to_internal_arc(req_ctx);
+    let req_ctx = context::to_internal_arc(req_ctx);
     true
 }

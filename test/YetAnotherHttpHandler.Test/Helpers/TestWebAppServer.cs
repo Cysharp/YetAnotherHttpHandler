@@ -61,15 +61,25 @@ public class TestWebAppServer : IDisposable
         _appTask = app.RunAsync();
     }
 
-    public static async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper = null)
+    public static async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper = null, CancellationToken shutdownToken = default)
         where T : ITestServerBuilder
     {
         var port = TestServerHelper.GetUnusedEphemeralPort();
         var server = new TestWebAppServer(port, listenMode, testOutputHelper, T.BuildApplication);
         await server._waitForAppStarted.Task;
+
+        shutdownToken.Register(() =>
+        {
+            server.Shutdown();
+        });
+
         return server;
     }
 
+    public void Shutdown()
+    {
+        _appLifetime.StopApplication();
+    }
 
     public void Dispose()
     {

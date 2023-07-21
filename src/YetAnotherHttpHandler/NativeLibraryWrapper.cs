@@ -9,6 +9,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 #if UNITY_2019_1_OR_NEWER
@@ -26,8 +28,8 @@ namespace Cysharp.Net.Http
         public unsafe NativeLibraryWrapper()
         {
             //Console.WriteLine("init_runtime");
-#if FALSE
-            _ctx = NativeMethods.yaha_init_runtime(&OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
+#if NET5_0_OR_GREATER
+            _ctx = NativeMethodsFuncPtr.yaha_init_runtime(&OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
 #else
             _ctx = NativeMethods.yaha_init_runtime(OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
 #endif
@@ -36,6 +38,11 @@ namespace Cysharp.Net.Http
         public unsafe RequestContext Send(HttpRequestMessage request)
         {
             //Console.WriteLine($"begin_request: Begin ({url})");
+
+            if (request.RequestUri is null)
+            {
+                throw new InvalidOperationException("A request URI cannot be null.");
+            }
 
             var requestSequence = Interlocked.Increment(ref _requestSequence);
             var reqCtx = NativeMethods.yaha_request_new(_ctx, requestSequence);
@@ -266,7 +273,6 @@ namespace Cysharp.Net.Http
             internal Response(HttpRequestMessage requestMessage, RequestContext requestContext)
             {
                 _responseTask = new TaskCompletionSource<HttpResponseMessage>();
-                _responseTask.Task.ContinueWith(x => Debug.WriteLine("HttpResponseMessage Ready"));
 
                 _message = new HttpResponseMessage()
                 {
@@ -357,7 +363,7 @@ namespace Cysharp.Net.Http
                 _pipe.Writer.Complete();
 
                 var ex = new HttpRequestException(errorMessage);
-#if NET5_OR_GREATER
+#if NET5_0_OR_GREATER
                 ExceptionDispatchInfo.SetCurrentStackTrace(ex);
 #else
                 try
@@ -384,7 +390,7 @@ namespace Cysharp.Net.Http
             }
         }
         
-    #if FALSE
+    #if NET5_0_OR_GREATER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_status_code_and_headers_receive_delegate))]
@@ -417,7 +423,7 @@ namespace Cysharp.Net.Http
             }
         }
 
-    #if FALSE
+    #if NET5_0_OR_GREATER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_receive_delegate))]
@@ -427,7 +433,7 @@ namespace Cysharp.Net.Http
             _inflightRequests[reqSeq].Response.Write(bufSpan);
         }
 
-    #if FALSE
+    #if NET5_0_OR_GREATER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
     #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_complete_delegate))]

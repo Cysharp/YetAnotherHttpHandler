@@ -16,15 +16,15 @@ public class Http2ClearTextTest : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
         {
             Version = HttpVersion.Version20,
         };
-        var response = await httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
 
         // Assert
         Assert.Equal("__OK__", responseBody);
@@ -38,15 +38,15 @@ public class Http2ClearTextTest : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/not-found")
         {
             Version = HttpVersion.Version20,
         };
-        var response = await httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
 
         // Assert
         Assert.Equal("__Not_Found__", responseBody);

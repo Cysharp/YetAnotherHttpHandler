@@ -19,7 +19,7 @@ namespace Cysharp.Net.Http
             _requestContext = requestContext;
         }
 
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
         {
             //Console.WriteLine("SerializeToStreamAsync");
             await _pipeReader.CopyToAsync(stream).ConfigureAwait(false);

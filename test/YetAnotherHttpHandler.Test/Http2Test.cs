@@ -19,15 +19,15 @@ public class Http2Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
         {
             Version = HttpVersion.Version20,
         };
-        var response = await httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
 
         // Assert
         Assert.Equal("__OK__", responseBody);
@@ -41,15 +41,15 @@ public class Http2Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/not-found")
         {
             Version = HttpVersion.Version20,
         };
-        var response = await httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
 
         // Assert
         Assert.Equal("__Not_Found__", responseBody);
@@ -63,7 +63,7 @@ public class Http2Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
         var content = new ByteArrayContent(new byte[] { 1, 2, 3, 45, 67 });
@@ -73,8 +73,8 @@ public class Http2Test : UseTestServerTestBase
             Version = HttpVersion.Version20,
             Content = content,
         };
-        var response = await httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsByteArrayAsync();
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsByteArrayAsync().WaitAsync(TimeoutToken);
 
         // Assert
         Assert.Equal(HttpVersion.Version20, response.Version);
@@ -89,7 +89,7 @@ public class Http2Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
         var pipe = new Pipe();
@@ -100,8 +100,8 @@ public class Http2Test : UseTestServerTestBase
             Version = HttpVersion.Version20,
             Content = content,
         };
-        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead); // wait for receive response headers.
-        var responseBodyTask = response.Content.ReadAsByteArrayAsync();
+        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken); // wait for receive response headers.
+        var responseBodyTask = response.Content.ReadAsByteArrayAsync().WaitAsync(TimeoutToken);
         await Task.Delay(100);
 
         // Assert
@@ -117,7 +117,7 @@ public class Http2Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
         var pipe = new Pipe();
@@ -128,7 +128,7 @@ public class Http2Test : UseTestServerTestBase
             Version = HttpVersion.Version20,
             Content = content,
         };
-        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead); // wait for receive response headers.
+        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken); // wait for receive response headers.
         var written = 0L;
         var taskSend = Task.Run(async () =>
         {
@@ -142,8 +142,8 @@ public class Http2Test : UseTestServerTestBase
             }
             await pipe.Writer.CompleteAsync();
         });
-        await taskSend;
-        var responseBody = await response.Content.ReadAsStringAsync(); // = request body bytes.
+        await taskSend.WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken); // = request body bytes.
 
         // Assert
         Assert.Equal(HttpVersion.Version20, response.Version);
@@ -157,7 +157,7 @@ public class Http2Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await TestWebAppServer.LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only, TestOutputHelper);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
         var content = new ByteArrayContent(new byte[] { 1, 2, 3, 45, 67 });
@@ -167,8 +167,8 @@ public class Http2Test : UseTestServerTestBase
             Version = HttpVersion.Version20,
             Content = content,
         };
-        var response = await httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsByteArrayAsync();
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsByteArrayAsync().WaitAsync(TimeoutToken);
 
         // Assert
         Assert.Equal(HttpVersion.Version20, response.Version);

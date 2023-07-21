@@ -1,7 +1,5 @@
 use std::ptr::null;
 
-use hyper::{http::HeaderValue, HeaderMap};
-
 #[repr(C)]
 pub struct StringBuffer {
     pub ptr: *const u8,
