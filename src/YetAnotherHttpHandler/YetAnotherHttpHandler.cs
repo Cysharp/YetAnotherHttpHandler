@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,7 +42,6 @@ namespace Cysharp.Net.Http
             }
 
             //Console.WriteLine($"{nameof(YetAnotherHttpHandler)}.SendAsync: End");
-
             return await requestContext.Response.GetResponseAsync().ConfigureAwait(false);
         }
 

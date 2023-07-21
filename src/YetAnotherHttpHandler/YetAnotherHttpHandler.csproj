@@ -16,6 +16,10 @@
     <PackageReference Include="System.IO.Pipelines" Version="7.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="YetAnotherHttpHandler.Test" />
+  </ItemGroup>
+
   <PropertyGroup>
     <YahaNativeLibraryOriginalName>yaha_native</YahaNativeLibraryOriginalName>
     <YahaNativeLibraryName>Cysharp.Net.Http.YetAnotherHttpHandler.Native</YahaNativeLibraryName>

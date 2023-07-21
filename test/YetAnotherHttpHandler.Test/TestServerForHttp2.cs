@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.IO.Pipelines;
+using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -16,6 +19,50 @@ class TestServerForHttp2 : ITestServerBuilder
         {
             httpContext.Response.Headers["x-test"] = "foo";
             return Results.Content("__OK__");
+        });
+        app.MapPost("/post-echo", async (HttpContext httpContext, Stream bodyStream) =>
+        {
+            httpContext.Response.Headers["x-request-content-type"] = httpContext.Request.ContentType;
+
+            return Results.Bytes(await bodyStream.ToArrayAsync(), "application/octet-stream");
+        });
+        app.MapPost("/post-streaming", async (HttpContext httpContext, PipeReader reader) =>
+        {
+            // Send status code and response headers.
+            httpContext.Response.Headers["x-header-1"] = "foo";
+            httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
+            await httpContext.Response.BodyWriter.FlushAsync();
+
+            var readLen = 0L;
+            while (true)
+            {
+                var readResult = await reader.ReadAsync();
+                readLen += readResult.Buffer.Length;
+                reader.AdvanceTo(readResult.Buffer.End);
+                if (readResult.IsCompleted || readResult.IsCanceled) break;
+            }
+
+            await httpContext.Response.WriteAsync(readLen.ToString());
+
+            return Results.Empty;
+        });
+        app.MapPost("/post-response-trailers", (HttpContext httpContext) =>
+        {
+            httpContext.Response.AppendTrailer("x-trailer-1", "foo");
+            httpContext.Response.AppendTrailer("x-trailer-2", "bar");
+
+            return Results.Ok("__OK__");
+        });
+        app.MapPost("/post-response-headers-immediately", async (HttpContext httpContext, PipeReader reader) =>
+        {
+            // Send status code and response headers.
+            httpContext.Response.Headers["x-header-1"] = "foo";
+            httpContext.Response.StatusCode = (int)HttpStatusCode.Accepted;
+            await httpContext.Response.BodyWriter.FlushAsync();
+
+            await Task.Delay(100000);
+            await httpContext.Response.WriteAsync("__OK__");
+            return Results.Empty;
         });
 
         // HTTP/2

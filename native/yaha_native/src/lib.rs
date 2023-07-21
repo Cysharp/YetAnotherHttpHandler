@@ -21,9 +21,9 @@ use interop::{ByteBuffer, StringBuffer};
 mod interop;
 
 type OnStatusCodeAndHeadersReceive =
-    extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion) -> ();
-type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8) -> ();
-type OnComplete = extern "C" fn(req_seq: i32, has_error: u8) -> ();
+    extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion);
+type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8);
+type OnComplete = extern "C" fn(req_seq: i32, has_error: u8);
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -114,9 +114,9 @@ pub extern "C" fn yaha_init_runtime(
         req_seq: i32,
         status_code: i32,
         version: YahaHttpVersion,
-    ) -> (),
-    on_receive: extern "C" fn(req_seq: i32, length: usize, buf: *const u8) -> (),
-    on_complete: extern "C" fn(req_seq: i32, has_error: u8) -> (),
+    ),
+    on_receive: extern "C" fn(req_seq: i32, length: usize, buf: *const u8),
+    on_complete: extern "C" fn(req_seq: i32, has_error: u8),
 ) -> *mut YahaNativeContext {
     let ctx = Box::new(YahaNativeContextInternal::new(
         on_status_code_and_headers_receive,
@@ -323,7 +323,7 @@ pub extern "C" fn yaha_request_begin(
     // Begin request on async runtime.
     let body;
     let runtime_handle = ctx.runtime.handle().clone();
-    let req_ctx = to_internal_arc(req_ctx);
+    let req_ctx = to_internal_arc(req_ctx); // NOTE: we must call `Arc::into_raw` at last of the method.
 
     {
         let mut req_ctx = req_ctx.lock().unwrap();
@@ -464,12 +464,21 @@ pub extern "C" fn yaha_request_write_body(
     debug_assert!(!req_ctx.completed);
 
     let slice = unsafe { std::slice::from_raw_parts(buf, len) };
-    req_ctx
+    let result = req_ctx
         .sender
         .as_mut()
         .unwrap()
-        .try_send_data(Bytes::from_static(slice))
-        .is_ok()
+        .try_send_data(Bytes::from_static(slice));
+
+    match result {
+        Ok(()) => true,
+        Err(e) => {
+            LAST_ERROR.with(|v| {
+                *v.borrow_mut() = Some("Failed to write request body.".to_string());
+            });
+            false
+        },
+    }
 }
 
 #[no_mangle]

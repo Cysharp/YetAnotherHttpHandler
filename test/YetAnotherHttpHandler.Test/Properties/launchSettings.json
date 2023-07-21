@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "YetAnotherHttpHandler.Test": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

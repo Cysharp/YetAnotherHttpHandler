@@ -23,6 +23,9 @@ public class TestWebAppServer : IDisposable
     private TestWebAppServer(int port, TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper, Func<WebApplicationBuilder, WebApplication> webAppBuilder)
     {
         Port = port;
+        IsSecure = listenMode is TestWebAppServerListenMode.SecureHttp1Only or
+            TestWebAppServerListenMode.SecureHttp2Only or
+            TestWebAppServerListenMode.SecureHttp1AndHttp2;
 
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
         builder.WebHost.ConfigureKestrel(options =>
@@ -39,9 +42,7 @@ public class TestWebAppServer : IDisposable
                     _ => throw new NotSupportedException(),
                 };
 
-                if (listenMode is TestWebAppServerListenMode.SecureHttp1Only or
-                    TestWebAppServerListenMode.SecureHttp2Only or
-                    TestWebAppServerListenMode.SecureHttp1AndHttp2)
+                if (IsSecure)
                 {
                     listenOptions.UseHttps();
                 }
