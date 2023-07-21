@@ -50,6 +50,7 @@ public class TestWebAppServer : IDisposable
         });
         if (testOutputHelper is not null)
         {
+            builder.Logging.SetMinimumLevel(LogLevel.Trace);
             builder.Logging.AddProvider(new TestOutputLoggerProvider(testOutputHelper));
         }
 

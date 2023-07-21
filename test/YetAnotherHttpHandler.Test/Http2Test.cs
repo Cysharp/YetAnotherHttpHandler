@@ -84,7 +84,7 @@ public class Http2Test : UseTestServerTestBase
     }
 
     [Fact]
-    public async Task Post_Receive_ResponseHeaders_Before_RequestBody()
+    public async Task Post_NoDuplex_Receive_ResponseHeaders_Before_ResponseBody()
     {
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
@@ -92,8 +92,7 @@ public class Http2Test : UseTestServerTestBase
         using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
 
         // Act
-        var pipe = new Pipe();
-        var content = new StreamContent(pipe.Reader.AsStream());
+        var content = new ByteArrayContent(new byte[] { 0 });
         content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
         var request = new HttpRequestMessage(HttpMethod.Post, $"{server.BaseUri}/post-response-headers-immediately")
         {
@@ -110,9 +109,33 @@ public class Http2Test : UseTestServerTestBase
         Assert.Equal("foo", response.Headers.TryGetValues("x-header-1", out var values) ? string.Join(',', values) : null);
         Assert.False(responseBodyTask.IsCompleted);
     }
+    
+    [Fact]
+    public async Task Post_NoDuplex_DoNot_Receive_ResponseHeaders_Before_RequestBodyCompleted()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        var httpClient = new HttpClient(httpHandler);
+        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+
+        // Act
+        var pipe = new Pipe();
+        var content = new StreamContent(pipe.Reader.AsStream());
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{server.BaseUri}/post-response-headers-immediately")
+        {
+            Version = HttpVersion.Version20,
+            Content = content,
+        };
+        var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        var ex = await Assert.ThrowsAsync<TaskCanceledException>(async () => await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(timeout.Token));
+
+        // Assert
+        Assert.Equal(timeout.Token, ex.CancellationToken);
+    }
 
     [Fact]
-    public async Task Post_Body_StreamingBody()
+    public async Task Post_NoDuplex_Body_StreamingBody()
     {
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
@@ -128,7 +151,6 @@ public class Http2Test : UseTestServerTestBase
             Version = HttpVersion.Version20,
             Content = content,
         };
-        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken); // wait for receive response headers.
         var written = 0L;
         var taskSend = Task.Run(async () =>
         {
@@ -142,7 +164,7 @@ public class Http2Test : UseTestServerTestBase
             }
             await pipe.Writer.CompleteAsync();
         });
-        await taskSend.WaitAsync(TimeoutToken);
+        var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken); // wait for receive response headers.
         var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken); // = request body bytes.
 
         // Assert
@@ -150,6 +172,7 @@ public class Http2Test : UseTestServerTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal((1024 * 1024 * 10).ToString(), responseBody);
     }
+
 
     [Fact]
     public async Task Post_ResponseTrailers()
