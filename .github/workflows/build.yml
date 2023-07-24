@@ -21,7 +21,7 @@ jobs:
         with:
           name: win-x64
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Test
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-linux-x64:
     name: Build Native library (linux-x64)
@@ -37,7 +37,7 @@ jobs:
         with:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Test
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-osx-x64:
     name: Build Native library (osx-x64)
@@ -53,7 +53,7 @@ jobs:
         with:
           name: osx-x64
           path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Test
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-osx-arm64:
     name: Build Native library (osx-arm64)
