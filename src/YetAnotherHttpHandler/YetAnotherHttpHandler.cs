@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ namespace Cysharp.Net.Http
         public YetAnotherHttpHandler()
         {
             _wrapper = new NativeLibraryWrapper();
+            if (YahaEventSource.Log.IsEnabled) YahaEventSource.Log.Info($"YetAnotherHttpHandler created");
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -21,19 +23,17 @@ namespace Cysharp.Net.Http
             {
                 throw new InvalidOperationException("RequestUri cannot be null.");
             }
+            if (YahaEventSource.Log.IsEnabled) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}");
 
-            //Console.WriteLine($"{nameof(YetAnotherHttpHandler)}.SendAsync: Begin");
-
-            var requestContext = _wrapper.Send(request);
-
+            var requestContext = _wrapper.Send(request, cancellationToken);
             if (request.Content != null)
             {
+                if (YahaEventSource.Log.IsEnabled) YahaEventSource.Log.Info($"Start sending the request body: {request.Content.GetType().FullName}");
                 _ = Task.Run(async () =>
                 {
-                    //Console.WriteLine("request.Content.CopyToAsync: Begin");
-                    await request.Content.CopyToAsync(requestContext.Writer.AsStream()).ConfigureAwait(false);
+                    var src = await request.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    await src.CopyToAsync(requestContext.Writer, cancellationToken).ConfigureAwait(false);
                     await requestContext.Writer.CompleteAsync().ConfigureAwait(false);
-                    //Console.WriteLine("request.Content.CopyToAsync: End");
                 });
             }
             else
@@ -41,12 +41,12 @@ namespace Cysharp.Net.Http
                 await requestContext.Writer.CompleteAsync().ConfigureAwait(false);
             }
 
-            //Console.WriteLine($"{nameof(YetAnotherHttpHandler)}.SendAsync: End");
             return await requestContext.Response.GetResponseAsync().ConfigureAwait(false);
         }
 
         protected override void Dispose(bool disposing)
         {
+            if (YahaEventSource.Log.IsEnabled) YahaEventSource.Log.Info($"Disposing YetAnotherHttpHandler");
             _wrapper.Dispose();
         }
     }

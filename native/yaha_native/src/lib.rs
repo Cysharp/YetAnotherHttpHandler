@@ -344,15 +344,7 @@ pub extern "C" fn yaha_request_write_body(
         .unwrap()
         .try_send_data(Bytes::from_static(slice));
 
-    match result {
-        Ok(()) => true,
-        Err(e) => {
-            LAST_ERROR.with(|v| {
-                *v.borrow_mut() = Some("Failed to write request body.".to_string());
-            });
-            false
-        }
-    }
+    result.is_ok()
 }
 
 #[no_mangle]

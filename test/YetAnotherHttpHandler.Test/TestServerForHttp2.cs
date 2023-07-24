@@ -64,6 +64,39 @@ class TestServerForHttp2 : ITestServerBuilder
             await httpContext.Response.WriteAsync("__OK__");
             return Results.Empty;
         });
+        app.MapPost("/post-abort-while-reading", async (HttpContext httpContext, PipeReader reader) =>
+        {
+            var readResult = await reader.ReadAsync();
+            reader.AdvanceTo(readResult.Buffer.End);
+            httpContext.Abort();
+
+            return Results.Empty;
+        });
+        app.MapPost("/post-null", async (HttpContext httpContext, PipeReader reader) =>
+        {
+            while (!httpContext.RequestAborted.IsCancellationRequested)
+            {
+                var readResult = await reader.ReadAsync();
+                reader.AdvanceTo(readResult.Buffer.End);
+                if (readResult.IsCompleted || readResult.IsCanceled) break;
+            }
+            return Results.Empty;
+        });
+        app.MapPost("/post-null-duplex", async (HttpContext httpContext, PipeReader reader) =>
+        {
+            // Send status code and response headers.
+            httpContext.Response.Headers["x-header-1"] = "foo";
+            httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
+            await httpContext.Response.BodyWriter.FlushAsync();
+
+            while (!httpContext.RequestAborted.IsCancellationRequested)
+            {
+                var readResult = await reader.ReadAsync();
+                reader.AdvanceTo(readResult.Buffer.End);
+                if (readResult.IsCompleted || readResult.IsCanceled) break;
+            }
+            return Results.Empty;
+        });
 
         // HTTP/2
         app.MapGet("/error-reset", (HttpContext httpContext) =>

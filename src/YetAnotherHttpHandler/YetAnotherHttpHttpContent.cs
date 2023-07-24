@@ -19,17 +19,32 @@ namespace Cysharp.Net.Http
             _requestContext = requestContext;
         }
 
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            => SerializeToStreamAsync(stream, context, default);
+
+#if NET5_0_OR_GREATER
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+#else
+        protected async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+#endif
         {
-            //Console.WriteLine("SerializeToStreamAsync");
-            await _pipeReader.CopyToAsync(stream).ConfigureAwait(false);
+            await _pipeReader.CopyToAsync(stream, cancellationToken).ConfigureAwait(false);
             await _pipeReader.CompleteAsync().ConfigureAwait(false);
 
             _requestContext.Dispose();
         }
 
         protected override Task<Stream> CreateContentReadStreamAsync()
-            => Task.FromResult<Stream>(new StreamWrapper(_requestContext, _pipeReader.AsStream()));
+            => CreateContentReadStreamAsync(default);
+
+#if NET5_0_OR_GREATER
+        protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
+#else
+        protected Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
+#endif
+        {
+            return Task.FromResult<Stream>(new StreamWrapper(_requestContext, _pipeReader.AsStream()));
+        }
 
         protected override bool TryComputeLength(out long length)
         {

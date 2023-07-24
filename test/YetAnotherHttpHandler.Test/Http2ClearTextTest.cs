@@ -16,7 +16,7 @@ public class Http2ClearTextTest : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
+        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
@@ -38,7 +38,7 @@ public class Http2ClearTextTest : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
+        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/not-found")

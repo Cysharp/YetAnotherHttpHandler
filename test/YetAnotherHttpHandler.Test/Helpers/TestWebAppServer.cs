@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -9,7 +10,7 @@ using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test.Helpers;
 
-public class TestWebAppServer : IDisposable
+public class TestWebAppServer : IAsyncDisposable
 {
     private readonly Task _appTask;
     private readonly IHostApplicationLifetime _appLifetime;
@@ -50,7 +51,10 @@ public class TestWebAppServer : IDisposable
         });
         if (testOutputHelper is not null)
         {
-            builder.Logging.SetMinimumLevel(LogLevel.Trace);
+            if (Debugger.IsAttached)
+            {
+                builder.Logging.SetMinimumLevel(LogLevel.Trace);
+            }
             builder.Logging.AddProvider(new TestOutputLoggerProvider(testOutputHelper));
         }
 
@@ -82,9 +86,16 @@ public class TestWebAppServer : IDisposable
         _appLifetime.StopApplication();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _appLifetime.StopApplication();
+        try
+        {
+            await _appTask.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+        catch (TimeoutException)
+        {
+        }
     }
 }
 
