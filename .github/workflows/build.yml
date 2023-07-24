@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 
 env:
-  _RUST_BUILD_CONFIG: release
+  _RUST_BUILD_CONFIG: debug
   _DOTNET_BUILD_CONFIG: Debug
 
 jobs:
@@ -21,6 +21,8 @@ jobs:
         with:
           name: win-x64
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Test
+
   build-linux-x64:
     name: Build Native library (linux-x64)
     runs-on: ubuntu-latest
@@ -35,6 +37,8 @@ jobs:
         with:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Test
+
   build-osx-x64:
     name: Build Native library (osx-x64)
     runs-on: macos-latest
@@ -49,6 +53,8 @@ jobs:
         with:
           name: osx-x64
           path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Test
+
   build-osx-arm64:
     name: Build Native library (osx-arm64)
     runs-on: macos-latest
@@ -64,6 +70,7 @@ jobs:
         with:
           name: osx-arm64
           path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
+
   build-ios-x64:
     name: Build Native library (ios-x64)
     runs-on: macos-latest
@@ -79,6 +86,7 @@ jobs:
         with:
           name: ios-x64
           path: native/target/x86_64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
+
   build-ios-arm64:
     name: Build Native library (ios-arm64)
     runs-on: macos-latest
@@ -94,6 +102,7 @@ jobs:
         with:
           name: ios-arm64
           path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
+
   build-android-arm64:
     name: Build Native library (android-arm64)
     runs-on: ubuntu-latest
@@ -111,6 +120,7 @@ jobs:
         with:
           name: anrdoid-arm64
           path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+
   build-dotnet:
     name: Build and pack .NET library
     needs: 
