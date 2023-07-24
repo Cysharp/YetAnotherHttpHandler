@@ -14,7 +14,7 @@ public class Http2ClearTextTest : UseTestServerTestBase
     public async Task Get_Ok()
     {
         // Arrange
-        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler(){ Http2Only = true };
         var httpClient = new HttpClient(httpHandler);
         await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
 
@@ -36,7 +36,7 @@ public class Http2ClearTextTest : UseTestServerTestBase
     public async Task Get_NotOk()
     {
         // Arrange
-        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler(){ Http2Only = true };
         var httpClient = new HttpClient(httpHandler);
         await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
 

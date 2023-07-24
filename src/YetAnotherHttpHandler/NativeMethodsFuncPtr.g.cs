@@ -25,6 +25,45 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_dispose_runtime", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_dispose_runtime(YahaNativeContext* ctx);
 
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_pool_idle_timeout", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_pool_idle_timeout(YahaNativeContext* ctx, ulong val_milliseconds);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_pool_max_idle_per_host", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_pool_max_idle_per_host(YahaNativeContext* ctx, nuint max_idle);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_only", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_only(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_initial_stream_window_size", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_initial_stream_window_size(YahaNativeContext* ctx, uint val);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_initial_connection_window_size", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_initial_connection_window_size(YahaNativeContext* ctx, uint val);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_adaptive_window", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_adaptive_window(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_max_frame_size", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_max_frame_size(YahaNativeContext* ctx, uint val);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_keep_alive_interval", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_keep_alive_interval(YahaNativeContext* ctx, ulong interval_milliseconds);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_keep_alive_timeout", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_keep_alive_timeout(YahaNativeContext* ctx, ulong timeout_milliseconds);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_keep_alive_while_idle", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_keep_alive_while_idle(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_max_concurrent_reset_streams", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_max_concurrent_reset_streams(YahaNativeContext* ctx, nuint max);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_max_send_buf_size", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_http2_max_send_buf_size(YahaNativeContext* ctx, nuint max);
+
+        [DllImport(__DllName, EntryPoint = "yaha_build_client", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_build_client(YahaNativeContext* ctx);
+
         [DllImport(__DllName, EntryPoint = "yaha_request_new", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern YahaNativeRequestContext* yaha_request_new(YahaNativeContext* ctx, int seq);
 

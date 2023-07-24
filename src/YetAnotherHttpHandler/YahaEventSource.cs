@@ -15,36 +15,32 @@ namespace Cysharp.Net.Http
         public const int EventIdError = 40;
 
         public static YahaEventSource Log { get; } = new YahaEventSource();
-        public bool IsEnabled { get; set; }
-#if DEBUG
-            = true;
-#endif
 
         [Event(EventIdTrace, Level = EventLevel.Verbose, Message = "{0}")]
         public void Trace(string message)
         {
-            Debug.Assert(IsEnabled);
+            Debug.Assert(IsEnabled());
             WriteEvent(EventIdTrace, message);
         }
 
         [Event(EventIdInfo, Level = EventLevel.Informational, Message = "{0}")]
         public void Info(string message)
         {
-            Debug.Assert(IsEnabled);
+            Debug.Assert(IsEnabled());
             WriteEvent(EventIdInfo, message);
         }
 
         [Event(EventIdWarning, Level = EventLevel.Warning, Message = "{0}")]
         public void Warning(string message)
         {
-            Debug.Assert(IsEnabled);
+            Debug.Assert(IsEnabled());
             WriteEvent(EventIdWarning, message);
         }
 
         [Event(EventIdError, Level = EventLevel.Error, Message = "{0}")]
         public void Error(string message)
         {
-            Debug.Assert(IsEnabled);
+            Debug.Assert(IsEnabled());
             WriteEvent(EventIdError, message);
         }
     }

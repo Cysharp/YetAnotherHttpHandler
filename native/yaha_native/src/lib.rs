@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     ptr::null,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}, time::Duration,
 };
 
 use hyper::{
@@ -61,8 +61,86 @@ pub extern "C" fn yaha_init_runtime(
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) -> () {
+pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) {
     let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_pool_idle_timeout(ctx: *mut YahaNativeContext, val_milliseconds: u64) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().pool_idle_timeout(Duration::from_millis(val_milliseconds));
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_pool_max_idle_per_host(ctx: *mut YahaNativeContext, max_idle: usize) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().pool_max_idle_per_host(max_idle);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_only(ctx: *mut YahaNativeContext, val: bool) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_only(val);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_initial_stream_window_size(ctx: *mut YahaNativeContext, val: u32) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_initial_stream_window_size(val);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_initial_connection_window_size(ctx: *mut YahaNativeContext, val: u32) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_initial_connection_window_size(val);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_adaptive_window(ctx: *mut YahaNativeContext, val: bool) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_adaptive_window(val);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_max_frame_size(ctx: *mut YahaNativeContext, val: u32) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_max_frame_size(val);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_keep_alive_interval(ctx: *mut YahaNativeContext, interval_milliseconds: u64) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_keep_alive_interval(Duration::from_millis(interval_milliseconds));
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_keep_alive_timeout(ctx: *mut YahaNativeContext, timeout_milliseconds: u64) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_keep_alive_timeout(Duration::from_millis(timeout_milliseconds));
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_keep_alive_while_idle(ctx: *mut YahaNativeContext, val: bool) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_keep_alive_while_idle(val);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_max_concurrent_reset_streams(ctx: *mut YahaNativeContext, max: usize) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_max_concurrent_reset_streams(max.try_into().unwrap());
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_max_send_buf_size(ctx: *mut YahaNativeContext, max: usize) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder.as_mut().unwrap().http2_max_send_buf_size(max);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.build_client(true);
 }
 
 #[cfg(feature = "rustls")]
@@ -222,8 +300,17 @@ pub extern "C" fn yaha_request_begin(
                 (req_ctx.seq, builder.body(body).unwrap())
             };
 
+            //
+            if ctx.client.as_ref().is_none() {
+                LAST_ERROR.with(|v| {
+                    *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
+                });
+                (ctx.on_complete)(seq, 1);
+                return;
+            }
+
             // Send a request and wait for response status and headers.
-            let res = ctx.client.request(req).await;
+            let res = ctx.client.as_ref().unwrap().request(req).await;
             if let Err(err) = res {
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some(err.to_string());
