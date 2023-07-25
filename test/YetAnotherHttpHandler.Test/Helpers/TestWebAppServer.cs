@@ -21,7 +21,7 @@ public class TestWebAppServer : IAsyncDisposable
 
     public string BaseUri => $"{(IsSecure ? "https" : "http")}://localhost:{Port}";
 
-    private TestWebAppServer(int port, TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper, Func<WebApplicationBuilder, WebApplication> webAppBuilder)
+    private TestWebAppServer(int port, TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper, Func<WebApplicationBuilder, WebApplication> webAppBuilder, Action<WebApplicationBuilder>? configure)
     {
         Port = port;
         IsSecure = listenMode is TestWebAppServerListenMode.SecureHttp1Only or
@@ -29,6 +29,9 @@ public class TestWebAppServer : IAsyncDisposable
             TestWebAppServerListenMode.SecureHttp1AndHttp2;
 
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
+        
+        configure?.Invoke(builder);
+
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.ListenLocalhost(port, listenOptions =>
@@ -66,11 +69,11 @@ public class TestWebAppServer : IAsyncDisposable
         _appTask = app.RunAsync();
     }
 
-    public static async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper = null, CancellationToken shutdownToken = default)
+    public static async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper = null, CancellationToken shutdownToken = default, Action<WebApplicationBuilder>? configure = null)
         where T : ITestServerBuilder
     {
         var port = TestServerHelper.GetUnusedEphemeralPort();
-        var server = new TestWebAppServer(port, listenMode, testOutputHelper, T.BuildApplication);
+        var server = new TestWebAppServer(port, listenMode, testOutputHelper, T.BuildApplication, configure);
         await server._waitForAppStarted.Task;
 
         shutdownToken.Register(() =>

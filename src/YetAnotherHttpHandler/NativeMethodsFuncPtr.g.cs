@@ -25,6 +25,9 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_dispose_runtime", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_dispose_runtime(YahaNativeContext* ctx);
 
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_skip_certificate_verification", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_skip_certificate_verification(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
+
         [DllImport(__DllName, EntryPoint = "yaha_client_config_pool_idle_timeout", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_pool_idle_timeout(YahaNativeContext* ctx, ulong val_milliseconds);
 

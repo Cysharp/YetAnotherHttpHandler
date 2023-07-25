@@ -18,6 +18,7 @@ pub struct YahaNativeContext;
 pub struct YahaNativeContextInternal {
     pub runtime: tokio::runtime::Runtime,
     pub client_builder: Option<client::Builder>,
+    pub skip_certificate_verification: Option<bool>,
     pub client: Option<Client<HttpsConnector<HttpConnector>, hyper::Body>>,
     pub on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
     pub on_receive: OnReceive,
@@ -38,6 +39,7 @@ impl YahaNativeContextInternal {
             runtime: tokio::runtime::Runtime::new().unwrap(),
             client: None,
             client_builder: Some(Client::builder()),
+            skip_certificate_verification: None,
             on_status_code_and_headers_receive,
             on_receive,
             on_complete,

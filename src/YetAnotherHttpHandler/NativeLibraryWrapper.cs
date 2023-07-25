@@ -1,3 +1,7 @@
+#if NET5_0_OR_GREATER
+#define USE_FUNCTION_POINTER
+#endif
+
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -27,13 +31,18 @@ namespace Cysharp.Net.Http
 
         public unsafe NativeLibraryWrapper(NativeClientSettings settings)
         {
-            //Console.WriteLine("init_runtime");
-#if NET5_0_OR_GREATER
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_runtime");
+#if USE_FUNCTION_POINTER
             _ctx = NativeMethodsFuncPtr.yaha_init_runtime(&OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
 #else
             _ctx = NativeMethods.yaha_init_runtime(OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
 #endif
 
+            if (settings.SkipCertificateVerification is {} skipCertificateVerification)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.SkipCertificateVerification)}' = {skipCertificateVerification}");
+                NativeMethods.yaha_client_config_skip_certificate_verification(_ctx, skipCertificateVerification);
+            }
             if (settings.Http2Only is {} http2Only)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2Only)}' = {http2Only}");
@@ -473,9 +482,9 @@ namespace Cysharp.Net.Http
             }
         }
         
-    #if NET5_0_OR_GREATER
+#if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    #endif
+#endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_status_code_and_headers_receive_delegate))]
         private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, int statusCode, YahaHttpVersion version)
         {
@@ -508,7 +517,7 @@ namespace Cysharp.Net.Http
             }
         }
 
-#if NET5_0_OR_GREATER
+#if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_receive_delegate))]
@@ -520,7 +529,7 @@ namespace Cysharp.Net.Http
             _inflightRequests[reqSeq].Response.Write(bufSpan);
         }
 
-#if NET5_0_OR_GREATER
+#if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_complete_delegate))]

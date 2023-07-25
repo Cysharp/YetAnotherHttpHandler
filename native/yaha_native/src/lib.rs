@@ -66,6 +66,11 @@ pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) {
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_skip_certificate_verification(ctx: *mut YahaNativeContext, val: bool) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.skip_certificate_verification = Some(val);
+}
+#[no_mangle]
 pub extern "C" fn yaha_client_config_pool_idle_timeout(ctx: *mut YahaNativeContext, val_milliseconds: u64) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.client_builder.as_mut().unwrap().pool_idle_timeout(Duration::from_millis(val_milliseconds));
@@ -140,7 +145,7 @@ pub extern "C" fn yaha_client_config_http2_max_send_buf_size(ctx: *mut YahaNativ
 #[no_mangle]
 pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.build_client(true);
+    ctx.build_client(ctx.skip_certificate_verification.unwrap_or_default());
 }
 
 #[cfg(feature = "rustls")]

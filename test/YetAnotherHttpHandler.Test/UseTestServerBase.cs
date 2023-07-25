@@ -1,4 +1,5 @@
 using _YetAnotherHttpHandler.Test.Helpers;
+using Microsoft.AspNetCore.Builder;
 using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
@@ -18,10 +19,10 @@ public abstract class UseTestServerTestBase : TimeoutTestBase, IDisposable
         });
     }
 
-    protected async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode)
+    protected async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode, Action<WebApplicationBuilder>? configure = null)
         where T : ITestServerBuilder
     {
-        return await TestWebAppServer.LaunchAsync<T>(listenMode, TestOutputHelper, TimeoutToken);
+        return await TestWebAppServer.LaunchAsync<T>(listenMode, TestOutputHelper, TimeoutToken, configure);
     }
 
     public void Dispose()
