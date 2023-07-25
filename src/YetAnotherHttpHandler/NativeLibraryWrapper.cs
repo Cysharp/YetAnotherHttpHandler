@@ -354,7 +354,7 @@ namespace Cysharp.Net.Http
                 _cancellationToken = cancellationToken;
                 _tokenRegistration = cancellationToken.Register((state) =>
                 {
-                    ((Response)state).Cancel();
+                    ((Response)state!).Cancel();
                 }, this);
 
                 _message = new HttpResponseMessage()
@@ -508,9 +508,9 @@ namespace Cysharp.Net.Http
             }
         }
 
-    #if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    #endif
+#endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_receive_delegate))]
         private static unsafe void OnReceive(int reqSeq, UIntPtr length, byte* buf)
         {
@@ -520,9 +520,9 @@ namespace Cysharp.Net.Http
             _inflightRequests[reqSeq].Response.Write(bufSpan);
         }
 
-    #if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-    #endif
+#endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_complete_delegate))]
         private static unsafe void OnComplete(int reqSeq, byte hasError)
         {

@@ -7,7 +7,7 @@ namespace _YetAnotherHttpHandler.Test;
 
 internal class YahaEventListener : EventListener
 {
-    private static YahaEventListener _eventListener;
+    private static YahaEventListener? _eventListener;
     private const string ProviderName = "Cysharp.Net.Http.YetAnotherHttpHandler";
 
     [ModuleInitializer]
@@ -32,8 +32,8 @@ internal class YahaEventListener : EventListener
 
 internal class YahaXunitEventListener : EventListener
 {
-    private static ITestOutputHelper _testOutputHelper;
     private const string ProviderName = "Cysharp.Net.Http.YetAnotherHttpHandler";
+    private readonly ITestOutputHelper _testOutputHelper;
 
     public YahaXunitEventListener(ITestOutputHelper testOutputHelper)
     {
