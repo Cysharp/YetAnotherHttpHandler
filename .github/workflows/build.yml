@@ -16,6 +16,9 @@ jobs:
         working-directory: native
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.0.x'
       - run: cargo build --target x86_64-pc-windows-msvc ${{ env._RUST_BUILD_CONFIG == 'release' && '--release' || '' }}
       - uses: actions/upload-artifact@v3
         with:
@@ -32,6 +35,9 @@ jobs:
         working-directory: native
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.0.x'
       - run: cargo build --target x86_64-unknown-linux-gnu ${{ env._RUST_BUILD_CONFIG == 'release' && '--release' || '' }}
       - uses: actions/upload-artifact@v3
         with:
@@ -48,6 +54,9 @@ jobs:
         working-directory: native
     steps:
       - uses: actions/checkout@v3
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '7.0.x'
       - run: cargo build --target x86_64-apple-darwin ${{ env._RUST_BUILD_CONFIG == 'release' && '--release' || '' }}
       - uses: actions/upload-artifact@v3
         with:
