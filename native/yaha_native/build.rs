@@ -2,8 +2,8 @@ use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     csbindgen::Builder::default()
-    .input_extern_file("src/lib.rs")
-    .input_extern_file("src/interop.rs")
+        .input_extern_file("src/lib.rs")
+        .input_extern_file("src/interop.rs")
         .input_extern_file("src/context.rs")
         .input_extern_file("src/primitives.rs")
         .csharp_namespace("Cysharp.Net.Http")

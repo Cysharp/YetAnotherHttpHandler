@@ -14,6 +14,7 @@ namespace Cysharp.Net.Http
 
         public bool? Http2Only { get => _settings.Http2Only; set => _settings.Http2Only = value; }
         public bool? SkipCertificateVerification { get => _settings.SkipCertificateVerification; set => _settings.SkipCertificateVerification = value; }
+        public string? RootCertificates { get => _settings.RootCertificates; set => _settings.RootCertificates = value; }
         public uint? Http2InitialStreamWindowSize { get => _settings.Http2InitialStreamWindowSize; set => _settings.Http2InitialStreamWindowSize = value; }
         public uint? Http2InitialConnectionWindowSize { get => _settings.Http2InitialConnectionWindowSize; set => _settings.Http2InitialConnectionWindowSize = value; }
         public bool? Http2AdaptiveWindow { get => _settings.Http2AdaptiveWindow; set => _settings.Http2AdaptiveWindow = value; }
@@ -53,6 +54,7 @@ namespace Cysharp.Net.Http
     {
         public bool? Http2Only { get; set; }
         public bool? SkipCertificateVerification { get; set; }
+        public string? RootCertificates { get; set; }
         public uint? Http2InitialStreamWindowSize { get; set; }
         public uint? Http2InitialConnectionWindowSize { get; set; }
         public bool? Http2AdaptiveWindow { get; set; }
@@ -69,6 +71,7 @@ namespace Cysharp.Net.Http
             {
                 Http2Only = this.Http2Only,
                 SkipCertificateVerification = this.SkipCertificateVerification,
+                RootCertificates = this.RootCertificates,
                 Http2InitialStreamWindowSize = this.Http2InitialStreamWindowSize,
                 Http2InitialConnectionWindowSize = this.Http2InitialConnectionWindowSize,
                 Http2AdaptiveWindow = this.Http2AdaptiveWindow,

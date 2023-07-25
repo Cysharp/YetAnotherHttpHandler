@@ -75,7 +75,12 @@ public class Http2Test : Http2TestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp2>();
-        var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
+        var httpHandler = new YetAnotherHttpHandler()
+        {
+            // We need to verify server certificate.
+            SkipCertificateVerification = false,
+            RootCertificates = File.ReadAllText("./Certificates/localhost.crt")
+        };
         var httpClient = new HttpClient(httpHandler);
 
         // Act

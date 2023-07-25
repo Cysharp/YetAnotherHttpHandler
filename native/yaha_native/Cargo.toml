@@ -16,9 +16,10 @@ tokio = { version = "1", features = ["full"] }
 hyper = { version = "0.14", features = ["client", "http1", "http2" ] }
 hyper-rustls = { optional = true, version = "0.24.0", default-features = false, features = ["webpki-tokio", "http1", "http2", "tls12", "logging"] }
 rustls = { optional = true, version = "0.21.1", default-features = false, features = ["dangerous_configuration"] }
+rustls-pemfile = { optional = true, version = "1.0.3" }
 hyper-tls = { optional = true, version = "0.5.0" }
 
 [features]
 default = [ "rustls" ]
-rustls = [ "hyper-rustls", "dep:rustls" ]
+rustls = [ "hyper-rustls", "dep:rustls", "rustls-pemfile" ]
 native = [ "hyper-tls" ]

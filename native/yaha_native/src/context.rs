@@ -19,6 +19,7 @@ pub struct YahaNativeContextInternal {
     pub runtime: tokio::runtime::Runtime,
     pub client_builder: Option<client::Builder>,
     pub skip_certificate_verification: Option<bool>,
+    pub root_certificates: Option<rustls::RootCertStore>,
     pub client: Option<Client<HttpsConnector<HttpConnector>, hyper::Body>>,
     pub on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
     pub on_receive: OnReceive,
@@ -40,6 +41,7 @@ impl YahaNativeContextInternal {
             client: None,
             client_builder: Some(Client::builder()),
             skip_certificate_verification: None,
+            root_certificates: None,
             on_status_code_and_headers_receive,
             on_receive,
             on_complete,
@@ -48,37 +50,66 @@ impl YahaNativeContextInternal {
 
     pub fn build_client(&mut self, skip_verify_certificates: bool) {
         let builder = self.client_builder.take().unwrap();
-
-        #[cfg(feature = "rustls")]
-        fn new_connector(skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
-            let mut tls_config = rustls::ClientConfig::builder()
-                .with_safe_defaults()
-                //.with_native_roots()
-                .with_webpki_roots()
-                .with_no_client_auth();
-
-            if skip_verify_certificates {
-                tls_config
-                    .dangerous()
-                    .set_certificate_verifier(Arc::new(crate::danger::NoCertificateVerification {}));
-            }
-
-            let builder = hyper_rustls::HttpsConnectorBuilder::new()
-                .with_tls_config(tls_config)
-                .https_or_http()
-                .enable_http2();
-
-            builder.build()
-        }
-
-        #[cfg(feature = "native")]
-        fn new_connector(skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
-            let https = HttpsConnector::new();
-            https
-        }
-
-        let https = new_connector(skip_verify_certificates);
+        let https = self.new_connector(skip_verify_certificates);
         self.client = Some(builder.build(https));
+    }
+
+    #[cfg(feature = "rustls")]
+    fn new_connector(&mut self, skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
+        let tls_config_builder = rustls::ClientConfig::builder()
+            .with_safe_defaults();
+
+        // Configure certificate root store.
+        let tls_config: rustls::ClientConfig;
+        if skip_verify_certificates {
+            tls_config = tls_config_builder
+                .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerification {}))
+                .with_no_client_auth();
+        } else {
+            if let Some(root_certificates) = &self.root_certificates {
+                tls_config = tls_config_builder
+                    .with_root_certificates(root_certificates.to_owned())
+                    .with_no_client_auth();
+            } else {
+                tls_config = tls_config_builder
+                    .with_webpki_roots()
+                    .with_no_client_auth();
+            }
+        }
+
+        let builder = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(tls_config)
+            .https_or_http()
+            .enable_http2();
+
+        builder.build()
+    }
+
+    #[cfg(feature = "native")]
+    fn new_connector(&mut self, skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
+        let https = HttpsConnector::new();
+        https
+    }
+
+
+}
+
+#[cfg(feature = "rustls")]
+mod danger {
+    pub struct NoCertificateVerification {}
+
+    impl rustls::client::ServerCertVerifier for NoCertificateVerification {
+        fn verify_server_cert(
+            &self,
+            _end_entity: &rustls::Certificate,
+            _intermediates: &[rustls::Certificate],
+            _server_name: &rustls::ServerName,
+            _scts: &mut dyn Iterator<Item = &[u8]>,
+            _ocsp: &[u8],
+            _now: std::time::SystemTime,
+        ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+            Ok(rustls::client::ServerCertVerified::assertion())
+        }
     }
 }
 

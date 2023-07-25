@@ -43,6 +43,17 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.SkipCertificateVerification)}' = {skipCertificateVerification}");
                 NativeMethods.yaha_client_config_skip_certificate_verification(_ctx, skipCertificateVerification);
             }
+            if (settings.RootCertificates is { } rootCertificates)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.RootCertificates)}' = Length:{rootCertificates.Length}");
+                var rootCertificatesBytes = Encoding.UTF8.GetBytes(rootCertificates);
+                fixed (byte* buffer = rootCertificatesBytes)
+                {
+                    var sb = new StringBuffer(buffer, rootCertificates.Length);
+                    var validCertificatesCount = NativeMethods.yaha_client_config_add_root_certificates(_ctx, &sb);
+                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_client_config_add_root_certificates: ValidCertificatesCount={validCertificatesCount}");
+                }
+            }
             if (settings.Http2Only is {} http2Only)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2Only)}' = {http2Only}");

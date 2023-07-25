@@ -66,6 +66,15 @@ pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) {
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_add_root_certificates(ctx: *mut YahaNativeContext, root_certs: *const StringBuffer) -> usize {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    let root_certificates = ctx.root_certificates.get_or_insert(rustls::RootCertStore::empty());
+    let (valid, _) = unsafe { root_certificates.add_parsable_certificates(&rustls_pemfile::certs(&mut (*root_certs).to_bytes()).unwrap()) };
+
+    valid
+}
+
+#[no_mangle]
 pub extern "C" fn yaha_client_config_skip_certificate_verification(ctx: *mut YahaNativeContext, val: bool) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.skip_certificate_verification = Some(val);
@@ -146,25 +155,6 @@ pub extern "C" fn yaha_client_config_http2_max_send_buf_size(ctx: *mut YahaNativ
 pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.build_client(ctx.skip_certificate_verification.unwrap_or_default());
-}
-
-#[cfg(feature = "rustls")]
-mod danger {
-    pub struct NoCertificateVerification {}
-
-    impl rustls::client::ServerCertVerifier for NoCertificateVerification {
-        fn verify_server_cert(
-            &self,
-            _end_entity: &rustls::Certificate,
-            _intermediates: &[rustls::Certificate],
-            _server_name: &rustls::ServerName,
-            _scts: &mut dyn Iterator<Item = &[u8]>,
-            _ocsp: &[u8],
-            _now: std::time::SystemTime,
-        ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-            Ok(rustls::client::ServerCertVerified::assertion())
-        }
-    }
 }
 
 #[no_mangle]
