@@ -16,20 +16,15 @@ public class Http2Test : Http2TestBase
 
     protected override HttpMessageHandler CreateHandler()
     {
-        return new YetAnotherHttpHandler();
+        // Use self-signed certificate for testing purpose.
+        return new YetAnotherHttpHandler() { SkipCertificateVerification = true };
     }
 
     protected override Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null)
     {
-        return LaunchServerAsync<T>(TestWebAppServerListenMode.SecureHttp2Only, configure);
-    }
-
-    [ConditionalFact]
-    public async Task SelfSignedCertificate_NotTrusted()
-    {
-        // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp1AndHttp2, builder =>
+        return LaunchServerAsync<T>(TestWebAppServerListenMode.SecureHttp2Only, builder =>
         {
+            // Use self-signed certificate for testing purpose.
             builder.WebHost.ConfigureKestrel(options =>
             {
                 options.ConfigureHttpsDefaults(options =>
@@ -37,8 +32,17 @@ public class Http2Test : Http2TestBase
                     options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
                 });
             });
+
+            configure?.Invoke(builder);
         });
-        var httpHandler = CreateHandler();
+    }
+
+    [ConditionalFact]
+    public async Task SelfSignedCertificate_NotTrusted()
+    {
+        // Arrange
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
         var httpClient = new HttpClient(httpHandler);
 
         // Act
@@ -53,16 +57,7 @@ public class Http2Test : Http2TestBase
     public async Task SelfSignedCertificate_NotTrusted_SkipValidation()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp1AndHttp2, builder =>
-        {
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-        });
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
         var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = true };
         var httpClient = new HttpClient(httpHandler);
 
@@ -79,17 +74,8 @@ public class Http2Test : Http2TestBase
     public async Task SelfSignedCertificate_Trusted_CustomRootCA()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp1AndHttp2, builder =>
-        {
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-        });
-        var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = true };
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
         var httpClient = new HttpClient(httpHandler);
 
         // Act
