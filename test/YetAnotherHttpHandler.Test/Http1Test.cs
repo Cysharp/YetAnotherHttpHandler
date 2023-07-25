@@ -18,7 +18,7 @@ public class Http1Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
 
         // Act
         var ex = await Record.ExceptionAsync(async () => await httpClient.GetAsync($"http://localhost.exmample/"));
@@ -33,7 +33,7 @@ public class Http1Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/");
@@ -51,7 +51,7 @@ public class Http1Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/not-found");
@@ -69,7 +69,7 @@ public class Http1Test : UseTestServerTestBase
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/response-headers");

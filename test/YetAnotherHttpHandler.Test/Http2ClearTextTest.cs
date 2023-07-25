@@ -1,4 +1,5 @@
 using Cysharp.Net.Http;
+using Microsoft.AspNetCore.Builder;
 using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
@@ -13,4 +14,10 @@ public class Http2ClearTextTest : Http2TestBase
     {
         return new YetAnotherHttpHandler() { Http2Only = true };
     }
+    
+    protected override Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null)
+    {
+        return LaunchServerAsync<T>(TestWebAppServerListenMode.InsecureHttp2Only, configure);
+    }
+
 }

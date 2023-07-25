@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Http.Headers;
@@ -12,6 +13,10 @@ public abstract class Http2TestBase : UseTestServerTestBase
     }
 
     protected abstract HttpMessageHandler CreateHandler();
+    protected abstract Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder;
+
+    protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
+        => LaunchServerAsyncCore<T>(configure);
 
     [ConditionalFact]
     public async Task Get_Ok()
@@ -19,7 +24,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
@@ -41,7 +46,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/not-found")
@@ -63,7 +68,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var content = new ByteArrayContent(new byte[] { 1, 2, 3, 45, 67 });
@@ -89,7 +94,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var content = new ByteArrayContent(new byte[] { 0 });
@@ -119,7 +124,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
     //    // Arrange
     //    using var httpHandler = CreateHandler();
     //    var httpClient = new HttpClient(httpHandler);
-    //    await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+    //    await using var server = await LaunchAsync<TestServerForHttp2>();
     //
     //    // Act
     //    var pipe = new Pipe();
@@ -143,7 +148,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var pipe = new Pipe();
@@ -184,7 +189,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var pipe = new Pipe();
@@ -226,7 +231,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var content = new ByteArrayContent(new byte[] { 1, 2, 3, 45, 67 });
@@ -252,7 +257,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var content = new ByteArrayContent(Enumerable.Range(0, 1024 * 1024).Select(x => (byte)(x % 255)).ToArray());
@@ -275,7 +280,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         using var httpHandler = CreateHandler();
         //using var httpHandler = new SocketsHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var pipe = new Pipe();
@@ -300,7 +305,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var pipe = new Pipe();
@@ -326,7 +331,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchAsync<TestServerForHttp2>(TestWebAppServerListenMode.SecureHttp2Only);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
 
         // Act
         var pipe = new Pipe();

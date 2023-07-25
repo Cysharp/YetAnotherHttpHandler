@@ -19,7 +19,7 @@ public abstract class UseTestServerTestBase : TimeoutTestBase, IDisposable
         });
     }
 
-    protected async Task<TestWebAppServer> LaunchAsync<T>(TestWebAppServerListenMode listenMode, Action<WebApplicationBuilder>? configure = null)
+    protected async Task<TestWebAppServer> LaunchServerAsync<T>(TestWebAppServerListenMode listenMode, Action<WebApplicationBuilder>? configure = null)
         where T : ITestServerBuilder
     {
         return await TestWebAppServer.LaunchAsync<T>(listenMode, TestOutputHelper, TimeoutToken, configure);
