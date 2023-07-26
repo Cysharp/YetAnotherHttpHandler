@@ -105,7 +105,7 @@ namespace Cysharp.Net.Http
             public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) => _inner.WriteAsync(buffer, cancellationToken);
 #endif
 
-#if !NETSTANDARD2_0
+#if !NETSTANDARD2_0 && !UNITY_2019_1_OR_NEWER // WORKAROUND: If "Api Compatibility Level" is ".NET Framework" on Unity, some API facades are same as .NET Framework.
             public override void CopyTo(Stream destination, int bufferSize) => _inner.CopyTo(destination, bufferSize);
 #endif
 
