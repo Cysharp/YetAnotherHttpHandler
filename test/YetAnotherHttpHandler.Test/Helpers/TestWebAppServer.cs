@@ -32,6 +32,8 @@ public class TestWebAppServer : IAsyncDisposable
         
         configure?.Invoke(builder);
 
+        builder.Services.AddGrpc();
+
         builder.WebHost.ConfigureKestrel(options =>
         {
             options.ListenLocalhost(port, listenOptions =>

@@ -114,8 +114,7 @@ namespace Cysharp.Net.Http
 
             static async Task SendBodyAsync(HttpContent requestContent, PipeWriter writer, CancellationToken cancellationToken)
             {
-                var src = await requestContent.ReadAsStreamAsync().ConfigureAwait(false);
-                await src.CopyToAsync(writer, cancellationToken).ConfigureAwait(false);
+                await requestContent.CopyToAsync(writer.AsStream()).ConfigureAwait(false); // TODO: cancel
                 await writer.CompleteAsync().ConfigureAwait(false);
             }
         }

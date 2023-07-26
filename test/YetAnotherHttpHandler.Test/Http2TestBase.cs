@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Builder;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Http.Headers;
+using Grpc.Core;
+using Grpc.Net.Client;
+using TestWebApp;
 using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
@@ -348,6 +351,58 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Assert
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
         Assert.Equal(ct, operationCanceledException.CancellationToken);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Unary()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
+
+        // Act
+        var response = await client.SayHelloAsync(new HelloRequest { Name = "Alice" }, deadline: DateTime.UtcNow.AddSeconds(5));
+
+        // Assert
+        Assert.Equal("Hello Alice", response.Message);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Duplex()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
+
+        // Act
+        var request = client.SayHelloDuplex(deadline:  DateTime.UtcNow.AddSeconds(10));
+        var responses = new List<string>();
+        var readTask = Task.Run(async () =>
+        {
+            await foreach (var response in request.ResponseStream.ReadAllAsync())
+            {
+                responses.Add(response.Message);
+            }
+        });
+        for (var i = 0; i < 5; i++)
+        {
+            await request.RequestStream.WriteAsync(new HelloRequest { Name = $"User-{i}" }, TimeoutToken);
+            await Task.Delay(500);
+        }
+        // all requests are processed on the server and receive the responses. (but the request stream is not completed at this time)
+        var responsesBeforeCompleted = responses.ToArray();
+
+        // complete the request stream.
+        await request.RequestStream.CompleteAsync().WaitAsync(TimeoutToken);
+        await readTask.WaitAsync(TimeoutToken);
+
+        // Assert
+        Assert.Equal(new [] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responsesBeforeCompleted);
+        Assert.Equal(new [] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responses);
     }
 
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.

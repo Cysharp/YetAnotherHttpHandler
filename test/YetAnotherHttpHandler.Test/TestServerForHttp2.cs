@@ -1,9 +1,11 @@
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Net;
+using Grpc.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using TestWebApp;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -107,6 +109,28 @@ class TestServerForHttp2 : ITestServerBuilder
             return Results.Empty;
         });
 
+        // gRPC
+        app.MapGrpcService<GreeterService>();
+
         return app;
     }
+
+    class GreeterService : Greeter.GreeterBase
+    {
+#pragma warning disable CS1998
+        public override async Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
+        {
+            return new HelloReply { Message = $"Hello {request.Name}" };
+        }
+
+        public override async Task SayHelloDuplex(IAsyncStreamReader<HelloRequest> requestStream, IServerStreamWriter<HelloReply> responseStream, ServerCallContext context)
+        {
+            await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
+            {
+                await responseStream.WriteAsync(new HelloReply { Message = $"Hello {request.Name}" });
+            }
+        }
+#pragma warning restore CS1998
+    }
+
 }
