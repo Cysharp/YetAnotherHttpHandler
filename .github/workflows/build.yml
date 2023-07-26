@@ -183,9 +183,11 @@ jobs:
           retention-days: 7
 
   build-unity:
+    name: Pack native libraries for Unity
+    if: ${{ needs.build-dotnet.result == 'success' }}
+    needs: [ build-dotnet ]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [ build-dotnet ]
     steps:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
