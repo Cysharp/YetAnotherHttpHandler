@@ -182,7 +182,7 @@ jobs:
           path: ./publish/
           retention-days: 7
 
-  build-unity:
+  build-unity-native:
     name: Pack native libraries for Unity
     if: ${{ inputs.build-only-linux && needs.build-dotnet.result == 'success' || success() }}
     needs: [ build-dotnet ]
@@ -206,10 +206,10 @@ jobs:
           unityVersion: ${{ env._UNITY_VERSION }}
           targetPlatform: StandaloneWindows
           buildMethod: PackageExporter.Export
-      - run: echo "PACKAGE_VERSION=ci-$(date '+%Y%m%d-%H%M%S')+${GITHUB_SHA:0:6}" >> $GITHUB_ENV
+      - run: echo "VERSION_SUFFIX=ci-$(date '+%Y%m%d-%H%M%S')+${GITHUB_SHA:0:6}" >> $GITHUB_ENV
       - name: Get Version
-        run: echo "UNITY_PACKAGE_VERSION=$(cat src/YetAnotherHttpHandler.Unity/Assets/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/package.json | jq -r '.version')" >> "$GITHUB_ENV"
+        run: echo "UNITY_PACKAGE_VERSION=$(cat src/YetAnotherHttpHandler/package.json | jq -r '.version')" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v1
         with:
-          name: Cysharp.Net.Http.YetAnotherHttpHandler.Native.${{ env.PACKAGE_VERSION }}.unitypackage
-          path: ./src/YetAnotherHttpHandler.Unity/Cysharp.Net.Http.YetAnotherHttpHandler.Native.${{ env.UNITY_PACKAGE_VERSION }}.unitypackage
+          name: Cysharp.Net.Http.YetAnotherHttpHandler.Native.${{ env.UNITY_PACKAGE_VERSION }}-${{ env.VERSION_SUFFIX }}.unitypackage
+          path: ./src/YetAnotherHttpHandler.Unity/Cysharp.Net.Http.YetAnotherHttpHandler.Native.unitypackage
