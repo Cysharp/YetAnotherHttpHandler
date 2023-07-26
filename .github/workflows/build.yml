@@ -194,7 +194,7 @@ jobs:
         with:
           name: nuget-packages
           path: ./publish/
-      - run: unzip ./publish/YetAnotherHttpHandler.*.nupkg 'runtimes/*' -d src/YetAnotherHttpHandler.Unity/Assets/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/
+      - run: unzip -o ./publish/YetAnotherHttpHandler.*.nupkg 'runtimes/*' -d src/YetAnotherHttpHandler.Unity/Assets/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/
       - name: Export unitypackage
         uses: Cysharp/Actions/.github/actions/unity-builder@main
         env:
