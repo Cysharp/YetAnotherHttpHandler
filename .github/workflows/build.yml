@@ -17,6 +17,7 @@ on:
 env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
   _DOTNET_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'Debug' || 'Release' }}
+  _UNITY_VERSION: 2021.3.1f
 
 jobs:
   build-win-x64:
@@ -180,3 +181,33 @@ jobs:
           name: nuget-packages
           path: ./publish/
           retention-days: 7
+
+  build-unity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [ build-dotnet ]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: nuget-packages
+          path: ./publish/
+      - run: unzip ./publish/YetAnotherHttpHandler.*.nupkg 'runtimes/*' -d src/YetAnotherHttpHandler.Unity/Assets/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/
+      - name: Export unitypackage
+        uses: Cysharp/Actions/.github/actions/unity-builder@main
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          projectPath: src/YetAnotherHttpHandler.Unity
+          unityVersion: ${{ env._UNITY_VERSION }}
+          targetPlatform: StandaloneWindows
+          buildMethod: PackageExporter.Export
+      - run: echo "PACKAGE_VERSION=ci-$(date '+%Y%m%d-%H%M%S')+${GITHUB_SHA:0:6}" >> $GITHUB_ENV
+      - name: Get Version
+        run: echo "UNITY_PACKAGE_VERSION=$(cat src/YetAnotherHttpHandler.Unity/Assets/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/package.json | jq -r '.version')" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v1
+        with:
+          name: Cysharp.Net.Http.YetAnotherHttpHandler.Native.${{ env.PACKAGE_VERSION }}.unitypackage
+          path: ./src/YetAnotherHttpHandler.Unity/Cysharp.Net.Http.YetAnotherHttpHandler.Native.${{ env.UNITY_PACKAGE_VERSION }}.unitypackage
