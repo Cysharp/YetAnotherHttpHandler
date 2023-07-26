@@ -147,8 +147,7 @@ jobs:
         with:
           path: native/artifacts
       - run: ls -lFaR native/artifacts
-      - run: dotnet build -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln
-      - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source --no-build -o ./publish
+      - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source -o ./publish
       #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Packaging.Test
       - uses: actions/upload-artifact@v3
         with:
