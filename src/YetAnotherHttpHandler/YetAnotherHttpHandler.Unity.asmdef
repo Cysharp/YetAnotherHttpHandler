@@ -1,5 +1,5 @@
 {
-    "name": "YetAnotherHttpHandler",
+    "name": "Cysharp.Net.Http.YetAnotherHttpHandler",
     "references": [],
     "optionalUnityReferences": [],
     "includePlatforms": [],
