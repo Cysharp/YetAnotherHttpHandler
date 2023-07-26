@@ -184,7 +184,7 @@ jobs:
 
   build-unity:
     name: Pack native libraries for Unity
-    if: ${{ needs.build-dotnet.result == 'success' }}
+    if: ${{ inputs.build-only-linux && needs.build-dotnet.result == 'success' || success() }}
     needs: [ build-dotnet ]
     runs-on: ubuntu-latest
     timeout-minutes: 15
