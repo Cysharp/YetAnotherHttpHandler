@@ -1,0 +1,9 @@
+{
+  "name": "com.cysharp.yetanotherhttphandler",
+  "version": "0.1.0",
+  "author": { "name": "Cysharp, Inc.", "url": "https://cysharp.co.jp/en/" },
+  "displayName": "YetAnotherHttpHandler",
+  "description": "YetAnotherHttpHandler that brings the power of HTTP/2 (and gRPC) to Unity and .NET Standard.",
+  "unity": "2021.3",
+  "license": "MIT"
+}

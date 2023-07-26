@@ -20,6 +20,10 @@
     <InternalsVisibleTo Include="YetAnotherHttpHandler.Test" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="**\*.meta" />
+  </ItemGroup>
+
   <PropertyGroup>
     <YahaNativeLibraryOriginalName>yaha_native</YahaNativeLibraryOriginalName>
     <YahaNativeLibraryName>Cysharp.Net.Http.YetAnotherHttpHandler.Native</YahaNativeLibraryName>
