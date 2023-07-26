@@ -9,6 +9,10 @@ on:
         options:
           - debug
           - release
+      build-only-linux:
+        required: true
+        default: false
+        type: boolean
 
 env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
@@ -17,6 +21,7 @@ env:
 jobs:
   build-win-x64:
     name: Build Native library (win-x64)
+    if: ${{ !inputs.build-only-linux }}
     runs-on: windows-2019
     timeout-minutes: 30
     defaults:
@@ -57,6 +62,7 @@ jobs:
 
   build-osx-x64:
     name: Build Native library (osx-x64)
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -77,6 +83,7 @@ jobs:
 
   build-osx-arm64:
     name: Build Native library (osx-arm64)
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -94,6 +101,7 @@ jobs:
 
   build-ios-x64:
     name: Build Native library (ios-x64)
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -111,6 +119,7 @@ jobs:
 
   build-ios-arm64:
     name: Build Native library (ios-arm64)
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -128,6 +137,7 @@ jobs:
 
   build-android-arm64:
     name: Build Native library (android-arm64)
+    if: ${{ !inputs.build-only-linux }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -147,7 +157,8 @@ jobs:
 
   build-dotnet:
     name: Build and pack .NET library
-    needs: 
+    if: ${{ inputs.build-only-linux && needs.build-linux-x64.result == 'success' || success() }}
+    needs:
       - build-win-x64
       - build-linux-x64
       - build-osx-x64
