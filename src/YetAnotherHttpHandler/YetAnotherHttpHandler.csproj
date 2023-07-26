@@ -7,6 +7,7 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <AssemblyName>Cysharp.Net.Http.YetAnotherHttpHandler</AssemblyName>
     <RootNamespace>Cysharp.Net.Http</RootNamespace>
+    <VersionPrefix>0.1.0</VersionPrefix>
 
     <!-- NuGet Package -->
     <PackageId>YetAnotherHttpHandler</PackageId>
