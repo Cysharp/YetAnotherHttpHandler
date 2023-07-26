@@ -24,6 +24,7 @@ jobs:
         with:
           name: win-x64
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+          retention-days: 1
       - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-linux-x64:
@@ -43,6 +44,7 @@ jobs:
         with:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+          retention-days: 1
       - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-osx-x64:
@@ -62,6 +64,7 @@ jobs:
         with:
           name: osx-x64
           path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
+          retention-days: 1
       - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-osx-arm64:
@@ -79,6 +82,7 @@ jobs:
         with:
           name: osx-arm64
           path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
+          retention-days: 1
 
   build-ios-x64:
     name: Build Native library (ios-x64)
@@ -95,6 +99,7 @@ jobs:
         with:
           name: ios-x64
           path: native/target/x86_64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
+          retention-days: 1
 
   build-ios-arm64:
     name: Build Native library (ios-arm64)
@@ -111,6 +116,7 @@ jobs:
         with:
           name: ios-arm64
           path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
+          retention-days: 1
 
   build-android-arm64:
     name: Build Native library (android-arm64)
@@ -129,6 +135,7 @@ jobs:
         with:
           name: anrdoid-arm64
           path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+          retention-days: 1
 
   build-dotnet:
     name: Build and pack .NET library
@@ -153,3 +160,4 @@ jobs:
         with:
           name: nuget-packages
           path: ./publish/
+          retention-days: 7
