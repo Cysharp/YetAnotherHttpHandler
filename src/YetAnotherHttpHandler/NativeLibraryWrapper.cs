@@ -38,6 +38,16 @@ namespace Cysharp.Net.Http
             _ctx = NativeMethods.yaha_init_runtime(OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
 #endif
 
+            if (settings.PoolIdleTimeout is { } poolIdleTimeout)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.PoolIdleTimeout)}' = {poolIdleTimeout}");
+                NativeMethods.yaha_client_config_pool_idle_timeout(_ctx, (ulong)poolIdleTimeout.TotalMilliseconds);
+            }
+            if (settings.MaxIdlePerHost is { } maxIdlePerHost)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.MaxIdlePerHost)}' = {maxIdlePerHost}");
+                NativeMethods.yaha_client_config_pool_max_idle_per_host(_ctx, (nuint)maxIdlePerHost);
+            }
             if (settings.SkipCertificateVerification is {} skipCertificateVerification)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.SkipCertificateVerification)}' = {skipCertificateVerification}");
