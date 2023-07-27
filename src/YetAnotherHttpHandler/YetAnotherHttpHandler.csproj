@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <None Remove="**\*.meta" />
+    <None Remove="Plugins\**\*" />
   </ItemGroup>
 
   <PropertyGroup>
