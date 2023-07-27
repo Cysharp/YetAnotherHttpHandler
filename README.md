@@ -1,9 +1,14 @@
 # YetAnotherHttpHandler
 YetAnotherHttpHandler that brings the power of HTTP/2 to Unity and .NET Standard.
 
-With this library, you can enable HTTP/2, which is not supported by Unity, and get better performance for asset downloads, as well as use grpc-dotnet based libraries that replace the deprecated gRPC (C-core) library.
+This library enables the use of HTTP/2, which is not supported by Unity. It allows you to use grpc-dotnet instead of the deprecated C-core gRPC library. It can also be used for asset downloading via HTTP/2, providing more functionality to your projects.
 
 The library is implemented as a HttpHandler for HttpClient, so you can use the same API by just replacing the handler. (drop-in replacement)
+
+### Highlights
+- Unity support (including Apple Silicon support)
+- Compatible with gRPC (grpc-dotnet)
+- Leveraging `System.Net.Http.HttpClient` API
 
 ### Under the hood
 The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://github.com/rustls/rustls). It is a binding library that brings the power of those libraries to Unity and .NET.
