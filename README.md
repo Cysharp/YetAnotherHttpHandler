@@ -152,7 +152,7 @@ Currently, YetAnotherHttpHandler uses Mozilla's root certificates derived from w
 If you want to use a self-signed certificate or a certificate issued by your organization, you need to set a custom root CA. In this case, you can specify the root certificates in pem format to `RootCertificates` property.
 
 ```csharp
-var rootCerts = @""
+var rootCerts = @"
 -----BEGIN CERTIFICATE-----
 MIIE9TCCAt2gAwIBAgIUUQ33LbUPwlgKXmzA77KmDbV2uYkwDQYJKoZIhvcNAQEL
 BQAwFDESMBAGA1UEAwwJbG9jYWxob3N0MB4XDTIzMDcyNTAzNDYzNFoXDTMzMDcy
@@ -182,7 +182,7 @@ gEXEzkKRg/++6iXGF16eBibZ8PED6416rGJz1Bo1YpXSyYCZG6oWwXZTg9fvDZX5
 FfLnQACV02y2Gs74h23Yq+QmA30Ly5GPrR5SBRaNiCY1SS7gCAfRah9zJjvbXNGw
 h0Eq48Dlw12GaUww3y05/IoAJxtHxZigdQ==
 -----END CERTIFICATE-----
-"";
+";
 using var handler = new YetAnotherHttpHandler() { RootCertificates = rootCerts };
 ```
 
