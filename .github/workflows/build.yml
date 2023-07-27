@@ -156,7 +156,7 @@ jobs:
       - run: cargo ndk -t arm64-v8a build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: actions/upload-artifact@v3
         with:
-          name: anrdoid-arm64
+          name: android-arm64
           path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
           retention-days: 1
 
