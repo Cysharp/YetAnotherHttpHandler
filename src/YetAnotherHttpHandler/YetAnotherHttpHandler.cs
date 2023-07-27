@@ -13,6 +13,7 @@ namespace Cysharp.Net.Http
     public class YetAnotherHttpHandler : HttpMessageHandler
     {
         private readonly NativeClientSettings _settings = new NativeClientSettings();
+        private bool _disposed;
         private NativeHttpHandlerCore? _handler;
 
         /// <summary>
@@ -145,6 +146,7 @@ namespace Cysharp.Net.Http
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            ThrowIfDisposed();
             var handler = _handler ?? SetupHandler();
             return await handler.SendAsync(request, cancellationToken).ConfigureAwait(false);
         }
@@ -152,6 +154,16 @@ namespace Cysharp.Net.Http
         protected override void Dispose(bool disposing)
         {
             _handler?.Dispose();
+            _handler = null;
+            _disposed = true;
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().Name);
+            }
         }
     }
 
