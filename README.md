@@ -66,8 +66,10 @@ https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHand
 
 Additionally, this library depends on the following additional libraries. Please obtain them separately from sources like NuGet.
 
-- System.IO.Pipelines (netstandard2.1)
-- System.Runtime.CompilerServices.Unsafe (netstandard2.1)
+- [System.IO.Pipelines](https://www.nuget.org/packages/System.IO.Pipelines) (netstandard2.1)
+- [System.Runtime.CompilerServices.Unsafe](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe) (netstandard2.1)
+
+📦 **Tips:** You can download NuGet packages from the "Download package" link on the right side of the package page on NuGet.org. The downloaded .nupkg file can be opened as a Zip archive, allowing you to extract individual assemblies from the `lib` directory.
 
 ## Usage
 
@@ -81,6 +83,10 @@ var result = await httpClient.GetStringAsync("https://www.example.com");
 ```
 
 With these steps, your HttpClient is now compatible with HTTP/2.✨
+
+`YetAnotherHttpHandler` and `HttpClient` can be held following best practices and shared across multiple threads or requests.
+
+However, since it does not have features such as connection control by the number of streams, it is necessary to separate handler instances when explicitly creating different connections.
 
 ### Using gRPC (grpc-dotnet) library
 
