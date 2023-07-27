@@ -3,6 +3,7 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     csbindgen::Builder::default()
         .input_extern_file("src/lib.rs")
+        .input_extern_file("src/binding.rs")
         .input_extern_file("src/interop.rs")
         .input_extern_file("src/context.rs")
         .input_extern_file("src/primitives.rs")
@@ -14,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     csbindgen::Builder::default()
-        .input_extern_file("src/lib.rs")
+        .input_extern_file("src/binding.rs")
         .csharp_namespace("Cysharp.Net.Http")
         .csharp_dll_name("Cysharp.Net.Http.YetAnotherHttpHandler.Native")
         .csharp_class_name("NativeMethodsFuncPtr")
