@@ -79,6 +79,8 @@ Please download and install [Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies
 Create an instance of YetAnotherHttpHandler and pass it to HttpClient.
 
 ```csharp
+using Cysharp.Net.Http;
+
 using var handler = new YetAnotherHttpHandler();
 var httpCilent = new HttpClient(handler);
 
@@ -111,6 +113,8 @@ Create an instance of `YetAnotherHttpHandler` and pass it to `GrpcChannelOptions
 
 
 ```csharp
+using Cysharp.Net.Http;
+
 using var handler = new YetAnotherHttpHandler();
 using var channel = GrpcChannel.ForAddress("https://api.example.com", new GrpcChannelOptions() { HttpHandler = httpHandler });
 var greeter = new GreeterClient(channel);
