@@ -1,0 +1,5 @@
+Grpc.Core.Api
+Grpc.Net.Client
+Grpc.Net.Common
+Microsoft.Extensions.Logging.Abstractions
+System.Diagnostics.DiagnosticSource

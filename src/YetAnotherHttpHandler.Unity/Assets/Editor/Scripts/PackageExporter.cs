@@ -11,71 +11,24 @@ public static class PackageExporter
     [MenuItem("Tools/Export Unitypackage")]
     public static void Export()
     {
-        const string PackageName = "Cysharp.Net.Http.YetAnotherHttpHandler.Native";
+        PackDependencies("Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", "YetAnotherHttpHandler.deps.txt");
+        PackDependencies("Grpc.Net.Client.Dependencies", "Grpc.Net.Client.deps.txt");
+    }
 
-        var root = $"Plugins/{PackageName}";
-        var version = GetVersion(root);
+    static void PackDependencies(string unityPackageName, string dependenciesListFileName)
+    {
+        Debug.Log($"Creating package '{unityPackageName}'...");
+        var pluginsDir = Path.Combine(Application.dataPath, "Plugins");
+        var libraryNames = File.ReadAllLines(Path.Combine(pluginsDir, dependenciesListFileName));
+        Debug.Log($"Includes library: {string.Join(';', libraryNames)}");
 
-        var fileName = string.IsNullOrEmpty(version) ? $"{PackageName}.unitypackage" : $"{PackageName}.{version}.unitypackage";
-        var exportPath = "./" + fileName;
-
-        var additionalAssets = new string[]
-        {
-            "Assets/Plugins/System.IO.Pipelines",
-            "Assets/Plugins/System.Runtime.CompilerServices.Unsafe",
-        };
-
-        var path = Path.Combine(Application.dataPath, root);
-        var assets = Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
-            .Where(x => Path.GetExtension(x) is ".cs" or ".asmdef" or ".json" or ".meta" or ".jslib" or ".so" or ".dll" or ".a" or ".dylib")
-            .Select(x => "Assets" + x.Replace(Application.dataPath, "").Replace(@"\", "/"))
-            .Concat(additionalAssets.SelectMany(x => Directory.EnumerateFiles(x, "*", SearchOption.AllDirectories)))
-            .ToArray();
-
-        UnityEngine.Debug.Log("Export below files" + Environment.NewLine + string.Join(Environment.NewLine, assets));
-
+        var exportPath = $"./{unityPackageName}.unitypackage";
         AssetDatabase.ExportPackage(
-            assets,
+            libraryNames.Select(x => $"Assets/Plugins/{x}").ToArray(),
             exportPath,
-            ExportPackageOptions.Default);
+            ExportPackageOptions.Recurse);
 
         UnityEngine.Debug.Log("Export complete: " + Path.GetFullPath(exportPath));
-    }
-
-    static string GetVersion(string root)
-    {
-        var version = Environment.GetEnvironmentVariable("UNITY_PACKAGE_VERSION");
-        var versionJson = Path.Combine(Application.dataPath, root, "package.json");
-
-        if (File.Exists(versionJson))
-        {
-            var v = JsonUtility.FromJson<Version>(File.ReadAllText(versionJson));
-
-            if (!string.IsNullOrEmpty(version))
-            {
-                if (v.version != version)
-                {
-                    var msg = $"package.json and env version are mismatched. UNITY_PACKAGE_VERSION:{version}, package.json:{v.version}";
-
-                    if (Application.isBatchMode)
-                    {
-                        Console.WriteLine(msg);
-                        Application.Quit(1);
-                    }
-
-                    throw new Exception("package.json and env version are mismatched.");
-                }
-            }
-
-            version = v.version;
-        }
-
-        return version;
-    }
-
-    public class Version
-    {
-        public string version;
     }
 }
 

@@ -17,6 +17,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		THIRD-PARTY-NOTICES = THIRD-PARTY-NOTICES
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YetAnotherHttpHandler.Unity.Dependencies", "src\YetAnotherHttpHandler.Unity.Dependencies\YetAnotherHttpHandler.Unity.Dependencies.csproj", "{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YetAnotherHttpHandler.Unity.Dependencies.Sync", "src\YetAnotherHttpHandler.Unity.Dependencies.Sync\YetAnotherHttpHandler.Unity.Dependencies.Sync.csproj", "{7038AD7C-6767-4427-8B89-473BC27E9C9A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +35,14 @@ Global
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7038AD7C-6767-4427-8B89-473BC27E9C9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7038AD7C-6767-4427-8B89-473BC27E9C9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7038AD7C-6767-4427-8B89-473BC27E9C9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7038AD7C-6767-4427-8B89-473BC27E9C9A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

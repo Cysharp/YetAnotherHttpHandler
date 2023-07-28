@@ -1,0 +1,6 @@
+System.Buffers
+System.IO.Pipelines
+System.Memory
+System.Numerics.Vectors
+System.Runtime.CompilerServices.Unsafe
+System.Threading.Tasks.Extensions
