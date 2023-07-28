@@ -1,7 +1,7 @@
 # YetAnotherHttpHandler
-YetAnotherHttpHandler that brings the power of HTTP/2 to Unity and .NET Standard.
+YetAnotherHttpHandler brings the power of HTTP/2 to Unity and .NET Standard.
 
-This library enables the use of HTTP/2, which is not supported by Unity. It allows you to use grpc-dotnet instead of the deprecated C-core gRPC library. It can also be used for asset downloading via HTTP/2, providing more functionality to your projects.
+This library enables the use of HTTP/2, which Unity does not support. It allows you to use grpc-dotnet instead of the deprecated C-core gRPC library. It can also be used for asset downloading via HTTP/2, providing more functionality to your projects.
 
 The library is implemented as a HttpHandler for HttpClient, so you can use the same API by just replacing the handler. (drop-in replacement)
 
