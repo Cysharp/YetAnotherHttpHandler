@@ -41,7 +41,7 @@ foreach (var dep in targetNetStandard2_1)
     copyItems.Add(new CopyToPlugins(dep.Key, dep.Value.Runtime.Keys.Concat(licenseFiles).ToArray()));
 }
 
-// List the files that will be copy.
+// List the files that will be copied.
 foreach (var item in copyItems)
 {
     var srcDir = projectAssets.PackageFolders.Select(x => Path.Combine(x.Key, item.BaseName.ToLower())).FirstOrDefault(x => Directory.Exists(x));
@@ -70,13 +70,14 @@ foreach (var item in copyItems)
 
 // Create the dependencies lists to build .unitypackage.
 HashSet<string> depsForYaha;
+HashSet<string> depsForGrpc;
 {
     var depsListFileName = "YetAnotherHttpHandler.deps.txt";
     var depsRootPackage = "System.IO.Pipelines";
     var outputDepsListPath = Path.Combine(pluginBaseDir, depsListFileName);
     var deps = ResolveDependencies(depsRootPackage, targetNetStandard2_1);
     Console.WriteLine($"Write dependencies list: {outputDepsListPath}");
-    File.WriteAllText(outputDepsListPath, string.Join("\r\n", deps.OrderBy(x => x)));
+    File.WriteAllText(outputDepsListPath, string.Join("\r\n", deps));
     depsForYaha = deps;
 }
 {
@@ -86,6 +87,21 @@ HashSet<string> depsForYaha;
     var deps = ResolveDependencies(depsRootPackage, targetNetStandard2_1, depsForYaha); // No need to include System.IO.Pipelines and other packages.
     Console.WriteLine($"Write dependencies list: {outputDepsListPath}");
     File.WriteAllText(outputDepsListPath, string.Join("\r\n", deps.OrderBy(x => x)));
+    depsForGrpc = deps;
+}
+
+// List synced packages.
+Console.WriteLine("Dependencies for YetAnotherHttpHandler:");
+foreach (var dep in depsForYaha)
+{
+    var lib = targetNetStandard2_1.Keys.FirstOrDefault(x => x.StartsWith(dep + '/'));
+    Console.WriteLine("- " + lib.Replace('/', ' '));
+}
+Console.WriteLine("Dependencies for Grpc.Net.Client:");
+foreach (var dep in depsForGrpc)
+{
+    var lib = targetNetStandard2_1.Keys.FirstOrDefault(x => x.StartsWith(dep + '/'));
+    Console.WriteLine("- " + lib.Replace('/', ' '));
 }
 
 return 0;
