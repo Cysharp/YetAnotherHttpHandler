@@ -28,7 +28,7 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 		- macOS (x64, Apple Silicon)
 		- Linux (x64)
 		- iOS (Arm64, x64)
-		- Android (Arm64)
+		- Android (Armv7, Arm64)
 
 ## Features
 - HTTP/1.0, HTTP/1.1
@@ -40,6 +40,7 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 		- TLS support is powered by Rustls + webpki
 
 ### Not supported yet
+- Client certificate
 - HTTP proxy support
 - Verification of certificates by security features built into the OS
 - More platform supports
@@ -47,7 +48,6 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 	- Linux on Arm
 
 ### Not supported (not planned)
-- Client certificate
 - NTLM and Kerberos authentication
 - Platforms
 	- Unity 2021.2 or earlier
