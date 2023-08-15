@@ -27,7 +27,7 @@ Platform/Architecture | Windows | macOS | Linux | Android | iOS
 - ☁ (Tier 2): The build is available, but not confirmed to work.
 - 📆 (Planned): Currently, the build is not available yet.
 
-<details>
+<!--
 - Unity 2021.3 (LTS) or later
 	- Editor
 		- Windows (x64)
@@ -42,7 +42,7 @@ Platform/Architecture | Windows | macOS | Linux | Android | iOS
 		- Linux (x64)
 		- iOS (Arm64, x64)
 		- Android (Armv7, Arm64, x64)
-</details>
+-->
 
 ## Features
 - HTTP/1.0, HTTP/1.1
