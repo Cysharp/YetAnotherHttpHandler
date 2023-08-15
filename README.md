@@ -16,6 +16,19 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 ## Supported platforms and runtimes
 
 - Unity 2021.3 (LTS) or later
+
+Platform/Architecture | Windows | macOS | Linux | Android | iOS
+-- | -- | -- | -- | -- | --
+<strong>x64 (x86_64)</strong> | ✔ | ✔ | ☁ | ☁ | ☁
+<strong>arm64 (aarch64, Apple Silicon)</strong> | 📆 | ✔ | 📆 | ✔ | ✔
+<strong>armv7</strong> | - | - | - | ☁ | -
+
+- ✔ (Tier 1): Verify that it works, and active development support.
+- ☁ (Tier 2): The build is available, but not confirmed to work.
+- 📆 (Planned): Currently, the build is not available yet.
+
+<details>
+- Unity 2021.3 (LTS) or later
 	- Editor
 		- Windows (x64)
 		- macOS (x64, Apple Silicon)
@@ -28,7 +41,8 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 		- macOS (x64, Apple Silicon)
 		- Linux (x64)
 		- iOS (Arm64, x64)
-		- Android (Armv7, Arm64)
+		- Android (Armv7, Arm64, x64)
+</details>
 
 ## Features
 - HTTP/1.0, HTTP/1.1
