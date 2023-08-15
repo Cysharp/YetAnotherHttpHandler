@@ -5,5 +5,9 @@
   "displayName": "YetAnotherHttpHandler",
   "description": "YetAnotherHttpHandler that brings the power of HTTP/2 (and gRPC) to Unity and .NET Standard.",
   "unity": "2021.3",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "org.nuget.system.io.pipelines": "7.0.0",
+    "org.nuget.system.runtime.compilerservices.unsafe": "4.5.3"
+  }
 }
