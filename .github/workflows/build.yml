@@ -140,6 +140,26 @@ jobs:
           path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
           retention-days: 1
 
+  build-android-arm:
+    name: Build Native library (android-arm)
+    if: ${{ !inputs.build-only-linux }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v3
+      - run: sudo apt update && sudo apt install gcc-multilib
+      - run: rustup target add armv7-linux-android
+      - run: cargo install cargo-ndk
+      - run: cargo ndk -t armeabi-v7a build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: android-arm
+          path: native/target/armv7-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+          retention-days: 1
+
   build-android-arm64:
     name: Build Native library (android-arm64)
     if: ${{ !inputs.build-only-linux }}
@@ -170,6 +190,7 @@ jobs:
       - build-osx-arm64
       - build-ios-x64
       - build-ios-arm64
+      - build-android-arm
       - build-android-arm64
     runs-on: ubuntu-latest
     steps:
