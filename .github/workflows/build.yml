@@ -151,13 +151,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: sudo apt update && sudo apt install gcc-multilib
-      - run: rustup target add armv7-linux-android
+      - run: rustup target add armv7-linux-androideabi
       - run: cargo install cargo-ndk
       - run: cargo ndk -t armeabi-v7a build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: actions/upload-artifact@v3
         with:
           name: android-arm
-          path: native/target/armv7-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+          path: native/target/armv7-linux-androideabi/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
           retention-days: 1
 
   build-android-arm64:
