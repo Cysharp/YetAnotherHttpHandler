@@ -72,21 +72,19 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 ## Installation
 ### Unity
 
-To install this library, specify the following URL in `Add package from git URL...` of Package Manager on Unity.
+To install this library:
+
+1. Add the [UnityNuget](https://github.com/xoofx/UnityNuGet) scope registry:
+
+```
+https://github.com/xoofx/UnityNuGet#add-scope-registry-manifestjson
+```
+
+2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity.
 
 ```
 https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v0.1.0
 ```
-
-Additionally, this library depends on the following additional libraries.
-
-- [System.IO.Pipelines](https://www.nuget.org/packages/System.IO.Pipelines) (netstandard2.1)
-- [System.Runtime.CompilerServices.Unsafe](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe) (netstandard2.1)
-
-Please download and install [Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies.unitypackage
- from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01), or obtain the library from NuGet.
-
-📦 **Tips:** You can download NuGet packages from the "Download package" link on the right side of the package page on NuGet.org. The downloaded .nupkg file can be opened as a Zip archive, allowing you to extract individual assemblies from the `lib` directory.
 
 ## Usage
 
@@ -96,7 +94,7 @@ Create an instance of YetAnotherHttpHandler and pass it to HttpClient.
 using Cysharp.Net.Http;
 
 using var handler = new YetAnotherHttpHandler();
-var httpCilent = new HttpClient(handler);
+var httpClient = new HttpClient(handler);
 
 var result = await httpClient.GetStringAsync("https://www.example.com");
 ```
@@ -109,19 +107,17 @@ However, since it does not have features such as connection control by the numbe
 
 ### Using gRPC (grpc-dotnet) library
 
-To use grpc-dotnet (Grpc.Net.Client), add the following additional libraries:
+To use grpc-dotnet (Grpc.Net.Client), add the following additional library to `manifest.json`:
 
-- Grpc.Core.Api
-- Grpc.Net.Client
-- Grpc.Net.Common
-- Microsoft.Extensions.Logging.Abstractions
-- System.Buffers
-- System.Diagnostics.DiagnosticSource
-- System.Memory
-- System.Numerics.Vectors
+```json
+{
+  "dependencies": {
+    "org.nuget.grpc.net.client": "{version}"
+  }
+}
+```
 
-Please download and install [Grpc.Net.Client.Dependencies.unitypackage
- from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01), or obtain the library from NuGet.
+> Replace `{version}` with the latest version available in NuGet: https://www.nuget.org/packages/Grpc.Net.Client#versions-body-tab
 
 Create an instance of `YetAnotherHttpHandler` and pass it to `GrpcChannelOptions.HttpHandler` property.
 
