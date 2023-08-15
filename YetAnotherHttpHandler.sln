@@ -17,9 +17,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		THIRD-PARTY-NOTICES = THIRD-PARTY-NOTICES
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YetAnotherHttpHandler.Unity.Dependencies", "src\YetAnotherHttpHandler.Unity.Dependencies\YetAnotherHttpHandler.Unity.Dependencies.csproj", "{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YetAnotherHttpHandler.Unity.Dependencies", "src\YetAnotherHttpHandler.Unity.Dependencies\YetAnotherHttpHandler.Unity.Dependencies.csproj", "{9F9F6B43-8CBF-4025-8B8B-A4465C04740E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YetAnotherHttpHandler.Unity.Dependencies.Sync", "src\YetAnotherHttpHandler.Unity.Dependencies.Sync\YetAnotherHttpHandler.Unity.Dependencies.Sync.csproj", "{7038AD7C-6767-4427-8B89-473BC27E9C9A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YetAnotherHttpHandler.Unity.Dependencies.Sync", "src\YetAnotherHttpHandler.Unity.Dependencies.Sync\YetAnotherHttpHandler.Unity.Dependencies.Sync.csproj", "{7038AD7C-6767-4427-8B89-473BC27E9C9A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
