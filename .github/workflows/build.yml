@@ -219,7 +219,7 @@ jobs:
         with:
           name: nuget-packages
           path: ./publish/
-      - run: unzip -o ./publish/YetAnotherHttpHandler.*[0-9].nupkg 'runtimes/*' -d src/YetAnotherHttpHandler/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/
+      - run: unzip -o ./publish/YetAnotherHttpHandler.*[0-9].nupkg 'runtimes/*' -d src/YetAnotherHttpHandler/Plugins/Cysharp.Net.Http.YetAnotherHttpHandler.Native/ || true
       - run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
