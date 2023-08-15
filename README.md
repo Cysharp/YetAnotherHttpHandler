@@ -17,7 +17,7 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 
 - Unity 2021.3 (LTS) or later
 
-Platform/Architecture | Windows | macOS | Linux | Android | iOS
+Architecture/Platform | Windows | macOS | Linux | Android | iOS
 -- | -- | -- | -- | -- | --
 <strong>x64 (x86_64)</strong> | ✔ | ✔ | ☁ | ☁ | ☁
 <strong>arm64 (aarch64, Apple Silicon)</strong> | 📆 | ✔ | 📆 | ✔ | ✔
@@ -66,7 +66,7 @@ Platform/Architecture | Windows | macOS | Linux | Android | iOS
 - Platforms
 	- Unity 2021.2 or earlier
 	- .NET 5+
-	- 32bit architectures (x86, aarch)
+	- 32bit architectures (x86)
 	- tvOS, watchOS, Tizen
 
 ## Installation
