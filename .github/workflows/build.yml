@@ -180,6 +180,26 @@ jobs:
           path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
           retention-days: 1
 
+  build-android-x64:
+    name: Build Native library (android-x64)
+    if: ${{ !inputs.build-only-linux }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v3
+      - run: sudo apt update && sudo apt install gcc-multilib
+      - run: rustup target add x86_64-linux-android
+      - run: cargo install cargo-ndk
+      - run: cargo ndk -t x86_64 build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: android-x64
+          path: native/target/x86_64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
+          retention-days: 1
+
   build-dotnet:
     name: Build and pack .NET library
     if: ${{ inputs.build-only-linux && needs.build-linux-x64.result == 'success' || success() }}
@@ -192,6 +212,7 @@ jobs:
       - build-ios-arm64
       - build-android-arm
       - build-android-arm64
+      - build-android-x64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
