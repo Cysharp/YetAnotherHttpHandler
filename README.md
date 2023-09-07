@@ -96,7 +96,7 @@ Create an instance of YetAnotherHttpHandler and pass it to HttpClient.
 using Cysharp.Net.Http;
 
 using var handler = new YetAnotherHttpHandler();
-var httpCilent = new HttpClient(handler);
+var httpClient = new HttpClient(handler);
 
 var result = await httpClient.GetStringAsync("https://www.example.com");
 ```
