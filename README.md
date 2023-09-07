@@ -130,7 +130,7 @@ Create an instance of `YetAnotherHttpHandler` and pass it to `GrpcChannelOptions
 using Cysharp.Net.Http;
 
 using var handler = new YetAnotherHttpHandler();
-using var channel = GrpcChannel.ForAddress("https://api.example.com", new GrpcChannelOptions() { HttpHandler = httpHandler });
+using var channel = GrpcChannel.ForAddress("https://api.example.com", new GrpcChannelOptions() { HttpHandler = handler });
 var greeter = new GreeterClient(channel);
 
 var result = await greeter.SayHelloAsync(new HelloRequest { Name = "Alice" });
