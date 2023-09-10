@@ -1,34 +1,67 @@
 #if UNITY_EDITOR
 
+using Needle.HybridPackages;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
-using UnityEngine;
+using UnityEditor.PackageManager.Requests;
 
 public static class PackageExporter
 {
+    private static ListRequest s_listRequest;
+
     [MenuItem("Tools/Export Unitypackage")]
     public static void Export()
     {
-        PackDependencies("Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", "YetAnotherHttpHandler.deps.txt");
-        PackDependencies("Grpc.Net.Client.Dependencies", "Grpc.Net.Client.deps.txt");
+        EditorUtility.DisplayProgressBar("Packges", "Exporting packages, please wait...", 0);
+
+        s_listRequest = UnityEditor.PackageManager.Client.List(offlineMode: false, includeIndirectDependencies: true);
+
+        EditorApplication.update += OnEditorUpdate;
     }
 
-    static void PackDependencies(string unityPackageName, string dependenciesListFileName)
+    private static void OnEditorUpdate()
     {
-        Debug.Log($"Creating package '{unityPackageName}'...");
-        var pluginsDir = Path.Combine(Application.dataPath, "Plugins");
-        var libraryNames = File.ReadAllLines(Path.Combine(pluginsDir, dependenciesListFileName));
-        Debug.Log($"Includes library: {string.Join(';', libraryNames)}");
+        if (s_listRequest == null || !s_listRequest.IsCompleted)
+        {
+            return;
+        }
 
-        var exportPath = $"./{unityPackageName}.unitypackage";
-        AssetDatabase.ExportPackage(
-            libraryNames.Select(x => $"Assets/Plugins/{x}").ToArray(),
-            exportPath,
-            ExportPackageOptions.Recurse);
+        EditorApplication.update -= OnEditorUpdate;
 
-        UnityEngine.Debug.Log("Export complete: " + Path.GetFullPath(exportPath));
+        ExporPackage("com.cysharp.yetanotherhttphandler", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies");
+        ExporPackage("org.nuget.grpc.net.client", "Grpc.Net.Client.Dependencies");
+
+        EditorUtility.ClearProgressBar();
+    }
+
+    private static void ExporPackage(string packageName, string unityPackageName)
+    {
+        List<UnityEditor.PackageManager.PackageInfo> dependencies = new();
+
+        UnityEditor.PackageManager.PackageInfo packageInfo = s_listRequest.Result.First(p => p.name.Equals(packageName, StringComparison.Ordinal));
+
+        GetAllDependencies(packageInfo, dependencies);
+
+        string exportPath = $"./{unityPackageName}.unitypackage";
+
+        UnitypackageExporter.ExportUnitypackage(dependencies, exportPath);
+
+        UnityEngine.Debug.Log($"Export complete: {Path.GetFullPath(exportPath)}");
+    }
+
+    private static void GetAllDependencies(UnityEditor.PackageManager.PackageInfo packageInfo, ICollection<UnityEditor.PackageManager.PackageInfo> dependencies)
+    {
+        foreach (UnityEditor.PackageManager.DependencyInfo dependency in packageInfo.dependencies)
+        {
+            UnityEditor.PackageManager.PackageInfo resolvedPackageInfo = s_listRequest.Result.First(p => p.name.Equals(dependency.name, StringComparison.Ordinal));
+
+            dependencies.Add(resolvedPackageInfo);
+
+            GetAllDependencies(resolvedPackageInfo, dependencies);
+        }
     }
 }
 
