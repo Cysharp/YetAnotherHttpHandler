@@ -68,6 +68,7 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 	- .NET 5+
 	- 32bit architectures (x86)
 	- tvOS, watchOS, Tizen
+        - WebGL
 
 ## Installation
 ### Unity
