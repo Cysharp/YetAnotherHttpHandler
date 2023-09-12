@@ -31,13 +31,13 @@ public static class PackageExporter
 
         EditorApplication.update -= OnEditorUpdate;
 
-        ExporPackage("com.cysharp.yetanotherhttphandler", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies");
-        ExporPackage("org.nuget.grpc.net.client", "Grpc.Net.Client.Dependencies");
+        ExportPackage("com.cysharp.yetanotherhttphandler", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies");
+        ExportPackage("org.nuget.grpc.net.client", "Grpc.Net.Client.Dependencies");
 
         EditorUtility.ClearProgressBar();
     }
 
-    private static void ExporPackage(string packageName, string unityPackageName)
+    private static void ExportPackage(string packageName, string unityPackageName)
     {
         List<UnityEditor.PackageManager.PackageInfo> dependencies = new();
 
