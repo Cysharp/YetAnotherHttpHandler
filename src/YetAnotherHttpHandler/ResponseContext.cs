@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Cysharp.Net.Http.Shims;
 
 namespace Cysharp.Net.Http
 {

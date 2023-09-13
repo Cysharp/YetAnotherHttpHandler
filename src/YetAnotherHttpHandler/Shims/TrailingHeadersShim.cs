@@ -4,7 +4,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 
-namespace Cysharp.Net.Http
+namespace Cysharp.Net.Http.Shims
 {
     internal static class TrailingHeadersShim
     {

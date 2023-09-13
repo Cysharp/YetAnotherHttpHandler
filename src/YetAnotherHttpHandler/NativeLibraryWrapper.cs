@@ -12,6 +12,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Cysharp.Net.Http.Shims;
 #if UNITY_2019_1_OR_NEWER
 using AOT;
 #endif
