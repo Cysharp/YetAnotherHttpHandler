@@ -3,20 +3,15 @@
 #endif
 
 using System;
-using System.Buffers;
 using System.Collections.Concurrent;
-using System.IO.Pipelines;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.ExceptionServices;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 #if UNITY_2019_1_OR_NEWER
 using AOT;
 #endif
@@ -146,8 +141,8 @@ namespace Cysharp.Net.Http
                 {
                     var bufKey = new StringBuffer(pKey, keyBytes.Length);
                     var bufValue = new StringBuffer(pValue, valueBytes.Length);
-                    VerifyPointer(_ctx, reqCtx);
-                    ThrowIfFailed(NativeMethods.yaha_request_set_header(_ctx, reqCtx, &bufKey, &bufValue));
+                    ThrowHelper.VerifyPointer(_ctx, reqCtx);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(_ctx, reqCtx, &bufKey, &bufValue));
                 }
             }
 
@@ -157,8 +152,8 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);
-                    VerifyPointer(_ctx, reqCtx);
-                    ThrowIfFailed(NativeMethods.yaha_request_set_method(_ctx, reqCtx, &buf));
+                    ThrowHelper.VerifyPointer(_ctx, reqCtx);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_method(_ctx, reqCtx, &buf));
                 }
             }
 
@@ -168,8 +163,8 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);
-                    VerifyPointer(_ctx, reqCtx);
-                    ThrowIfFailed(NativeMethods.yaha_request_set_uri(_ctx, reqCtx, &buf));
+                    ThrowHelper.VerifyPointer(_ctx, reqCtx);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(_ctx, reqCtx, &buf));
                 }
             }
             
@@ -191,318 +186,14 @@ namespace Cysharp.Net.Http
             _inflightRequests[requestSequence] = requestContextManaged;
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}] Begin HTTP request to the server.");
-            VerifyPointer(_ctx, reqCtx);
-            ThrowIfFailed(NativeMethods.yaha_request_begin(_ctx, reqCtx));
+            ThrowHelper.VerifyPointer(_ctx, reqCtx);
+            ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(_ctx, reqCtx));
             requestContextManaged.Start(); // NOTE: ReadRequestLoop must be started after `request_begin`.
 
             return requestContextManaged;
         }
-
-        [Conditional("__VERIFY_POINTER")]
-        private static unsafe void VerifyPointer(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx)
-        {
-            if (ctx == null) throw new ArgumentNullException(nameof(ctx));
-            if (reqCtx == null) throw new ArgumentNullException(nameof(reqCtx));
-        }
-
-        private static unsafe void ThrowIfFailed(bool result)
-        {
-            if (!result)
-            {
-                var buf = NativeMethods.yaha_get_last_error();
-                if (buf != null)
-                {
-                    try
-                    {
-                        throw new InvalidOperationException(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()));
-                    }
-                    finally
-                    {
-                        NativeMethods.yaha_free_byte_buffer(buf);
-                    }
-                }
-                else
-                {
-                    throw new InvalidOperationException("Unexpected error occurred.");
-                }
-            }
-        }
         
 
-        public class RequestContext : IDisposable
-        {
-            private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
-            private readonly CancellationToken _cancellationToken;
-            private readonly int _requestSequence;
-
-            internal unsafe YahaNativeContext* _ctx;
-            internal unsafe YahaNativeRequestContext* _requestContext;
-
-            private bool _requestBodyCompleted;
-            private Task? _readRequestTask;
-            private Response _response;
-
-            public int RequestSequence => _requestSequence;
-            public Response Response => _response;
-            public PipeWriter Writer => _pipe.Writer;
-
-            internal unsafe RequestContext(YahaNativeContext* ctx, YahaNativeRequestContext* requestContext, HttpRequestMessage requestMessage, int requestSequence, CancellationToken cancellationToken)
-            {
-                _ctx = ctx;
-                _requestContext = requestContext;
-                _response = new Response(requestMessage, this, cancellationToken);
-                _readRequestTask = default;
-                _requestSequence = requestSequence;
-                _cancellationToken = cancellationToken;
-            }
-
-            internal void Start()
-            {
-                _readRequestTask = RunReadRequestLoopAsync(_cancellationToken);
-            }
-
-            private async Task RunReadRequestLoopAsync(CancellationToken cancellationToken)
-            {
-                try
-                {
-                    while (true)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        var result = await _pipe.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-
-                        if (result.Buffer.Length > 0)
-                        {
-                            var buffer = ArrayPool<byte>.Shared.Rent((int)result.Buffer.Length);
-                            try
-                            {
-                                result.Buffer.CopyTo(buffer);
-                                Write(buffer.AsSpan(0, (int)result.Buffer.Length));
-                                _pipe.Reader.AdvanceTo(result.Buffer.End);
-                            }
-                            finally
-                            {
-                                ArrayPool<byte>.Shared.Return(buffer);
-                            }
-                        }
-
-                        if (result.IsCompleted || result.IsCanceled) break;
-                    }
-
-                    TryComplete();
-                }
-                catch (Exception e)
-                {
-                    TryComplete(e);
-                }
-
-                unsafe void Write(Span<byte> data)
-                {
-                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Sending the request body: Length={data.Length}");
-                    VerifyPointer(_ctx, _requestContext);
-
-                    while (!_requestBodyCompleted)
-                    {
-                        // If the internal buffer is full, yaha_request_write_body returns false. We need to wait until ready to send bytes again.
-                        if (NativeMethods.yaha_request_write_body(_ctx, _requestContext, (byte*)Unsafe.AsPointer(ref data.GetPinnableReference()), (UIntPtr)data.Length))
-                        {
-                            break;
-                        }
-                        if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Send buffer is full.");
-
-                        // TODO:
-                        Thread.Sleep(10);
-                    }
-                }
-            }
-
-            public unsafe void TryComplete(Exception? exception = default)
-            {
-                if (_ctx == null || _requestContext == null)
-                {
-                    // The request has already completed. We need to nothing to do at here.
-                    return;
-                }
-
-                if (_requestBodyCompleted)
-                {
-                    return;
-                }
-
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestSequence}] Complete sending the request body{(exception is null ? string.Empty : "; Exception=" + exception.Message)}");
-
-                VerifyPointer(_ctx, _requestContext);
-                ThrowIfFailed(NativeMethods.yaha_request_complete_body(_ctx, _requestContext));
-                
-                _pipe.Reader.Complete(exception);
-
-                _requestBodyCompleted = true;
-            }
-
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
-            ~RequestContext()
-            {
-                Dispose(false);
-            }
-
-            private unsafe void Dispose(bool disposing)
-            {
-                if (_requestContext != null)
-                {
-                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestSequence}] Disposing RequestContext");
-                    VerifyPointer(_ctx, _requestContext);
-                    ThrowIfFailed(NativeMethods.yaha_request_destroy(_ctx, _requestContext));
-                    _requestContext = null;
-                }
-
-                if (disposing)
-                {
-                    _ctx = null;
-                }
-            }
-        }
-
-        public class Response
-        {
-            private readonly int _requestSequence;
-            private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
-            private readonly TaskCompletionSource<HttpResponseMessage> _responseTask;
-            private readonly HttpResponseMessage _message;
-            private readonly CancellationToken _cancellationToken;
-            private readonly CancellationTokenRegistration _tokenRegistration;
-
-            public PipeReader Reader => _pipe.Reader;
-
-            internal Response(HttpRequestMessage requestMessage, RequestContext requestContext, CancellationToken cancellationToken)
-            {
-                _responseTask = new TaskCompletionSource<HttpResponseMessage>();
-                _requestSequence = requestContext.RequestSequence;
-                _cancellationToken = cancellationToken;
-                _tokenRegistration = cancellationToken.Register((state) =>
-                {
-                    ((Response)state!).Cancel();
-                }, this);
-
-                _message = new HttpResponseMessage()
-                {
-                    RequestMessage = requestMessage,
-                    Content = new YetAnotherHttpHttpContent(Reader, requestContext),
-                    Version = HttpVersion.Version10,
-                };
-#if NETSTANDARD2_0
-                _message.EnsureTrailingHeaders();
-#endif
-            }
-
-            public void Write(ReadOnlySpan<byte> data)
-            {
-                var buffer = _pipe.Writer.GetSpan(data.Length);
-                data.CopyTo(buffer);
-                _pipe.Writer.Advance(data.Length);
-                var t = _pipe.Writer.FlushAsync();
-                if (!t.IsCompleted)
-                {
-                    t.AsTask().GetAwaiter().GetResult();
-                }
-            }
-
-            public void SetHeader(string name, string value)
-            {
-                if (!_message.Headers.TryAddWithoutValidation(name, value))
-                {
-                    _message.Content.Headers.TryAddWithoutValidation(name, value);
-                }
-            }
-            
-            public void SetHeader(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
-            {
-                var name = UnsafeUtilities.GetStringFromUtf8Bytes(nameBytes);
-                var value = UnsafeUtilities.GetStringFromUtf8Bytes(valueBytes);
-
-                if (!_message.Headers.TryAddWithoutValidation(name, value))
-                {
-                    _message.Content.Headers.TryAddWithoutValidation(name, value);
-                }
-            }
-
-            internal void SetVersion(YahaHttpVersion version)
-            {
-                _message.Version = version switch
-                {
-                    YahaHttpVersion.Http10 => HttpVersion.Version10,
-                    YahaHttpVersion.Http11 => HttpVersion.Version11,
-                    YahaHttpVersion.Http2 => HttpVersionShim.Version20,
-                    _ => HttpVersionShim.Unknown,
-                };
-            }
-
-            public void SetTrailer(string name, string value)
-            {
-                _message.TrailingHeaders().TryAddWithoutValidation(name, value);
-            }
-
-            public void SetTrailer(ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
-            {
-                _message.TrailingHeaders().TryAddWithoutValidation(UnsafeUtilities.GetStringFromUtf8Bytes(name), UnsafeUtilities.GetStringFromUtf8Bytes(value));
-            }
-
-            public void SetStatusCode(int statusCode)
-            {
-                _message.StatusCode = (HttpStatusCode)statusCode;
-                _responseTask.TrySetResult(_message);
-            }
-
-            public void Complete()
-            {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed.");
-                _pipe.Writer.Complete();
-            }
-
-            public void CompleteAsFailed(string errorMessage)
-            {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed with failure ({errorMessage})");
-
-                var ex = new HttpRequestException(errorMessage);
-#if NET5_0_OR_GREATER
-                ExceptionDispatchInfo.SetCurrentStackTrace(ex);
-#else
-                try
-                {
-                    throw new HttpRequestException(errorMessage);
-                }
-                catch (HttpRequestException e)
-                {
-                    ex = e;
-                }
-#endif
-                _responseTask.TrySetException(ex);
-                _pipe.Writer.Complete(ex);
-
-            }
-
-            public void Cancel()
-            {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response was cancelled");
-
-                _responseTask.TrySetCanceled(_cancellationToken);
-                _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
-            }
-
-            public async Task<HttpResponseMessage> GetResponseAsync()
-            {
-                return await _responseTask.Task.ConfigureAwait(false);
-            }
-
-            public Stream ToStream()
-            {
-                return _pipe.Reader.AsStream();
-            }
-        }
-        
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
@@ -515,7 +206,7 @@ namespace Cysharp.Net.Http
             {
                 requestContext.Response.SetVersion(version);
 
-                VerifyPointer(requestContext._ctx, requestContext._requestContext);
+                ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
                 var headersCount = NativeMethods.yaha_request_response_get_headers_count(requestContext._ctx, requestContext._requestContext);
                 if (headersCount > 0)
                 {
@@ -560,7 +251,7 @@ namespace Cysharp.Net.Http
 
             if (_inflightRequests.TryGetValue(reqSeq, out var requestContext))
             {
-                VerifyPointer(requestContext._ctx, requestContext._requestContext);
+                ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
                 if (hasError == 0)
                 {
                     var trailersCount = NativeMethods.yaha_request_response_get_trailers_count(requestContext._ctx, requestContext._requestContext);
