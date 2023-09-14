@@ -1,0 +1,15 @@
+name: Build (Push/Pull request)
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  run-build:
+    uses: ./.github/workflows/build.yml
+    with:
+      build-config: debug
+      build-only-linux: false
+      update-unity-native: false

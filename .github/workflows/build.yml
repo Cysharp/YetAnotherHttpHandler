@@ -17,6 +17,17 @@ on:
         required: true
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      build-config:
+        required: true
+        type: string
+      build-only-linux:
+        required: true
+        type: boolean
+      update-unity-native:
+        required: true
+        type: boolean
 
 env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
