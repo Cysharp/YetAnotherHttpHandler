@@ -11,9 +11,9 @@ namespace Cysharp.Net.Http
     internal class YetAnotherHttpHttpContent : HttpContent
     {
         private readonly PipeReader _pipeReader;
-        private readonly NativeLibraryWrapper.RequestContext _requestContext;
+        private readonly RequestContext _requestContext;
 
-        internal YetAnotherHttpHttpContent(PipeReader pipeReader, NativeLibraryWrapper.RequestContext requestContext)
+        internal YetAnotherHttpHttpContent(PipeReader pipeReader, RequestContext requestContext)
         {
             _pipeReader = pipeReader;
             _requestContext = requestContext;
@@ -54,7 +54,7 @@ namespace Cysharp.Net.Http
 
         private class StreamWrapper : Stream
         {
-            private readonly NativeLibraryWrapper.RequestContext _requestContext;
+            private readonly RequestContext _requestContext;
             private readonly Stream _inner;
 
             public override bool CanRead => _inner.CanRead;
@@ -67,7 +67,7 @@ namespace Cysharp.Net.Http
 
             public override long Position { get => _inner.Position; set => _inner.Position = value; }
 
-            public StreamWrapper(NativeLibraryWrapper.RequestContext requestContext, Stream inner)
+            public StreamWrapper(RequestContext requestContext, Stream inner)
             {
                 _requestContext = requestContext;
                 _inner = inner;

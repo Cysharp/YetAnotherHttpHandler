@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Text;
 
-namespace Cysharp.Net.Http
+namespace Cysharp.Net.Http.Shims
 {
     internal class HttpVersionShim
     {

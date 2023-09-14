@@ -1,6 +1,6 @@
 using System;
 
-namespace Cysharp.Net.Http
+namespace Cysharp.Net.Http.Shims
 {
 #if !UNITY_2019_1_OR_NEWER
     [AttributeUsage(AttributeTargets.Method)]
