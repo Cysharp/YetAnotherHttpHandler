@@ -32,7 +32,6 @@ on:
 env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
   _DOTNET_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'Debug' || 'Release' }}
-  _UNITY_VERSION: 2021.3.1f1
 
 jobs:
   build-win-x64:
