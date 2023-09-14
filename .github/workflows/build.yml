@@ -1,11 +1,5 @@
 name: Build
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       build-config:
@@ -28,13 +22,11 @@ env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
   _DOTNET_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'Debug' || 'Release' }}
   _UNITY_VERSION: 2021.3.1f1
-  _BUILD_ONLY_LINUX: ${{ inputs.build-only-linux || false }}
-  _UPDATE_UNITY_NATIVE: ${{ inputs.update-unity-native || false }}
 
 jobs:
   build-win-x64:
     name: Build Native library (win-x64)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: windows-2019
     timeout-minutes: 30
     defaults:
@@ -96,7 +88,7 @@ jobs:
 
   build-osx-arm64:
     name: Build Native library (osx-arm64)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -114,7 +106,7 @@ jobs:
 
   build-ios-x64:
     name: Build Native library (ios-x64)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -132,7 +124,7 @@ jobs:
 
   build-ios-arm64:
     name: Build Native library (ios-arm64)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: macos-latest
     timeout-minutes: 30
     defaults:
@@ -150,7 +142,7 @@ jobs:
 
   build-android-arm:
     name: Build Native library (android-arm)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -170,7 +162,7 @@ jobs:
 
   build-android-arm64:
     name: Build Native library (android-arm64)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -190,7 +182,7 @@ jobs:
 
   build-android-x64:
     name: Build Native library (android-x64)
-    if: ${{ !env._BUILD_ONLY_LINUX }}
+    if: ${{ !inputs.build-only-linux }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -210,7 +202,7 @@ jobs:
 
   build-dotnet:
     name: Build and pack .NET library
-    if: ${{ env._BUILD_ONLY_LINUX && needs.build-linux-x64.result == 'success' || success() }}
+    if: ${{ inputs.build-only-linux && needs.build-linux-x64.result == 'success' || success() }}
     needs:
       - build-win-x64
       - build-linux-x64
@@ -238,7 +230,7 @@ jobs:
 
   update-unity-native:
     name: Update pre-built libraries for Unity
-    if: ${{ env._UPDATE_UNITY_NATIVE && (env._BUILD_ONLY_LINUX && needs.build-dotnet.result == 'success' || success()) }}
+    if: ${{ inputs.update-unity-native && (inputs.build-only-linux && needs.build-dotnet.result == 'success' || success()) }}
     needs: [ build-dotnet ]
     runs-on: ubuntu-latest
     timeout-minutes: 15
