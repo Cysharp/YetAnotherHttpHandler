@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "com.cysharp.yetanotherhttphandler": "file:../../YetAnotherHttpHandler",
-    "com.needle.upm-in-unitypackage": "0.6.3",
     "com.unity.collab-proxy": "1.15.15",
     "com.unity.feature.2d": "1.0.0",
     "com.unity.ide.rider": "3.0.13",
@@ -46,13 +45,6 @@
     "com.unity.modules.xr": "1.0.0"
   },
   "scopedRegistries": [
-    {
-      "name": "OpenUPM",
-      "url": "https://package.openupm.com/",
-      "scopes": [
-        "com.needle"
-      ]
-    },
     {
       "name": "Unity NuGet",
       "url": "https://unitynuget-registry.azurewebsites.net",

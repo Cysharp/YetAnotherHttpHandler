@@ -1,6 +1,5 @@
 #if UNITY_EDITOR
 
-using Needle.HybridPackages;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -52,7 +51,7 @@ public static class PackageExporter
 
         string exportPath = $"./{unityPackageName}.unitypackage";
 
-        UnitypackageExporter.ExportUnitypackage(dependencies, exportPath);
+        AssetDatabase.ExportPackage(dependencies.Select(x => x.assetPath).ToArray(), exportPath, ExportPackageOptions.Recurse);
 
         UnityEngine.Debug.Log($"Export complete: {Path.GetFullPath(exportPath)}");
     }
