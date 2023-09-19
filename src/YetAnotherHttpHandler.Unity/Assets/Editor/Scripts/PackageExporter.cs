@@ -31,17 +31,22 @@ public static class PackageExporter
 
         EditorApplication.update -= OnEditorUpdate;
 
-        ExportPackage("com.cysharp.yetanotherhttphandler", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies");
-        ExportPackage("org.nuget.grpc.net.client", "Grpc.Net.Client.Dependencies");
+        ExportPackage("com.cysharp.yetanotherhttphandler", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", includeSelf: false);
+        ExportPackage("org.nuget.grpc.net.client", "Grpc.Net.Client.Dependencies", includeSelf: true);
 
         EditorUtility.ClearProgressBar();
     }
 
-    private static void ExportPackage(string packageName, string unityPackageName)
+    private static void ExportPackage(string packageName, string unityPackageName, bool includeSelf)
     {
         List<UnityEditor.PackageManager.PackageInfo> dependencies = new();
 
         UnityEditor.PackageManager.PackageInfo packageInfo = s_listRequest.Result.First(p => p.name.Equals(packageName, StringComparison.Ordinal));
+
+        if (includeSelf)
+        {
+            dependencies.Add(packageInfo);
+        }
 
         GetAllDependencies(packageInfo, dependencies);
 
