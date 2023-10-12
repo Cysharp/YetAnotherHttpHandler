@@ -71,6 +71,34 @@ pub extern "C" fn yaha_client_config_add_root_certificates(ctx: *mut YahaNativeC
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_add_client_auth_certificates(ctx: *mut YahaNativeContext, auth_certs: *const StringBuffer) -> usize {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    let certs: Vec<rustls::Certificate> = unsafe { rustls_pemfile::certs(&mut (*auth_certs).to_bytes()).unwrap().into_iter().map(rustls::Certificate).collect() };
+
+    let count = certs.len();
+
+    if count > 0 {
+        ctx.client_auth_certificates.get_or_insert(certs);
+    }
+
+    count
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_add_client_auth_key(ctx: *mut YahaNativeContext, auth_key: *const StringBuffer) -> usize {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    let keys: Vec<rustls::PrivateKey> = unsafe { rustls_pemfile::pkcs8_private_keys(&mut (*auth_key).to_bytes()).unwrap().into_iter().map(rustls::PrivateKey).collect() };
+
+    let count = keys.len();
+
+    if count > 0 {
+        ctx.client_auth_key.get_or_insert(keys[0].clone());
+    }
+
+    count
+}
+
+#[no_mangle]
 pub extern "C" fn yaha_client_config_skip_certificate_verification(ctx: *mut YahaNativeContext, val: bool) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.skip_certificate_verification = Some(val);

@@ -20,6 +20,8 @@ pub struct YahaNativeContextInternal {
     pub client_builder: Option<client::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
+    pub client_auth_certificates: Option<Vec<rustls::Certificate>>,
+    pub client_auth_key: Option<rustls::PrivateKey>,
     pub client: Option<Client<HttpsConnector<HttpConnector>, hyper::Body>>,
     pub on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
     pub on_receive: OnReceive,
@@ -42,6 +44,8 @@ impl YahaNativeContextInternal {
             client_builder: Some(Client::builder()),
             skip_certificate_verification: None,
             root_certificates: None,
+            client_auth_certificates: None,
+            client_auth_key: None,
             on_status_code_and_headers_receive,
             on_receive,
             on_complete,
@@ -66,14 +70,23 @@ impl YahaNativeContextInternal {
                 .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerification {}))
                 .with_no_client_auth();
         } else {
+            let tls_config_builder_root: rustls::ConfigBuilder<rustls::ClientConfig, rustls::client::WantsTransparencyPolicyOrClientCert>;
             if let Some(root_certificates) = &self.root_certificates {
-                tls_config = tls_config_builder
-                    .with_root_certificates(root_certificates.to_owned())
-                    .with_no_client_auth();
+                tls_config_builder_root = tls_config_builder.with_root_certificates(root_certificates.to_owned());
             } else {
-                tls_config = tls_config_builder
-                    .with_webpki_roots()
-                    .with_no_client_auth();
+                tls_config_builder_root = tls_config_builder.with_webpki_roots();
+            }
+
+            tls_config = if let Some(client_auth_certificates) = &self.client_auth_certificates {
+                if let Some(client_auth_key) = &self.client_auth_key {
+                    tls_config_builder_root.clone()
+                        .with_client_auth_cert(client_auth_certificates.to_owned(), client_auth_key.to_owned())
+                        .unwrap_or(tls_config_builder_root.with_no_client_auth())
+                } else {
+                    tls_config_builder_root.with_no_client_auth()
+                }
+            } else {
+                tls_config_builder_root.with_no_client_auth()
             }
         }
 
