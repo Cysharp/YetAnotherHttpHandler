@@ -51,6 +51,16 @@ namespace Cysharp.Net.Http
         public string? RootCertificates { get => _settings.RootCertificates; set => _settings.RootCertificates = value; }
 
         /// <summary>
+        /// Gets or sets a custom client auth certificates.
+        /// </summary>
+        public string? ClientAuthCertificates { get => _settings.ClientAuthCertificates; set => _settings.ClientAuthCertificates = value; }
+
+        /// <summary>
+        /// Gets or sets a custom client auth key.
+        /// </summary>
+        public string? ClientAuthKey { get => _settings.ClientAuthKey; set => _settings.ClientAuthKey = value; }
+
+        /// <summary>
         /// Gets or sets the SETTINGS_INITIAL_WINDOW_SIZE option for HTTP2 stream-level flow control.
         /// </summary>
         /// <remarks>
@@ -174,6 +184,8 @@ namespace Cysharp.Net.Http
         public bool? Http2Only { get; set; }
         public bool? SkipCertificateVerification { get; set; }
         public string? RootCertificates { get; set; }
+        public string? ClientAuthCertificates { get; set; }
+        public string? ClientAuthKey { get; set; }
         public uint? Http2InitialStreamWindowSize { get; set; }
         public uint? Http2InitialConnectionWindowSize { get; set; }
         public bool? Http2AdaptiveWindow { get; set; }
@@ -193,6 +205,8 @@ namespace Cysharp.Net.Http
                 Http2Only = this.Http2Only,
                 SkipCertificateVerification = this.SkipCertificateVerification,
                 RootCertificates = this.RootCertificates,
+                ClientAuthCertificates = this.ClientAuthCertificates,
+                ClientAuthKey = this.ClientAuthKey,
                 Http2InitialStreamWindowSize = this.Http2InitialStreamWindowSize,
                 Http2InitialConnectionWindowSize = this.Http2InitialConnectionWindowSize,
                 Http2AdaptiveWindow = this.Http2AdaptiveWindow,

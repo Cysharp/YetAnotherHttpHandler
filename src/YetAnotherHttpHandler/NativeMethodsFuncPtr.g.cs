@@ -28,6 +28,12 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_client_config_add_root_certificates", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern nuint yaha_client_config_add_root_certificates(YahaNativeContext* ctx, StringBuffer* root_certs);
 
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_add_client_auth_certificates", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern nuint yaha_client_config_add_client_auth_certificates(YahaNativeContext* ctx, StringBuffer* auth_certs);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_add_client_auth_key", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern nuint yaha_client_config_add_client_auth_key(YahaNativeContext* ctx, StringBuffer* auth_key);
+
         [DllImport(__DllName, EntryPoint = "yaha_client_config_skip_certificate_verification", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_skip_certificate_verification(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
 
