@@ -44,7 +44,7 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.MaxIdlePerHost)}' = {maxIdlePerHost}");
                 NativeMethods.yaha_client_config_pool_max_idle_per_host(_ctx, (nuint)maxIdlePerHost);
             }
-            if (settings.SkipCertificateVerification is {} skipCertificateVerification)
+            if (settings.SkipCertificateVerification is { } skipCertificateVerification)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.SkipCertificateVerification)}' = {skipCertificateVerification}");
                 NativeMethods.yaha_client_config_skip_certificate_verification(_ctx, skipCertificateVerification);
@@ -60,52 +60,72 @@ namespace Cysharp.Net.Http
                     if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_client_config_add_root_certificates: ValidCertificatesCount={validCertificatesCount}");
                 }
             }
-            if (settings.Http2Only is {} http2Only)
+            if (settings.ClientAuthKey is { } clientAuthKey)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.ClientAuthKey)}' = {clientAuthKey}");
+                var strBytes = Encoding.UTF8.GetBytes(clientAuthKey);
+                fixed (byte* buffer = strBytes)
+                {
+                    var sb = new StringBuffer(buffer, strBytes.Length);
+                    NativeMethods.yaha_client_config_add_client_auth_key(_ctx, &sb);
+                }
+            }
+            if (settings.ClientAuthCertificates is { } clientAuthCertificates)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.ClientAuthCertificates)}' = {clientAuthCertificates}");
+                var strBytes = Encoding.UTF8.GetBytes(clientAuthCertificates);
+                fixed (byte* buffer = strBytes)
+                {
+                    var sb = new StringBuffer(buffer, strBytes.Length);
+                    NativeMethods.yaha_client_config_add_client_auth_certificates(_ctx, &sb);
+                }
+            }
+            if (settings.Http2Only is { } http2Only)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2Only)}' = {http2Only}");
                 NativeMethods.yaha_client_config_http2_only(_ctx, http2Only);
             }
-            if (settings.Http2InitialStreamWindowSize is {} http2InitialStreamWindowSize)
+            if (settings.Http2InitialStreamWindowSize is { } http2InitialStreamWindowSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2InitialStreamWindowSize)}' = {http2InitialStreamWindowSize}");
                 NativeMethods.yaha_client_config_http2_initial_stream_window_size(_ctx, http2InitialStreamWindowSize);
             }
-            if (settings.Http2InitialConnectionWindowSize is {} http2InitialConnectionWindowSize)
+            if (settings.Http2InitialConnectionWindowSize is { } http2InitialConnectionWindowSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2InitialConnectionWindowSize)}' = {http2InitialConnectionWindowSize}");
                 NativeMethods.yaha_client_config_http2_initial_connection_window_size(_ctx, http2InitialConnectionWindowSize);
             }
-            if (settings.Http2AdaptiveWindow is {} http2AdaptiveWindow)
+            if (settings.Http2AdaptiveWindow is { } http2AdaptiveWindow)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2AdaptiveWindow)}' = {http2AdaptiveWindow}");
                 NativeMethods.yaha_client_config_http2_adaptive_window(_ctx, http2AdaptiveWindow);
             }
-            if (settings.Http2MaxFrameSize is {} http2MaxFrameSize)
+            if (settings.Http2MaxFrameSize is { } http2MaxFrameSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxFrameSize)}' = {http2MaxFrameSize}");
                 NativeMethods.yaha_client_config_http2_max_frame_size(_ctx, http2MaxFrameSize);
             }
-            if (settings.Http2KeepAliveInterval is {} http2KeepAliveInterval)
+            if (settings.Http2KeepAliveInterval is { } http2KeepAliveInterval)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2KeepAliveInterval)}' = {http2KeepAliveInterval}");
                 NativeMethods.yaha_client_config_http2_keep_alive_interval(_ctx, (ulong)http2KeepAliveInterval.TotalMilliseconds);
             }
-            if (settings.Http2KeepAliveTimeout is {} http2KeepAliveTimeout)
+            if (settings.Http2KeepAliveTimeout is { } http2KeepAliveTimeout)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2KeepAliveTimeout)}' = {http2KeepAliveTimeout}");
                 NativeMethods.yaha_client_config_http2_keep_alive_timeout(_ctx, (ulong)http2KeepAliveTimeout.TotalMilliseconds);
             }
-            if (settings.Http2KeepAliveWhileIdle is {} http2KeepAliveWhileIdle)
+            if (settings.Http2KeepAliveWhileIdle is { } http2KeepAliveWhileIdle)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2KeepAliveWhileIdle)}' = {http2KeepAliveWhileIdle}");
                 NativeMethods.yaha_client_config_http2_keep_alive_while_idle(_ctx, http2KeepAliveWhileIdle);
             }
-            if (settings.Http2MaxConcurrentResetStreams is {} http2MaxConcurrentResetStreams)
+            if (settings.Http2MaxConcurrentResetStreams is { } http2MaxConcurrentResetStreams)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxConcurrentResetStreams)}' = {http2MaxConcurrentResetStreams}");
                 NativeMethods.yaha_client_config_http2_max_concurrent_reset_streams(_ctx, (nuint)http2MaxConcurrentResetStreams);
             }
-            if (settings.Http2MaxSendBufferSize is {} http2MaxSendBufferSize)
+            if (settings.Http2MaxSendBufferSize is { } http2MaxSendBufferSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxSendBufferSize)}' = {http2MaxSendBufferSize}");
                 NativeMethods.yaha_client_config_http2_max_send_buf_size(_ctx, (nuint)http2MaxSendBufferSize);
@@ -137,7 +157,7 @@ namespace Cysharp.Net.Http
                 var keyBytes = Encoding.UTF8.GetBytes(header.Key);
                 var valueBytes = Encoding.UTF8.GetBytes(string.Join(",", header.Value));
 
-                fixed (byte* pKey =  keyBytes)
+                fixed (byte* pKey = keyBytes)
                 fixed (byte* pValue = valueBytes)
                 {
                     var bufKey = new StringBuffer(pKey, keyBytes.Length);
@@ -168,7 +188,7 @@ namespace Cysharp.Net.Http
                     ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(_ctx, reqCtx, &buf));
                 }
             }
-            
+
             // Set HTTP version
             var version = request.Version switch
             {
@@ -193,7 +213,7 @@ namespace Cysharp.Net.Http
 
             return requestContextManaged;
         }
-        
+
 
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -213,8 +233,8 @@ namespace Cysharp.Net.Http
                 {
                     for (var i = 0; i < headersCount; i++)
                     {
-                        var bufKey = NativeMethods.yaha_request_response_get_header_key(requestContext._ctx, requestContext._requestContext, i); 
-                        var bufValue = NativeMethods.yaha_request_response_get_header_value(requestContext._ctx, requestContext._requestContext, i); 
+                        var bufKey = NativeMethods.yaha_request_response_get_header_key(requestContext._ctx, requestContext._requestContext, i);
+                        var bufValue = NativeMethods.yaha_request_response_get_header_value(requestContext._ctx, requestContext._requestContext, i);
                         try
                         {
                             requestContext.Response.SetHeader(bufKey->AsSpan(), bufValue->AsSpan());
@@ -260,8 +280,8 @@ namespace Cysharp.Net.Http
                     {
                         for (var i = 0; i < trailersCount; i++)
                         {
-                            var bufKey = NativeMethods.yaha_request_response_get_trailers_key(requestContext._ctx, requestContext._requestContext, i); 
-                            var bufValue = NativeMethods.yaha_request_response_get_trailers_value(requestContext._ctx, requestContext._requestContext, i); 
+                            var bufKey = NativeMethods.yaha_request_response_get_trailers_key(requestContext._ctx, requestContext._requestContext, i);
+                            var bufValue = NativeMethods.yaha_request_response_get_trailers_value(requestContext._ctx, requestContext._requestContext, i);
                             try
                             {
                                 requestContext.Response.SetTrailer(bufKey->AsSpan(), bufValue->AsSpan());

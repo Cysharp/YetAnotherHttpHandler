@@ -156,6 +156,8 @@ Once the handler sends a request, these settings become immutable and cannot be 
 |Http2Only|Gets or sets a value that indicates whether to force the use of HTTP/2.|
 |SkipCertificateVerification|Gets or sets a value that indicates whether to skip certificate verification.|
 |RootCertificates|Gets or sets a custom root CA. By default, the built-in root CA (Mozilla's root certificates) is used. See also https://github.com/rustls/webpki-roots. |
+|ClientAuthCertificates|Gets or sets a custom client auth key.|
+|ClientAuthKey|Gets or sets a custom client auth certificates.|
 |Http2InitialStreamWindowSize|Gets or sets the SETTINGS_INITIAL_WINDOW_SIZE option for HTTP2 stream-level flow control.|
 |Http2InitialConnectionWindowSize|Gets or sets the max connection-level flow control for HTTP2|
 |Http2AdaptiveWindow|Gets or sets whether to use an adaptive flow control. Enabling this will override the limits set in http2_initial_stream_window_size and http2_initial_connection_window_size.|
