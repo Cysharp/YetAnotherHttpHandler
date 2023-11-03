@@ -77,7 +77,7 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 > - [System.IO.Pipelines](https://www.nuget.org/packages/System.IO.Pipelines) (netstandard2.1)
 > - [System.Runtime.CompilerServices.Unsafe](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe) (netstandard2.1)
 
-#### Method 1: using UnityNuGet scope registry
+#### Method 1: using UnityNuGet + OpenUPM scope registry
 
 1. Add the [UnityNuget](https://github.com/xoofx/UnityNuGet) scope registry:
 
@@ -85,13 +85,44 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 https://github.com/xoofx/UnityNuGet#add-scope-registry-manifestjson
 ```
 
-2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity.
+2. Add the following additional libraries to `manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "org.nuget.system.io.pipelines": "{version_1}",
+	"org.nuget.system.runtime.compilerservices.unsafe": "{version_2}"
+  }
+}
+```
+
+> Replace `{version_1}` with the latest version available in NuGet: https://www.nuget.org/packages/System.IO.Pipelines#versions-body-tab
+
+> Replace `{version_2}` with the latest version available in NuGet: https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe#versions-body-tab
+
+3. Follow the steps in `Manual installation`: https://openupm.com/packages/com.cysharp.yetanotherhttphandler/
+
+#### Method 2: using UnityNuGet scope registry
+
+1. Add the [UnityNuget](https://github.com/xoofx/UnityNuGet) scope registry:
+
+```
+https://github.com/xoofx/UnityNuGet#add-scope-registry-manifestjson
+```
+
+2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity. This is the package that resolves NuGet dependencies.
+
+```
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler.Dependencies#v0.1.0
+```
+
+3. Specify the following URL in `Add package from git URL...` of Package Manager on Unity. This is the main packagee.
 
 ```
 https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v0.1.0
 ```
 
-#### Method 2: without additional scope registries
+#### Method 3: without additional scope registries
 
 1. Please download and install [Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies.unitypackage
  from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01).
