@@ -30,7 +30,7 @@ public static class PackageExporter
 
         EditorApplication.update -= OnEditorUpdate;
 
-        ExportPackage("com.cysharp.yetanotherhttphandler", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", includeSelf: false);
+        ExportPackage("com.cysharp.yetanotherhttphandler.dependencies", "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", includeSelf: false);
         ExportPackage("org.nuget.grpc.net.client", "Grpc.Net.Client.Dependencies", includeSelf: true);
 
         EditorUtility.ClearProgressBar();
