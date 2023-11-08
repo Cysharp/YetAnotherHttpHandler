@@ -24,8 +24,8 @@
   <ItemGroup>
     <None Remove="**\*.meta" />
     <None Remove="Plugins\**\*" />
-    <None Remove="bin\**\*.*;obj\**\*.*" Visible="false" />
-    <Compile Update="obj\**\*.cs" Visible="false" />
+    <None Remove="bin\**\*.*;obj\**\*.*" />
+    <Compile Remove="obj\**\*.cs" />
   </ItemGroup>
 
   <PropertyGroup>
