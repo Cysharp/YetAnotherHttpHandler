@@ -73,21 +73,66 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 ## Installation
 ### Unity
 
-To install this library, specify the following URL in `Add package from git URL...` of Package Manager on Unity.
+> This library depends on the following additional libraries:
+> 
+> - [System.IO.Pipelines](https://www.nuget.org/packages/System.IO.Pipelines) (netstandard2.1)
+> - [System.Runtime.CompilerServices.Unsafe](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe) (netstandard2.1)
+
+#### Method 1: using UnityNuGet + OpenUPM scope registry
+
+1. Add the [UnityNuget](https://github.com/xoofx/UnityNuGet) scope registry:
+
+```
+https://github.com/xoofx/UnityNuGet#add-scope-registry-manifestjson
+```
+
+2. Add the following additional libraries to `manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "org.nuget.system.io.pipelines": "{version_1}",
+	"org.nuget.system.runtime.compilerservices.unsafe": "{version_2}"
+  }
+}
+```
+
+> Replace `{version_1}` with the latest version available in NuGet: https://www.nuget.org/packages/System.IO.Pipelines#versions-body-tab
+
+> Replace `{version_2}` with the latest version available in NuGet: https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe#versions-body-tab
+
+3. Follow the steps in `Manual installation`: https://openupm.com/packages/com.cysharp.yetanotherhttphandler/
+
+#### Method 2: using UnityNuGet scope registry
+
+1. Add the [UnityNuget](https://github.com/xoofx/UnityNuGet) scope registry:
+
+```
+https://github.com/xoofx/UnityNuGet#add-scope-registry-manifestjson
+```
+
+2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity. This is the package that resolves NuGet dependencies.
+
+```
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler.Dependencies#v0.1.0
+```
+
+3. Specify the following URL in `Add package from git URL...` of Package Manager on Unity. This is the main packagee.
 
 ```
 https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v0.1.0
 ```
 
-Additionally, this library depends on the following additional libraries.
+#### Method 3: without additional scope registries
 
-- [System.IO.Pipelines](https://www.nuget.org/packages/System.IO.Pipelines) (netstandard2.1)
-- [System.Runtime.CompilerServices.Unsafe](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe) (netstandard2.1)
+1. Please download and install [Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies.unitypackage
+ from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01).
 
-Please download and install [Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies.unitypackage
- from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01), or obtain the library from NuGet.
+2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity.
 
-📦 **Tips:** You can download NuGet packages from the "Download package" link on the right side of the package page on NuGet.org. The downloaded .nupkg file can be opened as a Zip archive, allowing you to extract individual assemblies from the `lib` directory.
+```
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v0.1.0
+```
 
 ## Usage
 
@@ -110,16 +155,32 @@ However, since it does not have features such as connection control by the numbe
 
 ### Using gRPC (grpc-dotnet) library
 
-To use grpc-dotnet (Grpc.Net.Client), add the following additional libraries:
+> To use grpc-dotnet (Grpc.Net.Client), add the following additional libraries:
+> 
+> - Grpc.Core.Api
+> - Grpc.Net.Client
+> - Grpc.Net.Common
+> - Microsoft.Extensions.Logging.Abstractions
+> - System.Buffers
+> - System.Diagnostics.DiagnosticSource
+> - System.Memory
+> - System.Numerics.Vectors
 
-- Grpc.Core.Api
-- Grpc.Net.Client
-- Grpc.Net.Common
-- Microsoft.Extensions.Logging.Abstractions
-- System.Buffers
-- System.Diagnostics.DiagnosticSource
-- System.Memory
-- System.Numerics.Vectors
+#### Method 1: using UnityNuget scope registry
+
+To use grpc-dotnet (Grpc.Net.Client), add the following additional library to `manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "org.nuget.grpc.net.client": "{version}"
+  }
+}
+```
+
+> Replace `{version}` with the latest version available in NuGet: https://www.nuget.org/packages/Grpc.Net.Client#versions-body-tab
+
+#### Method 2: without additional scope registries
 
 Please download and install [Grpc.Net.Client.Dependencies.unitypackage
  from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01), or obtain the library from NuGet.

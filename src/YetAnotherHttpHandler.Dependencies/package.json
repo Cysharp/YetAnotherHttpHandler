@@ -1,0 +1,13 @@
+{
+  "name": "com.cysharp.yetanotherhttphandler.dependencies",
+  "version": "0.1.0",
+  "author": { "name": "Cysharp, Inc.", "url": "https://cysharp.co.jp/en/" },
+  "displayName": "YetAnotherHttpHandler (Dependencies)",
+  "description": "YetAnotherHttpHandler NuGet dependencies.",
+  "unity": "2021.3",
+  "license": "MIT",
+  "dependencies": {
+    "org.nuget.system.io.pipelines": "7.0.0",
+    "org.nuget.system.runtime.compilerservices.unsafe": "4.5.3"
+  }
+}
