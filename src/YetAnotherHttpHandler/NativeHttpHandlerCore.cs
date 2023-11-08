@@ -7,11 +7,13 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Net.Http.Shims;
 #if UNITY_2019_1_OR_NEWER
 using AOT;
@@ -19,13 +21,13 @@ using AOT;
 
 namespace Cysharp.Net.Http
 {
-    internal class NativeLibraryWrapper : IDisposable
+    internal class NativeHttpHandlerCore : IDisposable
     {
         private unsafe YahaNativeContext* _ctx;
         private static ConcurrentDictionary<int, RequestContext> _inflightRequests = new ConcurrentDictionary<int, RequestContext>();
         private static int _requestSequence = 0;
 
-        public unsafe NativeLibraryWrapper(NativeClientSettings settings)
+        public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_runtime");
 #if USE_FUNCTION_POINTER
@@ -133,10 +135,34 @@ namespace Cysharp.Net.Http
 
             NativeMethods.yaha_build_client(_ctx);
 
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"NativeLibraryWrapper created");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"{nameof(NativeHttpHandlerCore)} created");
         }
 
-        public unsafe RequestContext Send(HttpRequestMessage request, CancellationToken cancellationToken)
+        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}");
+
+            var requestContext = Send(request, cancellationToken);
+            if (request.Content != null)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Start sending the request body: {request.Content.GetType().FullName}");
+                _ = SendBodyAsync(request.Content, requestContext.Writer, cancellationToken);
+            }
+            else
+            {
+                await requestContext.Writer.CompleteAsync().ConfigureAwait(false);
+            }
+
+            return await requestContext.Response.GetResponseAsync().ConfigureAwait(false);
+
+            static async Task SendBodyAsync(HttpContent requestContent, PipeWriter writer, CancellationToken cancellationToken)
+            {
+                await requestContent.CopyToAsync(writer.AsStream()).ConfigureAwait(false); // TODO: cancel
+                await writer.CompleteAsync().ConfigureAwait(false);
+            }
+        }
+
+        private unsafe RequestContext Send(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -328,7 +354,7 @@ namespace Cysharp.Net.Http
             {
                 if (_ctx != null)
                 {
-                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Disposing NativeLibraryWrapper");
+                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Disposing {nameof(NativeHttpHandlerCore)}");
                     NativeMethods.yaha_dispose_runtime(_ctx);
                     _ctx = null;
                 }

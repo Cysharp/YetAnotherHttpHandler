@@ -24,12 +24,17 @@
   <ItemGroup>
     <None Remove="**\*.meta" />
     <None Remove="Plugins\**\*" />
+    <None Remove="bin\**\*.*;obj\**\*.*" />
+    <Compile Remove="obj\**\*.cs" />
   </ItemGroup>
 
   <PropertyGroup>
     <YahaNativeLibraryOriginalName>yaha_native</YahaNativeLibraryOriginalName>
     <YahaNativeLibraryName>Cysharp.Net.Http.YetAnotherHttpHandler.Native</YahaNativeLibraryName>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <YahaNativeArtifactTarget Visible="false" />
+  </ItemDefinitionGroup>
   <ItemGroup>
     <YahaNativeArtifactTarget Include="win-x86" RustTarget="i686-pc-windows-msvc" Prefix="" Ext=".dll" />
     <YahaNativeArtifactTarget Include="win-x64" RustTarget="x86_64-pc-windows-msvc" Prefix="" Ext=".dll" />
