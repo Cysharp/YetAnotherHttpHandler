@@ -16,7 +16,6 @@ public class TestServerForHttp1 : ITestServerBuilder
             httpContext.Response.Headers["x-test"] = "foo";
             return Results.Content("__OK__");
         });
-        app.MapGet("/not-found", () => Results.Content("__Not_Found__", statusCode: 404));
         app.MapGet("/ハロー", () => Results.Content("Konnichiwa"));
 
         return app;
