@@ -7,7 +7,7 @@ use std::{
 use hyper::{
     body::{Bytes, HttpBody},
     http::{HeaderName, HeaderValue},
-    Body, Request, StatusCode, Version,
+    Body, Request, StatusCode, Version, Uri,
 };
 
 use crate::context::{
@@ -240,8 +240,18 @@ pub unsafe extern "C" fn yaha_request_set_uri(
     assert!(req_ctx.builder.is_some());
 
     let builder = req_ctx.builder.take().unwrap();
-    req_ctx.builder = Some(builder.uri((*value).to_str()));
-    true
+    match Uri::try_from((*value).to_str()) {
+        Ok(uri) => {
+            req_ctx.builder = Some(builder.uri(uri));
+            true
+        }
+        Err(err) => {
+            LAST_ERROR.with(|v| {
+                *v.borrow_mut() = Some(err.to_string());
+            });
+            false
+        }
+    }
 }
 
 #[no_mangle]

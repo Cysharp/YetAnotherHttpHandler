@@ -80,4 +80,21 @@ public class Http1Test : UseTestServerTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("__OK__", responseBody);
     }
+
+    [Fact]
+    public async Task Get_NonAsciiPath()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
+
+        // Act
+        var response = await httpClient.GetAsync($"{server.BaseUri}/ハロー");
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Konnichiwa", responseBody);
+    }
 }
