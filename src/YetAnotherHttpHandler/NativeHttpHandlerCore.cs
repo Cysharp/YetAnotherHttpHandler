@@ -206,7 +206,7 @@ namespace Cysharp.Net.Http
 
             // Set URI
             {
-                var strBytes = Encoding.UTF8.GetBytes(request.RequestUri.ToString());
+                var strBytes = Encoding.UTF8.GetBytes( UriHelper.ToSafeUriString(request.RequestUri));
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);

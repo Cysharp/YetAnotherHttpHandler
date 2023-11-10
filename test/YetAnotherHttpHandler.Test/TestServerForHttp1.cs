@@ -16,6 +16,7 @@ public class TestServerForHttp1 : ITestServerBuilder
             httpContext.Response.Headers["x-test"] = "foo";
             return Results.Content("__OK__");
         });
+        app.MapGet("/ハロー", () => Results.Content("Konnichiwa"));
 
         return app;
     }
