@@ -19,8 +19,6 @@ namespace Cysharp.Net.Http
         private readonly CancellationToken _cancellationToken;
         private readonly CancellationTokenRegistration _tokenRegistration;
 
-        public PipeReader Reader => _pipe.Reader;
-
         internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, CancellationToken cancellationToken)
         {
             _responseTask = new TaskCompletionSource<HttpResponseMessage>();
@@ -34,7 +32,7 @@ namespace Cysharp.Net.Http
             _message = new HttpResponseMessage()
             {
                 RequestMessage = requestMessage,
-                Content = new YetAnotherHttpHttpContent(Reader, requestContext),
+                Content = new YetAnotherHttpHttpContent(_pipe.Reader),
                 Version = HttpVersion.Version10,
             };
 #if NETSTANDARD2_0

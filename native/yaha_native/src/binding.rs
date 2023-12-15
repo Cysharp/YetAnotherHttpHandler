@@ -1,18 +1,19 @@
 use std::{
     cell::RefCell,
     ptr::null,
-    sync::{Arc, Mutex}, time::Duration,
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use hyper::{
     body::{Bytes, HttpBody},
     http::{HeaderName, HeaderValue},
-    Body, Request, StatusCode, Version, Uri,
+    Body, Request, StatusCode, Uri, Version,
 };
 
 use crate::context::{
     YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext,
-    YahaNativeRequestContextInternal,
+    YahaNativeRequestContextInternal, CompletionReason,
 };
 use crate::interop::{ByteBuffer, StringBuffer};
 use crate::primitives::YahaHttpVersion;
@@ -46,7 +47,7 @@ pub extern "C" fn yaha_init_runtime(
         version: YahaHttpVersion,
     ),
     on_receive: extern "C" fn(req_seq: i32, length: usize, buf: *const u8),
-    on_complete: extern "C" fn(req_seq: i32, has_error: u8),
+    on_complete: extern "C" fn(req_seq: i32, reason: CompletionReason),
 ) -> *mut YahaNativeContext {
     let ctx = Box::new(YahaNativeContextInternal::new(
         on_status_code_and_headers_receive,
@@ -62,18 +63,36 @@ pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) {
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_add_root_certificates(ctx: *mut YahaNativeContext, root_certs: *const StringBuffer) -> usize {
+pub extern "C" fn yaha_client_config_add_root_certificates(
+    ctx: *mut YahaNativeContext,
+    root_certs: *const StringBuffer,
+) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let root_certificates = ctx.root_certificates.get_or_insert(rustls::RootCertStore::empty());
-    let (valid, _) = unsafe { root_certificates.add_parsable_certificates(&rustls_pemfile::certs(&mut (*root_certs).to_bytes()).unwrap()) };
+    let root_certificates = ctx
+        .root_certificates
+        .get_or_insert(rustls::RootCertStore::empty());
+    let (valid, _) = unsafe {
+        root_certificates.add_parsable_certificates(
+            &rustls_pemfile::certs(&mut (*root_certs).to_bytes()).unwrap(),
+        )
+    };
 
     valid
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_add_client_auth_certificates(ctx: *mut YahaNativeContext, auth_certs: *const StringBuffer) -> usize {
+pub extern "C" fn yaha_client_config_add_client_auth_certificates(
+    ctx: *mut YahaNativeContext,
+    auth_certs: *const StringBuffer,
+) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let certs: Vec<rustls::Certificate> = unsafe { rustls_pemfile::certs(&mut (*auth_certs).to_bytes()).unwrap().into_iter().map(rustls::Certificate).collect() };
+    let certs: Vec<rustls::Certificate> = unsafe {
+        rustls_pemfile::certs(&mut (*auth_certs).to_bytes())
+            .unwrap()
+            .into_iter()
+            .map(rustls::Certificate)
+            .collect()
+    };
 
     let count = certs.len();
 
@@ -85,9 +104,18 @@ pub extern "C" fn yaha_client_config_add_client_auth_certificates(ctx: *mut Yaha
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_add_client_auth_key(ctx: *mut YahaNativeContext, auth_key: *const StringBuffer) -> usize {
+pub extern "C" fn yaha_client_config_add_client_auth_key(
+    ctx: *mut YahaNativeContext,
+    auth_key: *const StringBuffer,
+) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let keys: Vec<rustls::PrivateKey> = unsafe { rustls_pemfile::pkcs8_private_keys(&mut (*auth_key).to_bytes()).unwrap().into_iter().map(rustls::PrivateKey).collect() };
+    let keys: Vec<rustls::PrivateKey> = unsafe {
+        rustls_pemfile::pkcs8_private_keys(&mut (*auth_key).to_bytes())
+            .unwrap()
+            .into_iter()
+            .map(rustls::PrivateKey)
+            .collect()
+    };
 
     let count = keys.len();
 
@@ -99,20 +127,35 @@ pub extern "C" fn yaha_client_config_add_client_auth_key(ctx: *mut YahaNativeCon
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_skip_certificate_verification(ctx: *mut YahaNativeContext, val: bool) {
+pub extern "C" fn yaha_client_config_skip_certificate_verification(
+    ctx: *mut YahaNativeContext,
+    val: bool,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.skip_certificate_verification = Some(val);
 }
 #[no_mangle]
-pub extern "C" fn yaha_client_config_pool_idle_timeout(ctx: *mut YahaNativeContext, val_milliseconds: u64) {
+pub extern "C" fn yaha_client_config_pool_idle_timeout(
+    ctx: *mut YahaNativeContext,
+    val_milliseconds: u64,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().pool_idle_timeout(Duration::from_millis(val_milliseconds));
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .pool_idle_timeout(Duration::from_millis(val_milliseconds));
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_pool_max_idle_per_host(ctx: *mut YahaNativeContext, max_idle: usize) {
+pub extern "C" fn yaha_client_config_pool_max_idle_per_host(
+    ctx: *mut YahaNativeContext,
+    max_idle: usize,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().pool_max_idle_per_host(max_idle);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .pool_max_idle_per_host(max_idle);
 }
 
 #[no_mangle]
@@ -122,57 +165,105 @@ pub extern "C" fn yaha_client_config_http2_only(ctx: *mut YahaNativeContext, val
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_initial_stream_window_size(ctx: *mut YahaNativeContext, val: u32) {
+pub extern "C" fn yaha_client_config_http2_initial_stream_window_size(
+    ctx: *mut YahaNativeContext,
+    val: u32,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_initial_stream_window_size(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_initial_stream_window_size(val);
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_initial_connection_window_size(ctx: *mut YahaNativeContext, val: u32) {
+pub extern "C" fn yaha_client_config_http2_initial_connection_window_size(
+    ctx: *mut YahaNativeContext,
+    val: u32,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_initial_connection_window_size(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_initial_connection_window_size(val);
 }
 
 #[no_mangle]
 pub extern "C" fn yaha_client_config_http2_adaptive_window(ctx: *mut YahaNativeContext, val: bool) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_adaptive_window(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_adaptive_window(val);
 }
 
 #[no_mangle]
 pub extern "C" fn yaha_client_config_http2_max_frame_size(ctx: *mut YahaNativeContext, val: u32) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_max_frame_size(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_max_frame_size(val);
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_keep_alive_interval(ctx: *mut YahaNativeContext, interval_milliseconds: u64) {
+pub extern "C" fn yaha_client_config_http2_keep_alive_interval(
+    ctx: *mut YahaNativeContext,
+    interval_milliseconds: u64,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_keep_alive_interval(Duration::from_millis(interval_milliseconds));
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_keep_alive_interval(Duration::from_millis(interval_milliseconds));
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_keep_alive_timeout(ctx: *mut YahaNativeContext, timeout_milliseconds: u64) {
+pub extern "C" fn yaha_client_config_http2_keep_alive_timeout(
+    ctx: *mut YahaNativeContext,
+    timeout_milliseconds: u64,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_keep_alive_timeout(Duration::from_millis(timeout_milliseconds));
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_keep_alive_timeout(Duration::from_millis(timeout_milliseconds));
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_keep_alive_while_idle(ctx: *mut YahaNativeContext, val: bool) {
+pub extern "C" fn yaha_client_config_http2_keep_alive_while_idle(
+    ctx: *mut YahaNativeContext,
+    val: bool,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_keep_alive_while_idle(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_keep_alive_while_idle(val);
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_max_concurrent_reset_streams(ctx: *mut YahaNativeContext, max: usize) {
+pub extern "C" fn yaha_client_config_http2_max_concurrent_reset_streams(
+    ctx: *mut YahaNativeContext,
+    max: usize,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_max_concurrent_reset_streams(max.try_into().unwrap());
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_max_concurrent_reset_streams(max.try_into().unwrap());
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_max_send_buf_size(ctx: *mut YahaNativeContext, max: usize) {
+pub extern "C" fn yaha_client_config_http2_max_send_buf_size(
+    ctx: *mut YahaNativeContext,
+    max: usize,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_max_send_buf_size(max);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_max_send_buf_size(max);
 }
 
 #[no_mangle]
@@ -334,7 +425,7 @@ pub extern "C" fn yaha_request_begin(
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
                 });
-                (ctx.on_complete)(seq, 1);
+                (ctx.on_complete)(seq, CompletionReason::Error);
                 return;
             }
 
@@ -344,7 +435,7 @@ pub extern "C" fn yaha_request_begin(
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some(err.to_string());
                 });
-                (ctx.on_complete)(seq, 1);
+                (ctx.on_complete)(seq, CompletionReason::Error);
                 return;
             }
 
@@ -390,7 +481,7 @@ pub extern "C" fn yaha_request_begin(
                                 LAST_ERROR.with(|v| {
                                     *v.borrow_mut() = Some(err.to_string());
                                 });
-                                (ctx.on_complete)(seq, 1);
+                                (ctx.on_complete)(seq, CompletionReason::Error);
                                 return;
                             }
                         }
@@ -427,9 +518,9 @@ pub extern "C" fn yaha_request_begin(
                                 .collect::<Vec<(String, String)>>(),
                         );
                     }
-                    (ctx.on_complete)(seq, 0);
+                    (ctx.on_complete)(seq, CompletionReason::Success);
                 }
-                None => (ctx.on_complete)(seq, 0),
+                None => (ctx.on_complete)(seq, CompletionReason::Success),
             }
 
             {

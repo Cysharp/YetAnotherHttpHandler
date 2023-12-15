@@ -23,9 +23,10 @@ namespace Cysharp.Net.Http
 {
     internal class NativeHttpHandlerCore : IDisposable
     {
-        private unsafe YahaNativeContext* _ctx;
         private static ConcurrentDictionary<int, RequestContext> _inflightRequests = new ConcurrentDictionary<int, RequestContext>();
         private static int _requestSequence = 0;
+
+        private unsafe YahaNativeContext* _ctx;
 
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
@@ -228,10 +229,17 @@ namespace Cysharp.Net.Http
             // Prepare body channel
             NativeMethods.yaha_request_set_has_body(_ctx, reqCtx, request.Content != null);
 
-            // Begin request
+            // Prepare a request context
             var requestContextManaged = new RequestContext(_ctx, reqCtx, request, requestSequence, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // Dispose the request context immediately.
+                requestContextManaged.Dispose();
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             _inflightRequests[requestSequence] = requestContextManaged;
 
+            // Begin request
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}] Begin HTTP request to the server.");
             ThrowHelper.VerifyPointer(_ctx, reqCtx);
             ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(_ctx, reqCtx));
@@ -292,14 +300,14 @@ namespace Cysharp.Net.Http
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_complete_delegate))]
-        private static unsafe void OnComplete(int reqSeq, byte hasError)
+        private static unsafe void OnComplete(int reqSeq, CompletionReason reason)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}] Response completed: HasError={hasError}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}] Response completed: Reason={reason}");
 
             if (_inflightRequests.TryGetValue(reqSeq, out var requestContext))
             {
                 ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
-                if (hasError == 0)
+                if (reason == CompletionReason.Success)
                 {
                     var trailersCount = NativeMethods.yaha_request_response_get_trailers_count(requestContext._ctx, requestContext._requestContext);
                     if (trailersCount > 0)
@@ -322,7 +330,7 @@ namespace Cysharp.Net.Http
 
                     requestContext.Response.Complete();
                 }
-                else
+                else if (reason == CompletionReason.Error)
                 {
                     var buf = NativeMethods.yaha_get_last_error();
                     try
@@ -333,6 +341,10 @@ namespace Cysharp.Net.Http
                     {
                         NativeMethods.yaha_free_byte_buffer(buf);
                     }
+                }
+                else
+                {
+                    requestContext.Response.CompleteAsFailed("Canceled");
                 }
             }
             _inflightRequests.TryRemove(reqSeq, out _);

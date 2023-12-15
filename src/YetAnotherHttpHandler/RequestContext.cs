@@ -10,6 +10,7 @@ namespace Cysharp.Net.Http
 {
     internal class RequestContext : IDisposable
     {
+        private readonly object _syncObject = new object();
         private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
         private readonly CancellationToken _cancellationToken;
         private readonly int _requestSequence;

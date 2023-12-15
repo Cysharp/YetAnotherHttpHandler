@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
@@ -17,6 +18,17 @@ public class TestServerForHttp1 : ITestServerBuilder
             return Results.Content("__OK__");
         });
         app.MapGet("/ハロー", () => Results.Content("Konnichiwa"));
+        app.MapPost("/slow-upload", async (HttpContext ctx, PipeReader reader) =>
+        {
+            while (true)
+            {
+                await Task.Delay(1000);
+                var readResult = await reader.ReadAsync();
+                reader.AdvanceTo(readResult.Buffer.End);
+                if (readResult.IsCompleted || readResult.IsCanceled) break;
+            }
+            return Results.Content("OK");
+        });
 
         return app;
     }

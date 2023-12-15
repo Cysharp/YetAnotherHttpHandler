@@ -31,7 +31,7 @@ namespace Cysharp.Net.Http
         public delegate void yaha_init_runtime_on_receive_delegate(int req_seq, nuint length, byte* buf);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void yaha_init_runtime_on_complete_delegate(int req_seq, byte has_error);
+        public delegate void yaha_init_runtime_on_complete_delegate(int req_seq, CompletionReason reason);
 
         [DllImport(__DllName, EntryPoint = "yaha_init_runtime", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern YahaNativeContext* yaha_init_runtime(yaha_init_runtime_on_status_code_and_headers_receive_delegate on_status_code_and_headers_receive, yaha_init_runtime_on_receive_delegate on_receive, yaha_init_runtime_on_complete_delegate on_complete);
@@ -175,6 +175,13 @@ namespace Cysharp.Net.Http
     {
     }
 
+
+    internal enum CompletionReason
+    {
+        Success,
+        Error,
+        Canceled,
+    }
 
     internal enum YahaHttpVersion : int
     {
