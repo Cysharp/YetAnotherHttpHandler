@@ -26,7 +26,10 @@ internal class YahaEventListener : EventListener
 
     protected override void OnEventWritten(EventWrittenEventArgs eventData)
     {
-        Debug.WriteLine($"{eventData.EventSource.Name}: {eventData.Level}: {string.Format(eventData.Message ?? string.Empty, eventData.Payload?.ToArray() ?? Array.Empty<object>())}");
+        if (eventData.EventSource.Name == ProviderName)
+        {
+            Debug.WriteLine($"{eventData.EventSource.Name}: {eventData.Level}: {string.Format(eventData.Message ?? string.Empty, eventData.Payload?.ToArray() ?? Array.Empty<object>())}");
+        }
     }
 }
 

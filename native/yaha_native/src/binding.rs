@@ -12,11 +12,11 @@ use hyper::{
 };
 
 use crate::context::{
-    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext,
-    YahaNativeRequestContextInternal, CompletionReason,
+    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext, YahaNativeRuntimeContext,
+    YahaNativeRequestContextInternal, YahaNativeRuntimeContextInternal,
 };
 use crate::interop::{ByteBuffer, StringBuffer};
-use crate::primitives::YahaHttpVersion;
+use crate::primitives::{YahaHttpVersion, CompletionReason};
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -40,7 +40,19 @@ pub unsafe extern "C" fn yaha_free_byte_buffer(s: *mut ByteBuffer) {
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_init_runtime(
+pub extern "C" fn yaha_init_runtime() -> *mut YahaNativeRuntimeContext {
+    let runtime = Box::new(YahaNativeRuntimeContextInternal::new());
+
+    Box::into_raw(runtime) as *mut YahaNativeRuntimeContext
+}
+#[no_mangle]
+pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeRuntimeContext) {
+    let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeRuntimeContextInternal) };
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_init_context(
+    runtime_ctx: *mut YahaNativeRuntimeContext,
     on_status_code_and_headers_receive: extern "C" fn(
         req_seq: i32,
         status_code: i32,
@@ -49,7 +61,9 @@ pub extern "C" fn yaha_init_runtime(
     on_receive: extern "C" fn(req_seq: i32, length: usize, buf: *const u8),
     on_complete: extern "C" fn(req_seq: i32, reason: CompletionReason),
 ) -> *mut YahaNativeContext {
+    let runtime_ctx = YahaNativeRuntimeContextInternal::from_raw_context(runtime_ctx);
     let ctx = Box::new(YahaNativeContextInternal::new(
+        runtime_ctx.runtime.handle().clone(),
         on_status_code_and_headers_receive,
         on_receive,
         on_complete,
@@ -58,7 +72,7 @@ pub extern "C" fn yaha_init_runtime(
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) {
+pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
     let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
 }
 
@@ -394,7 +408,7 @@ pub extern "C" fn yaha_request_begin(
 
     // Begin request on async runtime.
     let body;
-    let runtime_handle = ctx.runtime.handle().clone();
+
     let req_ctx = crate::context::to_internal_arc(req_ctx); // NOTE: we must call `Arc::into_raw` at last of the method.
 
     {
@@ -410,7 +424,7 @@ pub extern "C" fn yaha_request_begin(
     }
     {
         let req_ctx = req_ctx.clone();
-        runtime_handle.spawn(async move {
+        ctx.runtime.clone().spawn(async move {
             // Prepare for begin request
             let (seq, req) = {
                 let mut req_ctx = req_ctx.lock().unwrap();

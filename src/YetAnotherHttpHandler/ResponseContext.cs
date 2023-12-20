@@ -18,6 +18,7 @@ namespace Cysharp.Net.Http
         private readonly HttpResponseMessage _message;
         private readonly CancellationToken _cancellationToken;
         private readonly CancellationTokenRegistration _tokenRegistration;
+        private int _completed = 0;
 
         internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, CancellationToken cancellationToken)
         {
@@ -42,6 +43,8 @@ namespace Cysharp.Net.Http
 
         public void Write(ReadOnlySpan<byte> data)
         {
+            if (Volatile.Read(ref _completed) == 1) return;
+
             var buffer = _pipe.Writer.GetSpan(data.Length);
             data.CopyTo(buffer);
             _pipe.Writer.Advance(data.Length);
@@ -102,6 +105,7 @@ namespace Cysharp.Net.Http
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed.");
             _pipe.Writer.Complete();
+            Volatile.Write(ref _completed, 1);
         }
 
         public void CompleteAsFailed(string errorMessage)
@@ -123,7 +127,7 @@ namespace Cysharp.Net.Http
 #endif
             _responseTask.TrySetException(ex);
             _pipe.Writer.Complete(ex);
-
+            Volatile.Write(ref _completed, 1);
         }
 
         public void Cancel()
@@ -132,6 +136,7 @@ namespace Cysharp.Net.Http
 
             _responseTask.TrySetCanceled(_cancellationToken);
             _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
+            Volatile.Write(ref _completed, 1);
         }
 
         public async Task<HttpResponseMessage> GetResponseAsync()

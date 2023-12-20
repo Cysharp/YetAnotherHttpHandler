@@ -22,3 +22,11 @@ impl From<Version> for YahaHttpVersion {
         }
     }
 }
+
+#[repr(i32)]
+#[derive(Debug)]
+pub enum CompletionReason {
+    Success,
+    Error,
+    Canceled,
+}

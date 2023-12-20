@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use tokio::runtime::{Handle, Runtime};
 
 use hyper::{
     body::Sender,
@@ -11,22 +12,32 @@ use hyper_rustls::{ConfigBuilderExt, HttpsConnector};
 #[cfg(feature = "native")]
 use hyper_tls::HttpsConnector;
 
-use crate::primitives::YahaHttpVersion;
+use crate::primitives::{YahaHttpVersion, CompletionReason};
 
 type OnStatusCodeAndHeadersReceive =
     extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion);
 type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8);
 type OnComplete = extern "C" fn(req_seq: i32, reason: CompletionReason);
 
-pub enum CompletionReason {
-    Success,
-    Error,
-    Canceled,
+pub struct YahaNativeRuntimeContext;
+pub struct YahaNativeRuntimeContextInternal {
+    pub runtime: Runtime
+}
+
+impl YahaNativeRuntimeContextInternal {
+    pub fn from_raw_context(ctx: *mut YahaNativeRuntimeContext) -> &'static mut Self {
+        unsafe { &mut *(ctx as *mut Self) }
+    }
+    pub fn new() -> YahaNativeRuntimeContextInternal {
+        YahaNativeRuntimeContextInternal {
+            runtime: Runtime::new().unwrap()
+        }
+    }
 }
 
 pub struct YahaNativeContext;
 pub struct YahaNativeContextInternal {
-    pub runtime: tokio::runtime::Runtime,
+    pub runtime: tokio::runtime::Handle,
     pub client_builder: Option<client::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
@@ -44,12 +55,13 @@ impl YahaNativeContextInternal {
     }
 
     pub fn new(
+        runtime_handle: Handle,
         on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
         on_receive: OnReceive,
         on_complete: OnComplete,
     ) -> Self {
         YahaNativeContextInternal {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            runtime: runtime_handle,
             client: None,
             client_builder: Some(Client::builder()),
             skip_certificate_verification: None,

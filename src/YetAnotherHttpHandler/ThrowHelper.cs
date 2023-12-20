@@ -13,6 +13,13 @@ namespace Cysharp.Net.Http
             if (reqCtx == null) throw new ArgumentNullException(nameof(reqCtx));
         }
 
+        [Conditional("__VERIFY_POINTER")]
+        public static unsafe void VerifyPointer(YahaContextSafeHandle ctx, YahaRequestContextSafeHandle reqCtx)
+        {
+            if (ctx.IsInvalid) throw new ArgumentNullException(nameof(ctx));
+            if (reqCtx.IsInvalid) throw new ArgumentNullException(nameof(reqCtx));
+        }
+
 #if NETSTANDARD2_0
         public static unsafe void ThrowIfFailed(bool result)
 #else

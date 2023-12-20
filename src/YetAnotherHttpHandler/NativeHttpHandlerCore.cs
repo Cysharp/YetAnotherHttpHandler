@@ -6,7 +6,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
-using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net.Http;
@@ -26,31 +25,64 @@ namespace Cysharp.Net.Http
         private static ConcurrentDictionary<int, RequestContext> _inflightRequests = new ConcurrentDictionary<int, RequestContext>();
         private static int _requestSequence = 0;
 
-        private unsafe YahaNativeContext* _ctx;
+        //private unsafe YahaNativeContext* _ctx;
+        private readonly YahaContextSafeHandle _handle;
 
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_runtime");
-#if USE_FUNCTION_POINTER
-            _ctx = NativeMethodsFuncPtr.yaha_init_runtime(&OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
-#else
-            _ctx = NativeMethods.yaha_init_runtime(OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
-#endif
+            var runtimeHandle = NativeRuntime.Instance.Acquire();
 
+            var addRefRuntimeHandle = false;
+            try
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_context");
+#if USE_FUNCTION_POINTER
+                var ctx = NativeMethodsFuncPtr.yaha_init_context(runtimeHandle.DangerousGet(), &OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
+#else
+                var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
+#endif
+                _handle = new YahaContextSafeHandle(ctx);
+                _handle.SetParent(runtimeHandle);
+
+                var addRefContextHandle = false;
+                try
+                {
+                    _handle.DangerousAddRef(ref addRefContextHandle);
+                    Initialize(_handle.DangerousGet(), settings);
+                }
+                finally
+                {
+                    if (addRefContextHandle)
+                    {
+                        _handle.DangerousRelease();
+                    }
+                }
+            }
+            finally
+            {
+                if (addRefRuntimeHandle)
+                {
+                    runtimeHandle.DangerousRelease();
+                }
+            }
+        }
+
+        private unsafe void Initialize(YahaNativeContext* ctx, NativeClientSettings settings)
+        {
             if (settings.PoolIdleTimeout is { } poolIdleTimeout)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.PoolIdleTimeout)}' = {poolIdleTimeout}");
-                NativeMethods.yaha_client_config_pool_idle_timeout(_ctx, (ulong)poolIdleTimeout.TotalMilliseconds);
+                NativeMethods.yaha_client_config_pool_idle_timeout(ctx, (ulong)poolIdleTimeout.TotalMilliseconds);
             }
             if (settings.MaxIdlePerHost is { } maxIdlePerHost)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.MaxIdlePerHost)}' = {maxIdlePerHost}");
-                NativeMethods.yaha_client_config_pool_max_idle_per_host(_ctx, (nuint)maxIdlePerHost);
+                NativeMethods.yaha_client_config_pool_max_idle_per_host(ctx, (nuint)maxIdlePerHost);
             }
             if (settings.SkipCertificateVerification is { } skipCertificateVerification)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.SkipCertificateVerification)}' = {skipCertificateVerification}");
-                NativeMethods.yaha_client_config_skip_certificate_verification(_ctx, skipCertificateVerification);
+                NativeMethods.yaha_client_config_skip_certificate_verification(ctx, skipCertificateVerification);
             }
             if (settings.RootCertificates is { } rootCertificates)
             {
@@ -59,7 +91,7 @@ namespace Cysharp.Net.Http
                 fixed (byte* buffer = rootCertificatesBytes)
                 {
                     var sb = new StringBuffer(buffer, rootCertificates.Length);
-                    var validCertificatesCount = NativeMethods.yaha_client_config_add_root_certificates(_ctx, &sb);
+                    var validCertificatesCount = NativeMethods.yaha_client_config_add_root_certificates(ctx, &sb);
                     if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_client_config_add_root_certificates: ValidCertificatesCount={validCertificatesCount}");
                 }
             }
@@ -70,7 +102,7 @@ namespace Cysharp.Net.Http
                 fixed (byte* buffer = strBytes)
                 {
                     var sb = new StringBuffer(buffer, strBytes.Length);
-                    NativeMethods.yaha_client_config_add_client_auth_key(_ctx, &sb);
+                    NativeMethods.yaha_client_config_add_client_auth_key(ctx, &sb);
                 }
             }
             if (settings.ClientAuthCertificates is { } clientAuthCertificates)
@@ -80,61 +112,61 @@ namespace Cysharp.Net.Http
                 fixed (byte* buffer = strBytes)
                 {
                     var sb = new StringBuffer(buffer, strBytes.Length);
-                    NativeMethods.yaha_client_config_add_client_auth_certificates(_ctx, &sb);
+                    NativeMethods.yaha_client_config_add_client_auth_certificates(ctx, &sb);
                 }
             }
             if (settings.Http2Only is { } http2Only)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2Only)}' = {http2Only}");
-                NativeMethods.yaha_client_config_http2_only(_ctx, http2Only);
+                NativeMethods.yaha_client_config_http2_only(ctx, http2Only);
             }
             if (settings.Http2InitialStreamWindowSize is { } http2InitialStreamWindowSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2InitialStreamWindowSize)}' = {http2InitialStreamWindowSize}");
-                NativeMethods.yaha_client_config_http2_initial_stream_window_size(_ctx, http2InitialStreamWindowSize);
+                NativeMethods.yaha_client_config_http2_initial_stream_window_size(ctx, http2InitialStreamWindowSize);
             }
             if (settings.Http2InitialConnectionWindowSize is { } http2InitialConnectionWindowSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2InitialConnectionWindowSize)}' = {http2InitialConnectionWindowSize}");
-                NativeMethods.yaha_client_config_http2_initial_connection_window_size(_ctx, http2InitialConnectionWindowSize);
+                NativeMethods.yaha_client_config_http2_initial_connection_window_size(ctx, http2InitialConnectionWindowSize);
             }
             if (settings.Http2AdaptiveWindow is { } http2AdaptiveWindow)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2AdaptiveWindow)}' = {http2AdaptiveWindow}");
-                NativeMethods.yaha_client_config_http2_adaptive_window(_ctx, http2AdaptiveWindow);
+                NativeMethods.yaha_client_config_http2_adaptive_window(ctx, http2AdaptiveWindow);
             }
             if (settings.Http2MaxFrameSize is { } http2MaxFrameSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxFrameSize)}' = {http2MaxFrameSize}");
-                NativeMethods.yaha_client_config_http2_max_frame_size(_ctx, http2MaxFrameSize);
+                NativeMethods.yaha_client_config_http2_max_frame_size(ctx, http2MaxFrameSize);
             }
             if (settings.Http2KeepAliveInterval is { } http2KeepAliveInterval)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2KeepAliveInterval)}' = {http2KeepAliveInterval}");
-                NativeMethods.yaha_client_config_http2_keep_alive_interval(_ctx, (ulong)http2KeepAliveInterval.TotalMilliseconds);
+                NativeMethods.yaha_client_config_http2_keep_alive_interval(ctx, (ulong)http2KeepAliveInterval.TotalMilliseconds);
             }
             if (settings.Http2KeepAliveTimeout is { } http2KeepAliveTimeout)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2KeepAliveTimeout)}' = {http2KeepAliveTimeout}");
-                NativeMethods.yaha_client_config_http2_keep_alive_timeout(_ctx, (ulong)http2KeepAliveTimeout.TotalMilliseconds);
+                NativeMethods.yaha_client_config_http2_keep_alive_timeout(ctx, (ulong)http2KeepAliveTimeout.TotalMilliseconds);
             }
             if (settings.Http2KeepAliveWhileIdle is { } http2KeepAliveWhileIdle)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2KeepAliveWhileIdle)}' = {http2KeepAliveWhileIdle}");
-                NativeMethods.yaha_client_config_http2_keep_alive_while_idle(_ctx, http2KeepAliveWhileIdle);
+                NativeMethods.yaha_client_config_http2_keep_alive_while_idle(ctx, http2KeepAliveWhileIdle);
             }
             if (settings.Http2MaxConcurrentResetStreams is { } http2MaxConcurrentResetStreams)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxConcurrentResetStreams)}' = {http2MaxConcurrentResetStreams}");
-                NativeMethods.yaha_client_config_http2_max_concurrent_reset_streams(_ctx, (nuint)http2MaxConcurrentResetStreams);
+                NativeMethods.yaha_client_config_http2_max_concurrent_reset_streams(ctx, (nuint)http2MaxConcurrentResetStreams);
             }
             if (settings.Http2MaxSendBufferSize is { } http2MaxSendBufferSize)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxSendBufferSize)}' = {http2MaxSendBufferSize}");
-                NativeMethods.yaha_client_config_http2_max_send_buf_size(_ctx, (nuint)http2MaxSendBufferSize);
+                NativeMethods.yaha_client_config_http2_max_send_buf_size(ctx, (nuint)http2MaxSendBufferSize);
             }
 
-            NativeMethods.yaha_build_client(_ctx);
+            NativeMethods.yaha_build_client(ctx);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"{nameof(NativeHttpHandlerCore)} created");
         }
@@ -173,7 +205,47 @@ namespace Cysharp.Net.Http
             }
 
             var requestSequence = Interlocked.Increment(ref _requestSequence);
-            var reqCtx = NativeMethods.yaha_request_new(_ctx, requestSequence);
+
+            var addRefContext = false;
+            try
+            {
+                _handle.DangerousAddRef(ref addRefContext);
+
+                var ctx = _handle.DangerousGet();
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_request_new: requestSequence={requestSequence}");
+                var reqCtx = NativeMethods.yaha_request_new(ctx, requestSequence);
+                var reqCtxHandle = new YahaRequestContextSafeHandle(reqCtx);
+                reqCtxHandle.SetParent(_handle);
+
+                var addRefReqContext = false;
+                try
+                {
+                    reqCtxHandle.DangerousAddRef(ref addRefReqContext);
+
+                    return UnsafeSend(_handle, reqCtxHandle, requestSequence, request, cancellationToken);
+                }
+                finally
+                {
+                    if (addRefReqContext)
+                    {
+                        reqCtxHandle.DangerousRelease();
+                    }
+                }
+            }
+            finally
+            {
+                if (addRefContext)
+                {
+                    _handle.DangerousRelease();
+                }
+            }
+        }
+
+        private unsafe RequestContext UnsafeSend(YahaContextSafeHandle ctxHandle, YahaRequestContextSafeHandle reqCtxHandle, int requestSequence, HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            // NOTE: DangerousAddRef/Release has already called by caller (`Send`).
+            var ctx = ctxHandle.DangerousGet();
+            var reqCtx = reqCtxHandle.DangerousGet();
 
             // Set request headers
             var headers = request.Content is null
@@ -189,8 +261,8 @@ namespace Cysharp.Net.Http
                 {
                     var bufKey = new StringBuffer(pKey, keyBytes.Length);
                     var bufValue = new StringBuffer(pValue, valueBytes.Length);
-                    ThrowHelper.VerifyPointer(_ctx, reqCtx);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(_ctx, reqCtx, &bufKey, &bufValue));
+                    ThrowHelper.VerifyPointer(ctx, reqCtx);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(ctx, reqCtx, &bufKey, &bufValue));
                 }
             }
 
@@ -200,8 +272,8 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);
-                    ThrowHelper.VerifyPointer(_ctx, reqCtx);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_method(_ctx, reqCtx, &buf));
+                    ThrowHelper.VerifyPointer(ctx, reqCtx);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_method(ctx, reqCtx, &buf));
                 }
             }
 
@@ -211,8 +283,8 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);
-                    ThrowHelper.VerifyPointer(_ctx, reqCtx);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(_ctx, reqCtx, &buf));
+                    ThrowHelper.VerifyPointer(ctx, reqCtx);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(ctx, reqCtx, &buf));
                 }
             }
 
@@ -224,13 +296,13 @@ namespace Cysharp.Net.Http
                 var v when v == HttpVersionShim.Version20 => YahaHttpVersion.Http2,
                 _ => throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'"),
             };
-            NativeMethods.yaha_request_set_version(_ctx, reqCtx, version);
+            NativeMethods.yaha_request_set_version(ctx, reqCtx, version);
 
             // Prepare body channel
-            NativeMethods.yaha_request_set_has_body(_ctx, reqCtx, request.Content != null);
+            NativeMethods.yaha_request_set_has_body(ctx, reqCtx, request.Content != null);
 
             // Prepare a request context
-            var requestContextManaged = new RequestContext(_ctx, reqCtx, request, requestSequence, cancellationToken);
+            var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, cancellationToken);
             if (cancellationToken.IsCancellationRequested)
             {
                 // Dispose the request context immediately.
@@ -241,8 +313,8 @@ namespace Cysharp.Net.Http
 
             // Begin request
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}] Begin HTTP request to the server.");
-            ThrowHelper.VerifyPointer(_ctx, reqCtx);
-            ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(_ctx, reqCtx));
+            ThrowHelper.VerifyPointer(ctx, reqCtx);
+            ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(ctx, reqCtx));
             requestContextManaged.Start(); // NOTE: ReadRequestLoop must be started after `request_begin`.
 
             return requestContextManaged;
@@ -252,7 +324,7 @@ namespace Cysharp.Net.Http
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
-        [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_status_code_and_headers_receive_delegate))]
+        [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate))]
         private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, int statusCode, YahaHttpVersion version)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}] Status code and headers received: StatusCode={statusCode}; Version={version}");
@@ -262,24 +334,48 @@ namespace Cysharp.Net.Http
                 requestContext.Response.SetVersion(version);
 
                 ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
-                var headersCount = NativeMethods.yaha_request_response_get_headers_count(requestContext._ctx, requestContext._requestContext);
-                if (headersCount > 0)
+
+                var addRefContext = false;
+                var addRefRequestContext = false;
+                try
                 {
-                    for (var i = 0; i < headersCount; i++)
+                    requestContext._ctx.DangerousAddRef(ref addRefContext);
+                    requestContext._requestContext.DangerousAddRef(ref addRefRequestContext);
+
+                    var ctx = requestContext._ctx.DangerousGet();
+                    var reqCtx = requestContext._requestContext.DangerousGet();
+
+                    var headersCount = NativeMethods.yaha_request_response_get_headers_count(ctx, reqCtx);
+                    if (headersCount > 0)
                     {
-                        var bufKey = NativeMethods.yaha_request_response_get_header_key(requestContext._ctx, requestContext._requestContext, i);
-                        var bufValue = NativeMethods.yaha_request_response_get_header_value(requestContext._ctx, requestContext._requestContext, i);
-                        try
+                        for (var i = 0; i < headersCount; i++)
                         {
-                            requestContext.Response.SetHeader(bufKey->AsSpan(), bufValue->AsSpan());
-                        }
-                        finally
-                        {
-                            NativeMethods.yaha_free_byte_buffer(bufKey);
-                            NativeMethods.yaha_free_byte_buffer(bufValue);
+                            var bufKey = NativeMethods.yaha_request_response_get_header_key(ctx, reqCtx, i);
+                            var bufValue = NativeMethods.yaha_request_response_get_header_value(ctx, reqCtx, i);
+                            try
+                            {
+                                requestContext.Response.SetHeader(bufKey->AsSpan(), bufValue->AsSpan());
+                            }
+                            finally
+                            {
+                                NativeMethods.yaha_free_byte_buffer(bufKey);
+                                NativeMethods.yaha_free_byte_buffer(bufValue);
+                            }
                         }
                     }
                 }
+                finally
+                {
+                    if (addRefContext)
+                    {
+                        requestContext._ctx.DangerousRelease();
+                    }
+                    if (addRefRequestContext)
+                    {
+                        requestContext._requestContext.DangerousRelease();
+                    }
+                }
+
                 requestContext.Response.SetStatusCode(statusCode);
             }
         }
@@ -287,7 +383,7 @@ namespace Cysharp.Net.Http
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
-        [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_receive_delegate))]
+        [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
         private static unsafe void OnReceive(int reqSeq, UIntPtr length, byte* buf)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}] Response data received: Length={length}");
@@ -299,7 +395,7 @@ namespace Cysharp.Net.Http
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
-        [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_runtime_on_complete_delegate))]
+        [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
         private static unsafe void OnComplete(int reqSeq, CompletionReason reason)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}] Response completed: Reason={reason}");
@@ -309,22 +405,44 @@ namespace Cysharp.Net.Http
                 ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
                 if (reason == CompletionReason.Success)
                 {
-                    var trailersCount = NativeMethods.yaha_request_response_get_trailers_count(requestContext._ctx, requestContext._requestContext);
-                    if (trailersCount > 0)
+                    var addRefContext = false;
+                    var addRefRequestContext = false;
+                    try
                     {
-                        for (var i = 0; i < trailersCount; i++)
+                        requestContext._ctx.DangerousAddRef(ref addRefContext);
+                        requestContext._requestContext.DangerousAddRef(ref addRefRequestContext);
+
+                        var ctx = requestContext._ctx.DangerousGet();
+                        var reqCtx = requestContext._requestContext.DangerousGet();
+
+                        var trailersCount = NativeMethods.yaha_request_response_get_trailers_count(ctx, reqCtx);
+                        if (trailersCount > 0)
                         {
-                            var bufKey = NativeMethods.yaha_request_response_get_trailers_key(requestContext._ctx, requestContext._requestContext, i);
-                            var bufValue = NativeMethods.yaha_request_response_get_trailers_value(requestContext._ctx, requestContext._requestContext, i);
-                            try
+                            for (var i = 0; i < trailersCount; i++)
                             {
-                                requestContext.Response.SetTrailer(bufKey->AsSpan(), bufValue->AsSpan());
+                                var bufKey = NativeMethods.yaha_request_response_get_trailers_key(ctx, reqCtx, i);
+                                var bufValue = NativeMethods.yaha_request_response_get_trailers_value(ctx, reqCtx, i);
+                                try
+                                {
+                                    requestContext.Response.SetTrailer(bufKey->AsSpan(), bufValue->AsSpan());
+                                }
+                                finally
+                                {
+                                    NativeMethods.yaha_free_byte_buffer(bufKey);
+                                    NativeMethods.yaha_free_byte_buffer(bufValue);
+                                }
                             }
-                            finally
-                            {
-                                NativeMethods.yaha_free_byte_buffer(bufKey);
-                                NativeMethods.yaha_free_byte_buffer(bufValue);
-                            }
+                        }
+                    }
+                    finally
+                    {
+                        if (addRefContext)
+                        {
+                            requestContext._ctx.DangerousRelease();
+                        }
+                        if (addRefRequestContext)
+                        {
+                            requestContext._requestContext.DangerousRelease();
                         }
                     }
 
@@ -358,18 +476,13 @@ namespace Cysharp.Net.Http
 
         private void Dispose(bool disposing)
         {
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Dispose {nameof(NativeHttpHandlerCore)}; disposing={disposing}");
+
+            NativeRuntime.Instance.Release(); // We always need to release runtime.
+
             if (disposing)
             {
-            }
-
-            unsafe
-            {
-                if (_ctx != null)
-                {
-                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Disposing {nameof(NativeHttpHandlerCore)}");
-                    NativeMethods.yaha_dispose_runtime(_ctx);
-                    _ctx = null;
-                }
+                _handle.Dispose();
             }
         }
     }
