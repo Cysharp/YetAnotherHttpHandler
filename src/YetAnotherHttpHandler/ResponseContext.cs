@@ -103,9 +103,9 @@ namespace Cysharp.Net.Http
 
         public void Complete()
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed.");
-            _pipe.Writer.Complete();
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed. (_completed={_completed})");
             Volatile.Write(ref _completed, 1);
+            _pipe.Writer.Complete();
         }
 
         public void CompleteAsFailed(string errorMessage)
@@ -127,7 +127,6 @@ namespace Cysharp.Net.Http
 #endif
             _responseTask.TrySetException(ex);
             _pipe.Writer.Complete(ex);
-            Volatile.Write(ref _completed, 1);
         }
 
         public void Cancel()
@@ -142,11 +141,6 @@ namespace Cysharp.Net.Http
         public async Task<HttpResponseMessage> GetResponseAsync()
         {
             return await _responseTask.Task.ConfigureAwait(false);
-        }
-
-        public Stream ToStream()
-        {
-            return _pipe.Reader.AsStream();
         }
     }
 }

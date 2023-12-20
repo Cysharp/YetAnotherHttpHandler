@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, num::NonZeroIsize};
 use tokio::runtime::{Handle, Runtime};
 
 use hyper::{
@@ -15,9 +15,9 @@ use hyper_tls::HttpsConnector;
 use crate::primitives::{YahaHttpVersion, CompletionReason};
 
 type OnStatusCodeAndHeadersReceive =
-    extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion);
-type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8);
-type OnComplete = extern "C" fn(req_seq: i32, reason: CompletionReason);
+    extern "C" fn(req_seq: i32, state: NonZeroIsize, status_code: i32, version: YahaHttpVersion);
+type OnReceive = extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8);
+type OnComplete = extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason);
 
 pub struct YahaNativeRuntimeContext;
 pub struct YahaNativeRuntimeContextInternal {

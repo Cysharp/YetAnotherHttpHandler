@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     ptr::null,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::Duration, num::NonZeroIsize,
 };
 
 use hyper::{
@@ -55,11 +55,12 @@ pub extern "C" fn yaha_init_context(
     runtime_ctx: *mut YahaNativeRuntimeContext,
     on_status_code_and_headers_receive: extern "C" fn(
         req_seq: i32,
+        state: NonZeroIsize,
         status_code: i32,
         version: YahaHttpVersion,
     ),
-    on_receive: extern "C" fn(req_seq: i32, length: usize, buf: *const u8),
-    on_complete: extern "C" fn(req_seq: i32, reason: CompletionReason),
+    on_receive: extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8),
+    on_complete: extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason),
 ) -> *mut YahaNativeContext {
     let runtime_ctx = YahaNativeRuntimeContextInternal::from_raw_context(runtime_ctx);
     let ctx = Box::new(YahaNativeContextInternal::new(
@@ -403,6 +404,7 @@ pub unsafe extern "C" fn yaha_request_set_header(
 pub extern "C" fn yaha_request_begin(
     ctx: *mut YahaNativeContext,
     req_ctx: *const YahaNativeRequestContext,
+    state: NonZeroIsize
 ) -> bool {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
 
@@ -439,7 +441,7 @@ pub extern "C" fn yaha_request_begin(
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
                 });
-                (ctx.on_complete)(seq, CompletionReason::Error);
+                (ctx.on_complete)(seq, state, CompletionReason::Error);
                 return;
             }
 
@@ -449,7 +451,7 @@ pub extern "C" fn yaha_request_begin(
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some(err.to_string());
                 });
-                (ctx.on_complete)(seq, CompletionReason::Error);
+                (ctx.on_complete)(seq, state, CompletionReason::Error);
                 return;
             }
 
@@ -473,6 +475,7 @@ pub extern "C" fn yaha_request_begin(
             }
             (ctx.on_status_code_and_headers_receive)(
                 seq,
+                state,
                 res.status().as_u16() as i32,
                 YahaHttpVersion::from(res.version()),
             );
@@ -488,14 +491,14 @@ pub extern "C" fn yaha_request_begin(
                         match x {
                             Ok(y) => {
                                 //println!("body.data: on_receive {}; is_end_stream={}", y.len(), body.is_end_stream());
-                                (ctx.on_receive)(seq, y.len(), y.as_ptr());
+                                (ctx.on_receive)(seq, state, y.len(), y.as_ptr());
                             }
                             Err(err) => {
                                 //println!("body.data: on_complete_error");
                                 LAST_ERROR.with(|v| {
                                     *v.borrow_mut() = Some(err.to_string());
                                 });
-                                (ctx.on_complete)(seq, CompletionReason::Error);
+                                (ctx.on_complete)(seq, state, CompletionReason::Error);
                                 return;
                             }
                         }
@@ -532,9 +535,9 @@ pub extern "C" fn yaha_request_begin(
                                 .collect::<Vec<(String, String)>>(),
                         );
                     }
-                    (ctx.on_complete)(seq, CompletionReason::Success);
+                    (ctx.on_complete)(seq, state, CompletionReason::Success);
                 }
-                None => (ctx.on_complete)(seq, CompletionReason::Success),
+                None => (ctx.on_complete)(seq, state, CompletionReason::Success),
             }
 
             {

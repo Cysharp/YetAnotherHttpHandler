@@ -47,5 +47,14 @@ namespace Cysharp.Net.Http
             length = -1;
             return false;
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _pipeReader.Complete();
+            }
+            base.Dispose(disposing);
+        }
     }
 }

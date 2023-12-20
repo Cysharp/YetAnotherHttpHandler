@@ -9,7 +9,7 @@ edition = "2021"
 crate-type = ["staticlib", "cdylib"]
 
 [build-dependencies]
-csbindgen = "1.7.0"
+csbindgen = "1.8.3"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

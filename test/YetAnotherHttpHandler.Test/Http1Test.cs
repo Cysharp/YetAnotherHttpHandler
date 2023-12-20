@@ -17,7 +17,6 @@ public class Http1Test : UseTestServerTestBase
     public async Task FailedToConnect()
     {
         // Arrange
-        {
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
         await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
@@ -27,12 +26,6 @@ public class Http1Test : UseTestServerTestBase
 
         // Assert
         Assert.IsType<HttpRequestException>(ex);
-        }
-        for (var i = 0; i < 10; i++)
-        {
-            Thread.Sleep(100);
-            GC.Collect();
-        }
     }
 
     [Fact]

@@ -7,6 +7,7 @@
 using System;
 using System.Runtime.InteropServices;
 
+
 namespace Cysharp.Net.Http
 {
     internal static unsafe partial class NativeMethods
@@ -17,6 +18,8 @@ namespace Cysharp.Net.Http
         const string __DllName = "Cysharp.Net.Http.YetAnotherHttpHandler.Native";
 #endif
         
+
+
 
         [DllImport(__DllName, EntryPoint = "yaha_get_last_error", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern ByteBuffer* yaha_get_last_error();
@@ -31,13 +34,13 @@ namespace Cysharp.Net.Http
         public static extern void yaha_dispose_runtime(YahaNativeRuntimeContext* ctx);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void yaha_init_context_on_status_code_and_headers_receive_delegate(int req_seq, int status_code, YahaHttpVersion version);
+        public delegate void yaha_init_context_on_status_code_and_headers_receive_delegate(int req_seq, nint state, int status_code, YahaHttpVersion version);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void yaha_init_context_on_receive_delegate(int req_seq, nuint length, byte* buf);
+        public delegate void yaha_init_context_on_receive_delegate(int req_seq, nint state, nuint length, byte* buf);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void yaha_init_context_on_complete_delegate(int req_seq, CompletionReason reason);
+        public delegate void yaha_init_context_on_complete_delegate(int req_seq, nint state, CompletionReason reason);
 
         [DllImport(__DllName, EntryPoint = "yaha_init_context", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern YahaNativeContext* yaha_init_context(YahaNativeRuntimeContext* runtime_ctx, yaha_init_context_on_status_code_and_headers_receive_delegate on_status_code_and_headers_receive, yaha_init_context_on_receive_delegate on_receive, yaha_init_context_on_complete_delegate on_complete);
@@ -121,7 +124,7 @@ namespace Cysharp.Net.Http
 
         [DllImport(__DllName, EntryPoint = "yaha_request_begin", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.U1)]
-        public static extern bool yaha_request_begin(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
+        public static extern bool yaha_request_begin(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx, nint state);
 
         [DllImport(__DllName, EntryPoint = "yaha_request_write_body", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.U1)]

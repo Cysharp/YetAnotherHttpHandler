@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -14,6 +15,7 @@ namespace Cysharp.Net.Http
         {
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public YahaNativeRuntimeContext* DangerousGet() => (YahaNativeRuntimeContext*)DangerousGetHandle();
 
         protected override bool ReleaseHandle()
@@ -34,6 +36,7 @@ namespace Cysharp.Net.Http
         {
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public YahaNativeContext* DangerousGet() => (YahaNativeContext*)DangerousGetHandle();
 
         public void SetParent(YahaRuntimeSafeHandle parent)
@@ -67,6 +70,7 @@ namespace Cysharp.Net.Http
         {
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public YahaNativeRequestContext* DangerousGet() => (YahaNativeRequestContext*)DangerousGetHandle();
 
         public void SetParent(YahaContextSafeHandle parent)

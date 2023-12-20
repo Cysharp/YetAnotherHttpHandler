@@ -22,7 +22,6 @@ namespace Cysharp.Net.Http
 {
     internal class NativeHttpHandlerCore : IDisposable
     {
-        private static ConcurrentDictionary<int, RequestContext> _inflightRequests = new ConcurrentDictionary<int, RequestContext>();
         private static int _requestSequence = 0;
 
         //private unsafe YahaNativeContext* _ctx;
@@ -261,7 +260,6 @@ namespace Cysharp.Net.Http
                 {
                     var bufKey = new StringBuffer(pKey, keyBytes.Length);
                     var bufValue = new StringBuffer(pValue, valueBytes.Length);
-                    ThrowHelper.VerifyPointer(ctx, reqCtx);
                     ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(ctx, reqCtx, &bufKey, &bufValue));
                 }
             }
@@ -272,7 +270,6 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);
-                    ThrowHelper.VerifyPointer(ctx, reqCtx);
                     ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_method(ctx, reqCtx, &buf));
                 }
             }
@@ -283,7 +280,6 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes)
                 {
                     var buf = new StringBuffer(p, strBytes.Length);
-                    ThrowHelper.VerifyPointer(ctx, reqCtx);
                     ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(ctx, reqCtx, &buf));
                 }
             }
@@ -303,19 +299,28 @@ namespace Cysharp.Net.Http
 
             // Prepare a request context
             var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, cancellationToken);
+            requestContextManaged.Allocate();
             if (cancellationToken.IsCancellationRequested)
             {
                 // Dispose the request context immediately.
+                requestContextManaged.Release();
                 requestContextManaged.Dispose();
                 cancellationToken.ThrowIfCancellationRequested();
             }
-            _inflightRequests[requestSequence] = requestContextManaged;
 
             // Begin request
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}] Begin HTTP request to the server.");
-            ThrowHelper.VerifyPointer(ctx, reqCtx);
-            ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(ctx, reqCtx));
-            requestContextManaged.Start(); // NOTE: ReadRequestLoop must be started after `request_begin`.
+            try
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}:State:0x{requestContextManaged.Handle:X}] Begin HTTP request to the server.");
+                ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(ctx, reqCtx, requestContextManaged.Handle));
+                requestContextManaged.Start(); // NOTE: ReadRequestLoop must be started after `request_begin`.
+            }
+            catch
+            {
+                requestContextManaged.Release();
+                requestContextManaged.Dispose();
+                throw;
+            }
 
             return requestContextManaged;
         }
@@ -325,84 +330,81 @@ namespace Cysharp.Net.Http
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate))]
-        private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, int statusCode, YahaHttpVersion version)
+        private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, IntPtr state, int statusCode, YahaHttpVersion version)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}] Status code and headers received: StatusCode={statusCode}; Version={version}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Status code and headers received: StatusCode={statusCode}; Version={version}");
 
-            if (_inflightRequests.TryGetValue(reqSeq, out var requestContext))
+            var requestContext = RequestContext.FromHandle(state);
+            requestContext.Response.SetVersion(version);
+
+            var addRefContext = false;
+            var addRefRequestContext = false;
+            try
             {
-                requestContext.Response.SetVersion(version);
+                requestContext._ctx.DangerousAddRef(ref addRefContext);
+                requestContext._requestContext.DangerousAddRef(ref addRefRequestContext);
 
-                ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
+                var ctx = requestContext._ctx.DangerousGet();
+                var reqCtx = requestContext._requestContext.DangerousGet();
 
-                var addRefContext = false;
-                var addRefRequestContext = false;
-                try
+                var headersCount = NativeMethods.yaha_request_response_get_headers_count(ctx, reqCtx);
+                if (headersCount > 0)
                 {
-                    requestContext._ctx.DangerousAddRef(ref addRefContext);
-                    requestContext._requestContext.DangerousAddRef(ref addRefRequestContext);
-
-                    var ctx = requestContext._ctx.DangerousGet();
-                    var reqCtx = requestContext._requestContext.DangerousGet();
-
-                    var headersCount = NativeMethods.yaha_request_response_get_headers_count(ctx, reqCtx);
-                    if (headersCount > 0)
+                    for (var i = 0; i < headersCount; i++)
                     {
-                        for (var i = 0; i < headersCount; i++)
+                        var bufKey = NativeMethods.yaha_request_response_get_header_key(ctx, reqCtx, i);
+                        var bufValue = NativeMethods.yaha_request_response_get_header_value(ctx, reqCtx, i);
+                        try
                         {
-                            var bufKey = NativeMethods.yaha_request_response_get_header_key(ctx, reqCtx, i);
-                            var bufValue = NativeMethods.yaha_request_response_get_header_value(ctx, reqCtx, i);
-                            try
-                            {
-                                requestContext.Response.SetHeader(bufKey->AsSpan(), bufValue->AsSpan());
-                            }
-                            finally
-                            {
-                                NativeMethods.yaha_free_byte_buffer(bufKey);
-                                NativeMethods.yaha_free_byte_buffer(bufValue);
-                            }
+                            requestContext.Response.SetHeader(bufKey->AsSpan(), bufValue->AsSpan());
+                        }
+                        finally
+                        {
+                            NativeMethods.yaha_free_byte_buffer(bufKey);
+                            NativeMethods.yaha_free_byte_buffer(bufValue);
                         }
                     }
                 }
-                finally
-                {
-                    if (addRefContext)
-                    {
-                        requestContext._ctx.DangerousRelease();
-                    }
-                    if (addRefRequestContext)
-                    {
-                        requestContext._requestContext.DangerousRelease();
-                    }
-                }
-
-                requestContext.Response.SetStatusCode(statusCode);
             }
+            finally
+            {
+                if (addRefContext)
+                {
+                    requestContext._ctx.DangerousRelease();
+                }
+                if (addRefRequestContext)
+                {
+                    requestContext._requestContext.DangerousRelease();
+                }
+            }
+
+            requestContext.Response.SetStatusCode(statusCode);
         }
 
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
-        private static unsafe void OnReceive(int reqSeq, UIntPtr length, byte* buf)
+        private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}] Response data received: Length={length}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response data received: Length={length}");
 
             var bufSpan = new Span<byte>(buf, (int)length);
-            _inflightRequests[reqSeq].Response.Write(bufSpan);
+            var requestContext = RequestContext.FromHandle(state);
+            requestContext.Response.Write(bufSpan);
         }
 
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
-        private static unsafe void OnComplete(int reqSeq, CompletionReason reason)
+        private static unsafe void OnComplete(int reqSeq, IntPtr state, CompletionReason reason)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}] Response completed: Reason={reason}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response completed: Reason={reason}");
 
-            if (_inflightRequests.TryGetValue(reqSeq, out var requestContext))
+            var requestContext = RequestContext.FromHandle(state);
+            try
             {
-                ThrowHelper.VerifyPointer(requestContext._ctx, requestContext._requestContext);
                 if (reason == CompletionReason.Success)
                 {
                     var addRefContext = false;
@@ -465,7 +467,10 @@ namespace Cysharp.Net.Http
                     requestContext.Response.CompleteAsFailed("Canceled");
                 }
             }
-            _inflightRequests.TryRemove(reqSeq, out _);
+            finally
+            {
+                requestContext.Release();
+            }
         }
 
         public void Dispose()
