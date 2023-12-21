@@ -327,6 +327,36 @@ public abstract class Http2TestBase : UseTestServerTestBase
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
         Assert.Equal(cts.Token, operationCanceledException.CancellationToken);
     }
+    
+    [ConditionalFact]
+    public async Task DisposeHttpResponseMessage_Post_SendingBody_Duplex()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+
+        // Act
+        var pipe = new Pipe();
+        var content = new DuplexStreamContent(pipe.Reader.AsStream());
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{server.BaseUri}/post-null-duplex")
+        {
+            Version = HttpVersion.Version20,
+            Content = content,
+        };
+        using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken);
+
+        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        cts.Token.Register(() => response.Dispose());
+        var ex = await Record.ExceptionAsync(async () => await response.Content.ReadAsByteArrayAsync().WaitAsync(TimeoutToken));
+        //TestOutputHelper.WriteLine(ex?.ToString());
+
+        // Assert
+        Assert.NotNull(ex);
+        Assert.IsAssignableFrom<HttpRequestException>(ex);
+        Assert.IsAssignableFrom<IOException>(ex.InnerException);
+    }
 
     [ConditionalFact]
     public async Task Cancel_Post_BeforeRequest()

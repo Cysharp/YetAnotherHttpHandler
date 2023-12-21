@@ -10,10 +10,12 @@ namespace Cysharp.Net.Http
 {
     internal class YetAnotherHttpHttpContent : HttpContent
     {
+        private readonly RequestContext _requestContext;
         private readonly PipeReader _pipeReader;
 
-        internal YetAnotherHttpHttpContent(PipeReader pipeReader)
+        internal YetAnotherHttpHttpContent(RequestContext requestContext, PipeReader pipeReader)
         {
+            _requestContext = requestContext;
             _pipeReader = pipeReader;
         }
 
@@ -50,6 +52,8 @@ namespace Cysharp.Net.Http
 
         protected override void Dispose(bool disposing)
         {
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestContext.RequestSequence}:State:0x{_requestContext.Handle:X}] Dispose YetAnotherHttpHttpContent: disposing={disposing}");
+
             if (disposing)
             {
                 _pipeReader.Complete();

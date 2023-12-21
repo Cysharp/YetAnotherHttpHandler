@@ -33,7 +33,7 @@ namespace Cysharp.Net.Http
             _message = new HttpResponseMessage()
             {
                 RequestMessage = requestMessage,
-                Content = new YetAnotherHttpHttpContent(_pipe.Reader),
+                Content = new YetAnotherHttpHttpContent(requestContext, _pipe.Reader),
                 Version = HttpVersion.Version10,
             };
 #if NETSTANDARD2_0
@@ -112,15 +112,15 @@ namespace Cysharp.Net.Http
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed with failure ({errorMessage})");
 
-            var ex = new HttpRequestException(errorMessage);
+            var ex = new IOException(errorMessage);
 #if NET5_0_OR_GREATER
             ExceptionDispatchInfo.SetCurrentStackTrace(ex);
 #else
             try
             {
-                throw new HttpRequestException(errorMessage);
+                throw ex;
             }
-            catch (HttpRequestException e)
+            catch (IOException e)
             {
                 ex = e;
             }
@@ -140,7 +140,14 @@ namespace Cysharp.Net.Http
 
         public async Task<HttpResponseMessage> GetResponseAsync()
         {
-            return await _responseTask.Task.ConfigureAwait(false);
+            try
+            {
+                return await _responseTask.Task.ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                throw new HttpRequestException(e.Message);
+            }
         }
     }
 }
