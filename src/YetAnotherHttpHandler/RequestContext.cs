@@ -194,6 +194,7 @@ namespace Cysharp.Net.Http
 
         public unsafe bool TryAbort()
         {
+            Debug.Assert(_handle.IsAllocated);
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Try to abort the request");
 
             _cancellationTokenSource.Cancel();
