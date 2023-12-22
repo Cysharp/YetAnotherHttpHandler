@@ -28,5 +28,5 @@ impl From<Version> for YahaHttpVersion {
 pub enum CompletionReason {
     Success,
     Error,
-    Canceled,
+    Aborted,
 }

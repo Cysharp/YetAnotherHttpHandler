@@ -13,12 +13,12 @@ namespace Cysharp.Net.Http
     internal class RequestContext : IDisposable
     {
         private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
-        private readonly CancellationToken _cancellationToken;
+        private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly int _requestSequence;
         private GCHandle _handle;
 
-        internal YahaContextSafeHandle _ctx;
-        internal YahaRequestContextSafeHandle _requestContext;
+        internal YahaContextSafeHandle _ctxHandle;
+        internal YahaRequestContextSafeHandle _requestContextHandle;
 
         private bool _requestBodyCompleted;
         private Task? _readRequestTask;
@@ -31,43 +31,48 @@ namespace Cysharp.Net.Http
 
         internal RequestContext(YahaContextSafeHandle ctx, YahaRequestContextSafeHandle requestContext, HttpRequestMessage requestMessage, int requestSequence, CancellationToken cancellationToken)
         {
-            _ctx = ctx;
-            _requestContext = requestContext;
+            _ctxHandle = ctx;
+            _requestContextHandle = requestContext;
             _response = new ResponseContext(requestMessage, this, cancellationToken);
             _readRequestTask = default;
             _requestSequence = requestSequence;
-            _cancellationToken = cancellationToken;
+            _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         }
 
         internal void Start()
         {
-            _readRequestTask = RunReadRequestLoopAsync(_cancellationToken);
+            _readRequestTask = RunReadRequestLoopAsync(_cancellationTokenSource.Token);
         }
 
         public void Allocate()
         {
             Debug.Assert(!_handle.IsAllocated);
+
             _handle = GCHandle.Alloc(this);
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] State allocated");
         }
 
         public void Release()
         {
             Debug.Assert(_handle.IsAllocated);
+
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Releasing state");
             _handle.Free();
             _handle = default;
         }
 
         public static RequestContext FromHandle(IntPtr handle)
-            => (RequestContext)GCHandle.FromIntPtr(handle).Target ?? throw new InvalidOperationException();
+            => (RequestContext)(GCHandle.FromIntPtr(handle).Target ?? throw new InvalidOperationException());
 
         private async Task RunReadRequestLoopAsync(CancellationToken cancellationToken)
         {
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Begin RunReadRequestLoopAsync");
             var addRefContext = false;
             var addRefReqContext = false;
             try
             {
-                _ctx.DangerousAddRef(ref addRefContext);
-                _requestContext.DangerousAddRef(ref addRefReqContext);
+                _ctxHandle.DangerousAddRef(ref addRefContext);
+                _requestContextHandle.DangerousAddRef(ref addRefReqContext);
 
                 try
                 {
@@ -103,14 +108,16 @@ namespace Cysharp.Net.Http
             }
             finally
             {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Completing RunReadRequestLoopAsync");
+
                 if (addRefContext)
                 {
-                    _ctx.DangerousRelease();
+                    _ctxHandle.DangerousRelease();
                 }
 
                 if (addRefReqContext)
                 {
-                    _requestContext.DangerousRelease();
+                    _requestContextHandle.DangerousRelease();
                 }
             }
         }
@@ -120,11 +127,10 @@ namespace Cysharp.Net.Http
             Debug.Assert(_handle.IsAllocated);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Sending the request body: Length={data.Length}");
-            ThrowHelper.VerifyPointer(_ctx, _requestContext);
 
             // DangerousAddRef/Release are already called by caller.
-            var ctx = _ctx.DangerousGet();
-            var requestContext = _requestContext.DangerousGet();
+            var ctx = _ctxHandle.DangerousGet();
+            var requestContext = _requestContextHandle.DangerousGet();
 
             while (!_requestBodyCompleted)
             {
@@ -144,7 +150,7 @@ namespace Cysharp.Net.Http
         {
             Debug.Assert(_handle.IsAllocated);
 
-            if (_ctx.IsClosed || _requestContext.IsClosed)
+            if (_ctxHandle.IsClosed || _requestContextHandle.IsClosed)
             {
                 // The request has already completed. We need to nothing to do at here.
                 return;
@@ -156,17 +162,16 @@ namespace Cysharp.Net.Http
             }
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Complete sending the request body{(exception is null ? string.Empty : "; Exception=" + exception.Message)}");
-            ThrowHelper.VerifyPointer(_ctx, _requestContext);
-            
+
             var addRefContext = false;
             var addRefReqContext = false;
             try
             {
-                _ctx.DangerousAddRef(ref addRefContext);
-                _requestContext.DangerousAddRef(ref addRefReqContext);
+                _ctxHandle.DangerousAddRef(ref addRefContext);
+                _requestContextHandle.DangerousAddRef(ref addRefReqContext);
 
-                var ctx = _ctx.DangerousGet();
-                var requestContext = _requestContext.DangerousGet();
+                var ctx = _ctxHandle.DangerousGet();
+                var requestContext = _requestContextHandle.DangerousGet();
 
                 ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_complete_body(ctx, requestContext));
             }
@@ -174,17 +179,40 @@ namespace Cysharp.Net.Http
             {
                 if (addRefContext)
                 {
-                    _ctx.DangerousRelease();
+                    _ctxHandle.DangerousRelease();
                 }
                 if (addRefReqContext)
                 {
-                    _requestContext.DangerousRelease();
+                    _requestContextHandle.DangerousRelease();
                 }
             }
             
             _pipe.Reader.Complete(exception);
 
             _requestBodyCompleted = true;
+        }
+
+        public unsafe bool TryAbort()
+        {
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Try to abort the request");
+
+            _cancellationTokenSource.Cancel();
+
+            var addRefContextHandle = false;
+            var addRefRequestContextHandle = false;
+            try
+            {
+                _ctxHandle.DangerousAddRef(ref addRefContextHandle);
+                _requestContextHandle.DangerousAddRef(ref addRefRequestContextHandle);
+
+                NativeMethods.yaha_request_abort(_ctxHandle.DangerousGet(), _requestContextHandle.DangerousGet());
+            }
+            finally
+            {
+                _ctxHandle.DangerousRelease();
+                _requestContextHandle.DangerousRelease();
+            }
+            return true;
         }
 
         public void Dispose()
@@ -204,7 +232,10 @@ namespace Cysharp.Net.Http
 
             if (disposing)
             {
-                _requestContext.Dispose();
+                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource.Dispose();
+
+                _requestContextHandle.Dispose();
                 // DO NOT Dispose `_ctx` here.
             }
         }

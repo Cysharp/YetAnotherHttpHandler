@@ -11,6 +11,7 @@ use hyper::{
 use hyper_rustls::{ConfigBuilderExt, HttpsConnector};
 #[cfg(feature = "native")]
 use hyper_tls::HttpsConnector;
+use tokio_util::sync::CancellationToken;
 
 use crate::primitives::{YahaHttpVersion, CompletionReason};
 
@@ -160,6 +161,7 @@ pub struct YahaNativeRequestContextInternal {
     pub sender: Option<Sender>,
     pub has_body: bool,
     pub completed: bool,
+    pub cancellation_token: CancellationToken,
 
     pub response_version: YahaHttpVersion,
     pub response_status: StatusCode,

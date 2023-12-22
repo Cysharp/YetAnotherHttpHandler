@@ -10,6 +10,8 @@ use hyper::{
     http::{HeaderName, HeaderValue},
     Body, Request, StatusCode, Uri, Version,
 };
+use tokio::select;
+use tokio_util::sync::CancellationToken;
 
 use crate::context::{
     YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext, YahaNativeRuntimeContext,
@@ -74,8 +76,14 @@ pub extern "C" fn yaha_init_context(
 
 #[no_mangle]
 pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
-    let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
+    let mut ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
+    ctx.on_complete = _sentinel_on_complete;
+    ctx.on_receive = _sentinel_on_receive;
+    ctx.on_status_code_and_headers_receive = _sentinel_on_status_code_and_headers_receive;
 }
+extern "C" fn _sentinel_on_complete(_: i32, _: NonZeroIsize, _: CompletionReason) { panic!("The context has already disposed: on_complete"); }
+extern "C" fn _sentinel_on_receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8) { panic!("The context has already disposed: on_receive"); }
+extern "C" fn _sentinel_on_status_code_and_headers_receive(_: i32, _: NonZeroIsize, _: i32, _: YahaHttpVersion) { panic!("The context has already disposed: on_status_code_and_headers_receive"); }
 
 #[no_mangle]
 pub extern "C" fn yaha_client_config_add_root_certificates(
@@ -300,6 +308,7 @@ pub unsafe extern "C" fn yaha_request_new(
         sender: None,
         has_body: false,
         completed: false,
+        cancellation_token: CancellationToken::new(),
 
         response_version: YahaHttpVersion::Http10,
         response_trailers: None,
@@ -427,6 +436,11 @@ pub extern "C" fn yaha_request_begin(
     {
         let req_ctx = req_ctx.clone();
         ctx.runtime.clone().spawn(async move {
+            let cancellation_token = {
+                let req_ctx = req_ctx.lock().unwrap();
+                req_ctx.cancellation_token.clone()
+            };
+
             // Prepare for begin request
             let (seq, req) = {
                 let mut req_ctx = req_ctx.lock().unwrap();
@@ -484,28 +498,34 @@ pub extern "C" fn yaha_request_begin(
             let body = res.body_mut();
 
             while !body.is_end_stream() {
-                //println!("body.data().await");
-                let received = body.data().await;
-                match received {
-                    Some(x) => {
-                        match x {
-                            Ok(y) => {
-                                //println!("body.data: on_receive {}; is_end_stream={}", y.len(), body.is_end_stream());
-                                (ctx.on_receive)(seq, state, y.len(), y.as_ptr());
+                select! {
+                    _ = cancellation_token.cancelled() => {
+                        (ctx.on_complete)(seq, state, CompletionReason::Aborted);
+                        return;
+                    }
+                    received = body.data() => {
+                        match received {
+                            Some(x) => {
+                                match x {
+                                    Ok(y) => {
+                                        //println!("body.data: on_receive {}; is_end_stream={}", y.len(), body.is_end_stream());
+                                        (ctx.on_receive)(seq, state, y.len(), y.as_ptr());
+                                    }
+                                    Err(err) => {
+                                        //println!("body.data: on_complete_error");
+                                        LAST_ERROR.with(|v| {
+                                            *v.borrow_mut() = Some(err.to_string());
+                                        });
+                                        (ctx.on_complete)(seq, state, CompletionReason::Error);
+                                        return;
+                                    }
+                                }
                             }
-                            Err(err) => {
-                                //println!("body.data: on_complete_error");
-                                LAST_ERROR.with(|v| {
-                                    *v.borrow_mut() = Some(err.to_string());
-                                });
-                                (ctx.on_complete)(seq, state, CompletionReason::Error);
-                                return;
+                            None => {
+                                //println!("body.data: None; is_end_stream={}", body.is_end_stream());
+                                break;
                             }
                         }
-                    }
-                    None => {
-                        //println!("body.data: None; is_end_stream={}", body.is_end_stream());
-                        break;
                     }
                 }
             }
@@ -516,28 +536,32 @@ pub extern "C" fn yaha_request_begin(
             }
 
             //println!("trailers");
-            let trailers = res.trailers().await.unwrap_or_default();
-
-            //println!("on_complete");
-            match trailers {
-                Some(trailers) => {
-                    {
-                        let mut req_ctx = req_ctx.lock().unwrap();
-                        req_ctx.response_trailers = Some(
-                            trailers
-                                .iter()
-                                .map(|x| {
-                                    (
-                                        x.0.to_string(),
-                                        x.1.to_str().unwrap_or_default().to_string(),
-                                    )
-                                })
-                                .collect::<Vec<(String, String)>>(),
-                        );
-                    }
-                    (ctx.on_complete)(seq, state, CompletionReason::Success);
+            select! {
+                _ = cancellation_token.cancelled() => {
+                    (ctx.on_complete)(seq, state, CompletionReason::Aborted);
                 }
-                None => (ctx.on_complete)(seq, state, CompletionReason::Success),
+                trailers = res.trailers() => {
+                    match trailers.unwrap_or_default() {
+                        Some(trailers) => {
+                            {
+                                let mut req_ctx = req_ctx.lock().unwrap();
+                                req_ctx.response_trailers = Some(
+                                    trailers
+                                        .iter()
+                                        .map(|x| {
+                                            (
+                                                x.0.to_string(),
+                                                x.1.to_str().unwrap_or_default().to_string(),
+                                            )
+                                        })
+                                        .collect::<Vec<(String, String)>>(),
+                                );
+                            }
+                            (ctx.on_complete)(seq, state, CompletionReason::Success);
+                        }
+                        None => (ctx.on_complete)(seq, state, CompletionReason::Success),
+                    }
+                }
             }
 
             {
@@ -549,6 +573,12 @@ pub extern "C" fn yaha_request_begin(
 
     _ = Arc::into_raw(req_ctx);
     true
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_request_abort(ctx: *const YahaNativeContext, req_ctx: *const YahaNativeRequestContext) {
+    let req_ctx = crate::context::to_internal(req_ctx).lock().unwrap();
+    req_ctx.cancellation_token.cancel()
 }
 
 #[no_mangle]

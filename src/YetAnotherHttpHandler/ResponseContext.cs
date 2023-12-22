@@ -12,7 +12,7 @@ namespace Cysharp.Net.Http
 {
     internal class ResponseContext
     {
-        private readonly int _requestSequence;
+        private readonly RequestContext _requestContext;
         private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
         private readonly TaskCompletionSource<HttpResponseMessage> _responseTask;
         private readonly HttpResponseMessage _message;
@@ -22,8 +22,8 @@ namespace Cysharp.Net.Http
 
         internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, CancellationToken cancellationToken)
         {
-            _responseTask = new TaskCompletionSource<HttpResponseMessage>();
-            _requestSequence = requestContext.RequestSequence;
+            _requestContext = requestContext;
+            _responseTask = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             _cancellationToken = cancellationToken;
             _tokenRegistration = cancellationToken.Register((state) =>
             {
@@ -103,14 +103,14 @@ namespace Cysharp.Net.Http
 
         public void Complete()
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed. (_completed={_completed})");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed. (_completed={_completed})");
             Volatile.Write(ref _completed, 1);
             _pipe.Writer.Complete();
         }
 
         public void CompleteAsFailed(string errorMessage)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response completed with failure ({errorMessage})");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed with failure ({errorMessage})");
 
             var ex = new IOException(errorMessage);
 #if NET5_0_OR_GREATER
@@ -131,7 +131,7 @@ namespace Cysharp.Net.Http
 
         public void Cancel()
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}] Response was cancelled");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response was cancelled");
 
             _responseTask.TrySetCanceled(_cancellationToken);
             _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));

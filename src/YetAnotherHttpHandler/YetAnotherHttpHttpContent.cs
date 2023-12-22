@@ -57,6 +57,7 @@ namespace Cysharp.Net.Http
             if (disposing)
             {
                 _pipeReader.Complete();
+                _requestContext.TryAbort();
             }
             base.Dispose(disposing);
         }

@@ -341,11 +341,11 @@ namespace Cysharp.Net.Http
             var addRefRequestContext = false;
             try
             {
-                requestContext._ctx.DangerousAddRef(ref addRefContext);
-                requestContext._requestContext.DangerousAddRef(ref addRefRequestContext);
+                requestContext._ctxHandle.DangerousAddRef(ref addRefContext);
+                requestContext._requestContextHandle.DangerousAddRef(ref addRefRequestContext);
 
-                var ctx = requestContext._ctx.DangerousGet();
-                var reqCtx = requestContext._requestContext.DangerousGet();
+                var ctx = requestContext._ctxHandle.DangerousGet();
+                var reqCtx = requestContext._requestContextHandle.DangerousGet();
 
                 var headersCount = NativeMethods.yaha_request_response_get_headers_count(ctx, reqCtx);
                 if (headersCount > 0)
@@ -370,11 +370,11 @@ namespace Cysharp.Net.Http
             {
                 if (addRefContext)
                 {
-                    requestContext._ctx.DangerousRelease();
+                    requestContext._ctxHandle.DangerousRelease();
                 }
                 if (addRefRequestContext)
                 {
-                    requestContext._requestContext.DangerousRelease();
+                    requestContext._requestContextHandle.DangerousRelease();
                 }
             }
 
@@ -411,11 +411,11 @@ namespace Cysharp.Net.Http
                     var addRefRequestContext = false;
                     try
                     {
-                        requestContext._ctx.DangerousAddRef(ref addRefContext);
-                        requestContext._requestContext.DangerousAddRef(ref addRefRequestContext);
+                        requestContext._ctxHandle.DangerousAddRef(ref addRefContext);
+                        requestContext._requestContextHandle.DangerousAddRef(ref addRefRequestContext);
 
-                        var ctx = requestContext._ctx.DangerousGet();
-                        var reqCtx = requestContext._requestContext.DangerousGet();
+                        var ctx = requestContext._ctxHandle.DangerousGet();
+                        var reqCtx = requestContext._requestContextHandle.DangerousGet();
 
                         var trailersCount = NativeMethods.yaha_request_response_get_trailers_count(ctx, reqCtx);
                         if (trailersCount > 0)
@@ -440,11 +440,11 @@ namespace Cysharp.Net.Http
                     {
                         if (addRefContext)
                         {
-                            requestContext._ctx.DangerousRelease();
+                            requestContext._ctxHandle.DangerousRelease();
                         }
                         if (addRefRequestContext)
                         {
-                            requestContext._requestContext.DangerousRelease();
+                            requestContext._requestContextHandle.DangerousRelease();
                         }
                     }
 

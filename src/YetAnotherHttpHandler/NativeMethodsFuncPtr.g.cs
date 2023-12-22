@@ -112,6 +112,9 @@ namespace Cysharp.Net.Http
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool yaha_request_begin(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx, nint state);
 
+        [DllImport(__DllName, EntryPoint = "yaha_request_abort", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_request_abort(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
+
         [DllImport(__DllName, EntryPoint = "yaha_request_write_body", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool yaha_request_write_body(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx, byte* buf, nuint len);
