@@ -26,42 +26,32 @@ namespace Cysharp.Net.Http
 
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
+        private bool _disposed = false;
 
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
-            var runtimeHandle = NativeRuntime.Instance.Acquire();
+            var runtimeHandle = NativeRuntime.Instance.Acquire(); // NOTE: We need to call Release on finalizer.
 
-            var addRefRuntimeHandle = false;
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_context");
+#if USE_FUNCTION_POINTER
+            var ctx = NativeMethodsFuncPtr.yaha_init_context(runtimeHandle.DangerousGet(), &OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
+#else
+            var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
+#endif
+            _handle = new YahaContextSafeHandle(ctx);
+            _handle.SetParent(runtimeHandle);
+
+            var addRefContextHandle = false;
             try
             {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_context");
-#if USE_FUNCTION_POINTER
-                var ctx = NativeMethodsFuncPtr.yaha_init_context(runtimeHandle.DangerousGet(), &OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
-#else
-                var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
-#endif
-                _handle = new YahaContextSafeHandle(ctx);
-                _handle.SetParent(runtimeHandle);
-
-                var addRefContextHandle = false;
-                try
-                {
-                    _handle.DangerousAddRef(ref addRefContextHandle);
-                    Initialize(_handle.DangerousGet(), settings);
-                }
-                finally
-                {
-                    if (addRefContextHandle)
-                    {
-                        _handle.DangerousRelease();
-                    }
-                }
+                _handle.DangerousAddRef(ref addRefContextHandle);
+                Initialize(_handle.DangerousGet(), settings);
             }
             finally
             {
-                if (addRefRuntimeHandle)
+                if (addRefContextHandle)
                 {
-                    runtimeHandle.DangerousRelease();
+                    _handle.DangerousRelease();
                 }
             }
         }
@@ -481,6 +471,12 @@ namespace Cysharp.Net.Http
 
         private void Dispose(bool disposing)
         {
+            _disposed = true;
+            if (_disposed)
+            {
+                return;
+            }
+
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Dispose {nameof(NativeHttpHandlerCore)}; disposing={disposing}");
 
             NativeRuntime.Instance.Release(); // We always need to release runtime.
@@ -489,6 +485,8 @@ namespace Cysharp.Net.Http
             {
                 _handle.Dispose();
             }
+
+            _disposed = true;
         }
     }
 }
