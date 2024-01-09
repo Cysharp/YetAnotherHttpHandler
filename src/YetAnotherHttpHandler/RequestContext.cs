@@ -72,13 +72,9 @@ namespace Cysharp.Net.Http
         private async Task RunReadRequestLoopAsync(CancellationToken cancellationToken)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Begin RunReadRequestLoopAsync");
-            var addRefContext = false;
-            var addRefReqContext = false;
+
             try
             {
-                _ctxHandle.DangerousAddRef(ref addRefContext);
-                _requestContextHandle.DangerousAddRef(ref addRefReqContext);
-
                 try
                 {
                     while (true)
@@ -114,16 +110,6 @@ namespace Cysharp.Net.Http
             finally
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Completing RunReadRequestLoopAsync");
-
-                if (addRefContext)
-                {
-                    _ctxHandle.DangerousRelease();
-                }
-
-                if (addRefReqContext)
-                {
-                    _requestContextHandle.DangerousRelease();
-                }
             }
         }
 
@@ -135,21 +121,41 @@ namespace Cysharp.Net.Http
 
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Sending the request body: Length={data.Length}");
 
-                // DangerousAddRef/Release are already called by caller.
-                var ctx = _ctxHandle.DangerousGet();
-                var requestContext = _requestContextHandle.DangerousGet();
-
-                while (!_requestBodyCompleted)
+                var addRefContext = false;
+                var addRefReqContext = false;
+                try
                 {
-                    // If the internal buffer is full, yaha_request_write_body returns false. We need to wait until ready to send bytes again.
-                    if (NativeMethods.yaha_request_write_body(ctx, requestContext, (byte*)Unsafe.AsPointer(ref data.GetPinnableReference()), (UIntPtr)data.Length))
-                    {
-                        break;
-                    }
-                    if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Send buffer is full.");
+                    _ctxHandle.DangerousAddRef(ref addRefContext);
+                    _requestContextHandle.DangerousAddRef(ref addRefReqContext);
 
-                    // TODO:
-                    Thread.Sleep(10);
+                    var ctx = _ctxHandle.DangerousGet();
+                    var requestContext = _requestContextHandle.DangerousGet();
+
+                    while (!_requestBodyCompleted)
+                    {
+                        // If the internal buffer is full, yaha_request_write_body returns false. We need to wait until ready to send bytes again.
+                        if (NativeMethods.yaha_request_write_body(ctx, requestContext, (byte*)Unsafe.AsPointer(ref data.GetPinnableReference()), (UIntPtr)data.Length))
+                        {
+                            break;
+                        }
+
+                        if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Send buffer is full.");
+
+                        // TODO:
+                        Thread.Sleep(10);
+                    }
+                }
+                finally
+                {
+                    if (addRefContext)
+                    {
+                        _ctxHandle.DangerousRelease();
+                    }
+
+                    if (addRefReqContext)
+                    {
+                        _requestContextHandle.DangerousRelease();
+                    }
                 }
             }
         }
@@ -231,8 +237,14 @@ namespace Cysharp.Net.Http
                 }
                 finally
                 {
-                    _ctxHandle.DangerousRelease();
-                    _requestContextHandle.DangerousRelease();
+                    if (addRefContextHandle)
+                    {
+                        _ctxHandle.DangerousRelease();
+                    }
+                    if (addRefRequestContextHandle)
+                    {
+                        _requestContextHandle.DangerousRelease();
+                    }
                 }
                 return true;
             }
@@ -253,6 +265,10 @@ namespace Cysharp.Net.Http
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Dispose RequestContext: disposing={disposing}");
 
+            // Abort the request and dispose the request context handle whether called from manual Dispose or the finalizer.
+            TryAbort();
+            _requestContextHandle.Dispose();
+
             if (disposing)
             {
                 _cancellationTokenSource.Cancel();
@@ -260,6 +276,17 @@ namespace Cysharp.Net.Http
 
                 _requestContextHandle.Dispose();
                 // DO NOT Dispose `_ctx` here.
+            }
+            else
+            {
+                // Executing within the finalizer thread.
+                // NOTE: Waits by blocking until the request is completed on the native side.
+                //       If not waited here, issues such as crashes may occur when callbacks are invoked after the .NET side is destroyed by Unity's Domain Reload.
+                //       However, caution is needed with the invocation order and timing of callbacks, as well as the handling of locks, since the finalizer thread may become blocked.
+                while (_handle.IsAllocated)
+                {
+                    Thread.Sleep(100);
+                }
             }
         }
     }
