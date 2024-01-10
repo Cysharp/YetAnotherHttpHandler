@@ -16,6 +16,7 @@ namespace Cysharp.Net.Http
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly int _requestSequence;
         private readonly object _handleLock = new object();
+        private readonly ManualResetEventSlim _fullyCompleted = new ManualResetEventSlim(false);
         private GCHandle _handle;
 
         internal YahaContextSafeHandle _ctxHandle;
@@ -63,6 +64,7 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Releasing state");
                 _handle.Free();
                 _handle = default;
+                _fullyCompleted.Set();
             }
         }
 
@@ -273,8 +275,6 @@ namespace Cysharp.Net.Http
             {
                 _cancellationTokenSource.Cancel();
                 _cancellationTokenSource.Dispose();
-
-                _requestContextHandle.Dispose();
                 // DO NOT Dispose `_ctx` here.
             }
             else
@@ -283,10 +283,7 @@ namespace Cysharp.Net.Http
                 // NOTE: Waits by blocking until the request is completed on the native side.
                 //       If not waited here, issues such as crashes may occur when callbacks are invoked after the .NET side is destroyed by Unity's Domain Reload.
                 //       However, caution is needed with the invocation order and timing of callbacks, as well as the handling of locks, since the finalizer thread may become blocked.
-                while (_handle.IsAllocated)
-                {
-                    Thread.Sleep(100);
-                }
+                _fullyCompleted.Wait();
             }
         }
     }
