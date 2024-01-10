@@ -471,7 +471,6 @@ namespace Cysharp.Net.Http
 
         private void Dispose(bool disposing)
         {
-            _disposed = true;
             if (_disposed)
             {
                 return;
