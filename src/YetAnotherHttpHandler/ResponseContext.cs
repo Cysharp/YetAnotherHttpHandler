@@ -18,7 +18,8 @@ namespace Cysharp.Net.Http
         private readonly HttpResponseMessage _message;
         private readonly CancellationToken _cancellationToken;
         private readonly CancellationTokenRegistration _tokenRegistration;
-        private int _completed = 0;
+        private readonly object _writeLock = new object();
+        private bool _completed = false;
 
         internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, CancellationToken cancellationToken)
         {
@@ -43,15 +44,20 @@ namespace Cysharp.Net.Http
 
         public void Write(ReadOnlySpan<byte> data)
         {
-            if (Volatile.Read(ref _completed) == 1) return;
-
-            var buffer = _pipe.Writer.GetSpan(data.Length);
-            data.CopyTo(buffer);
-            _pipe.Writer.Advance(data.Length);
-            var t = _pipe.Writer.FlushAsync();
-            if (!t.IsCompleted)
+            // NOTE: Currently, this method is called from the rust-side thread (tokio-worker-thread),
+            //        so care must be taken because throwing a managed exception will cause a crash.
+            lock (_writeLock)
             {
-                t.AsTask().GetAwaiter().GetResult();
+                if (_completed) return;
+
+                var buffer = _pipe.Writer.GetSpan(data.Length);
+                data.CopyTo(buffer);
+                _pipe.Writer.Advance(data.Length);
+                var t = _pipe.Writer.FlushAsync();
+                if (!t.IsCompleted)
+                {
+                    t.AsTask().GetAwaiter().GetResult();
+                }
             }
         }
 
@@ -104,38 +110,48 @@ namespace Cysharp.Net.Http
         public void Complete()
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed. (_completed={_completed})");
-            Volatile.Write(ref _completed, 1);
-            _pipe.Writer.Complete();
+            lock (_writeLock)
+            {
+                _pipe.Writer.Complete();
+                _completed = true;
+            }
         }
 
         public void CompleteAsFailed(string errorMessage)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed with failure ({errorMessage})");
 
-            var ex = new IOException(errorMessage);
+            lock (_writeLock)
+            {
+                var ex = new IOException(errorMessage);
 #if NET5_0_OR_GREATER
-            ExceptionDispatchInfo.SetCurrentStackTrace(ex);
+                ExceptionDispatchInfo.SetCurrentStackTrace(ex);
 #else
-            try
-            {
-                throw ex;
-            }
-            catch (IOException e)
-            {
-                ex = e;
-            }
+                try
+                {
+                    throw ex;
+                }
+                catch (IOException e)
+                {
+                    ex = e;
+                }
 #endif
-            _responseTask.TrySetException(ex);
-            _pipe.Writer.Complete(ex);
+                _responseTask.TrySetException(ex);
+                _pipe.Writer.Complete(ex);
+                _completed = true;
+            }
         }
 
         public void Cancel()
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response was cancelled");
 
-            _responseTask.TrySetCanceled(_cancellationToken);
-            _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
-            Volatile.Write(ref _completed, 1);
+            lock (_writeLock)
+            {
+                _responseTask.TrySetCanceled(_cancellationToken);
+                _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
+                _completed = true;
+            }
         }
 
         public async Task<HttpResponseMessage> GetResponseAsync()
