@@ -460,14 +460,23 @@ pub extern "C" fn yaha_request_begin(
             }
 
             // Send a request and wait for response status and headers.
-            let res = ctx.client.as_ref().unwrap().request(req).await;
-            if let Err(err) = res {
-                LAST_ERROR.with(|v| {
-                    *v.borrow_mut() = Some(err.to_string());
-                });
-                (ctx.on_complete)(seq, state, CompletionReason::Error);
-                return;
-            }
+            let res = select! {
+                _ = cancellation_token.cancelled() => {
+                    (ctx.on_complete)(seq, state, CompletionReason::Aborted);
+                    return;
+                }
+                res = ctx.client.as_ref().unwrap().request(req) => {
+                    if let Err(err) = res {
+                        LAST_ERROR.with(|v| {
+                            *v.borrow_mut() = Some(err.to_string());
+                        });
+                        (ctx.on_complete)(seq, state, CompletionReason::Error);
+                        return;
+                    } else {
+                        res
+                    }
+                }
+            };
 
             // Status code and response headers are received.
             let mut res = res.unwrap();
