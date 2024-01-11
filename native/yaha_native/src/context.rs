@@ -1,22 +1,44 @@
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, num::NonZeroIsize};
+use tokio::runtime::{Handle, Runtime};
 
-use hyper::{body::Sender, client::{HttpConnector, self}, Client, StatusCode};
+use hyper::{
+    body::Sender,
+    client::{self, HttpConnector},
+    Client, StatusCode,
+};
 
 #[cfg(feature = "rustls")]
 use hyper_rustls::{ConfigBuilderExt, HttpsConnector};
 #[cfg(feature = "native")]
 use hyper_tls::HttpsConnector;
+use tokio_util::sync::CancellationToken;
 
-use crate::primitives::YahaHttpVersion;
+use crate::primitives::{YahaHttpVersion, CompletionReason};
 
 type OnStatusCodeAndHeadersReceive =
-    extern "C" fn(req_seq: i32, status_code: i32, version: YahaHttpVersion);
-type OnReceive = extern "C" fn(req_seq: i32, length: usize, buf: *const u8);
-type OnComplete = extern "C" fn(req_seq: i32, has_error: u8);
+    extern "C" fn(req_seq: i32, state: NonZeroIsize, status_code: i32, version: YahaHttpVersion);
+type OnReceive = extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8);
+type OnComplete = extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason);
+
+pub struct YahaNativeRuntimeContext;
+pub struct YahaNativeRuntimeContextInternal {
+    pub runtime: Runtime
+}
+
+impl YahaNativeRuntimeContextInternal {
+    pub fn from_raw_context(ctx: *mut YahaNativeRuntimeContext) -> &'static mut Self {
+        unsafe { &mut *(ctx as *mut Self) }
+    }
+    pub fn new() -> YahaNativeRuntimeContextInternal {
+        YahaNativeRuntimeContextInternal {
+            runtime: Runtime::new().unwrap()
+        }
+    }
+}
 
 pub struct YahaNativeContext;
 pub struct YahaNativeContextInternal {
-    pub runtime: tokio::runtime::Runtime,
+    pub runtime: tokio::runtime::Handle,
     pub client_builder: Option<client::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
@@ -34,12 +56,13 @@ impl YahaNativeContextInternal {
     }
 
     pub fn new(
+        runtime_handle: Handle,
         on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
         on_receive: OnReceive,
         on_complete: OnComplete,
     ) -> Self {
         YahaNativeContextInternal {
-            runtime: tokio::runtime::Runtime::new().unwrap(),
+            runtime: runtime_handle,
             client: None,
             client_builder: Some(Client::builder()),
             skip_certificate_verification: None,
@@ -60,8 +83,7 @@ impl YahaNativeContextInternal {
 
     #[cfg(feature = "rustls")]
     fn new_connector(&mut self, skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
-        let tls_config_builder = rustls::ClientConfig::builder()
-            .with_safe_defaults();
+        let tls_config_builder = rustls::ClientConfig::builder().with_safe_defaults();
 
         // Configure certificate root store.
         let tls_config: rustls::ClientConfig;
@@ -70,17 +92,25 @@ impl YahaNativeContextInternal {
                 .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerification {}))
                 .with_no_client_auth();
         } else {
-            let tls_config_builder_root: rustls::ConfigBuilder<rustls::ClientConfig, rustls::client::WantsTransparencyPolicyOrClientCert>;
+            let tls_config_builder_root: rustls::ConfigBuilder<
+                rustls::ClientConfig,
+                rustls::client::WantsTransparencyPolicyOrClientCert,
+            >;
             if let Some(root_certificates) = &self.root_certificates {
-                tls_config_builder_root = tls_config_builder.with_root_certificates(root_certificates.to_owned());
+                tls_config_builder_root =
+                    tls_config_builder.with_root_certificates(root_certificates.to_owned());
             } else {
                 tls_config_builder_root = tls_config_builder.with_webpki_roots();
             }
 
             tls_config = if let Some(client_auth_certificates) = &self.client_auth_certificates {
                 if let Some(client_auth_key) = &self.client_auth_key {
-                    tls_config_builder_root.clone()
-                        .with_client_auth_cert(client_auth_certificates.to_owned(), client_auth_key.to_owned())
+                    tls_config_builder_root
+                        .clone()
+                        .with_client_auth_cert(
+                            client_auth_certificates.to_owned(),
+                            client_auth_key.to_owned(),
+                        )
                         .unwrap_or(tls_config_builder_root.with_no_client_auth())
                 } else {
                     tls_config_builder_root.with_no_client_auth()
@@ -103,8 +133,6 @@ impl YahaNativeContextInternal {
         let https = HttpsConnector::new();
         https
     }
-
-
 }
 
 #[cfg(feature = "rustls")]
@@ -133,6 +161,7 @@ pub struct YahaNativeRequestContextInternal {
     pub sender: Option<Sender>,
     pub has_body: bool,
     pub completed: bool,
+    pub cancellation_token: CancellationToken,
 
     pub response_version: YahaHttpVersion,
     pub response_status: StatusCode,

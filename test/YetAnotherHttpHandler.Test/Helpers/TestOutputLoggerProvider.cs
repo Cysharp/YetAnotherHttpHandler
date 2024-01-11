@@ -53,10 +53,16 @@ public class TestOutputLoggerProvider : ILoggerProvider
 
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            _testOutputHelper.WriteLine($"[{DateTime.Now}][{_categoryName}][{eventId}][{logLevel}] {formatter(state, exception)}");
-            if (exception is not null)
+            try
             {
-                _testOutputHelper.WriteLine(exception.ToString());
+                _testOutputHelper.WriteLine($"[{DateTime.Now}][{_categoryName}][{eventId}][{logLevel}] {formatter(state, exception)}");
+                if (exception is not null)
+                {
+                    _testOutputHelper.WriteLine(exception.ToString());
+                }
+            }
+            catch
+            {
             }
         }
     }

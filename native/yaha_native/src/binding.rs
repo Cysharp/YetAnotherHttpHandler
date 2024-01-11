@@ -1,21 +1,24 @@
 use std::{
     cell::RefCell,
     ptr::null,
-    sync::{Arc, Mutex}, time::Duration,
+    sync::{Arc, Mutex},
+    time::Duration, num::NonZeroIsize,
 };
 
 use hyper::{
     body::{Bytes, HttpBody},
     http::{HeaderName, HeaderValue},
-    Body, Request, StatusCode, Version, Uri,
+    Body, Request, StatusCode, Uri, Version,
 };
+use tokio::select;
+use tokio_util::sync::CancellationToken;
 
 use crate::context::{
-    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext,
-    YahaNativeRequestContextInternal,
+    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext, YahaNativeRuntimeContext,
+    YahaNativeRequestContextInternal, YahaNativeRuntimeContextInternal,
 };
 use crate::interop::{ByteBuffer, StringBuffer};
-use crate::primitives::YahaHttpVersion;
+use crate::primitives::{YahaHttpVersion, CompletionReason};
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -39,16 +42,31 @@ pub unsafe extern "C" fn yaha_free_byte_buffer(s: *mut ByteBuffer) {
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_init_runtime(
+pub extern "C" fn yaha_init_runtime() -> *mut YahaNativeRuntimeContext {
+    let runtime = Box::new(YahaNativeRuntimeContextInternal::new());
+
+    Box::into_raw(runtime) as *mut YahaNativeRuntimeContext
+}
+#[no_mangle]
+pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeRuntimeContext) {
+    let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeRuntimeContextInternal) };
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_init_context(
+    runtime_ctx: *mut YahaNativeRuntimeContext,
     on_status_code_and_headers_receive: extern "C" fn(
         req_seq: i32,
+        state: NonZeroIsize,
         status_code: i32,
         version: YahaHttpVersion,
     ),
-    on_receive: extern "C" fn(req_seq: i32, length: usize, buf: *const u8),
-    on_complete: extern "C" fn(req_seq: i32, has_error: u8),
+    on_receive: extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8),
+    on_complete: extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason),
 ) -> *mut YahaNativeContext {
+    let runtime_ctx = YahaNativeRuntimeContextInternal::from_raw_context(runtime_ctx);
     let ctx = Box::new(YahaNativeContextInternal::new(
+        runtime_ctx.runtime.handle().clone(),
         on_status_code_and_headers_receive,
         on_receive,
         on_complete,
@@ -57,23 +75,47 @@ pub extern "C" fn yaha_init_runtime(
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeContext) {
-    let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
+pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
+    let mut ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
+    ctx.on_complete = _sentinel_on_complete;
+    ctx.on_receive = _sentinel_on_receive;
+    ctx.on_status_code_and_headers_receive = _sentinel_on_status_code_and_headers_receive;
 }
+extern "C" fn _sentinel_on_complete(_: i32, _: NonZeroIsize, _: CompletionReason) { panic!("The context has already disposed: on_complete"); }
+extern "C" fn _sentinel_on_receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8) { panic!("The context has already disposed: on_receive"); }
+extern "C" fn _sentinel_on_status_code_and_headers_receive(_: i32, _: NonZeroIsize, _: i32, _: YahaHttpVersion) { panic!("The context has already disposed: on_status_code_and_headers_receive"); }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_add_root_certificates(ctx: *mut YahaNativeContext, root_certs: *const StringBuffer) -> usize {
+pub extern "C" fn yaha_client_config_add_root_certificates(
+    ctx: *mut YahaNativeContext,
+    root_certs: *const StringBuffer,
+) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let root_certificates = ctx.root_certificates.get_or_insert(rustls::RootCertStore::empty());
-    let (valid, _) = unsafe { root_certificates.add_parsable_certificates(&rustls_pemfile::certs(&mut (*root_certs).to_bytes()).unwrap()) };
+    let root_certificates = ctx
+        .root_certificates
+        .get_or_insert(rustls::RootCertStore::empty());
+    let (valid, _) = unsafe {
+        root_certificates.add_parsable_certificates(
+            &rustls_pemfile::certs(&mut (*root_certs).to_bytes()).unwrap(),
+        )
+    };
 
     valid
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_add_client_auth_certificates(ctx: *mut YahaNativeContext, auth_certs: *const StringBuffer) -> usize {
+pub extern "C" fn yaha_client_config_add_client_auth_certificates(
+    ctx: *mut YahaNativeContext,
+    auth_certs: *const StringBuffer,
+) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let certs: Vec<rustls::Certificate> = unsafe { rustls_pemfile::certs(&mut (*auth_certs).to_bytes()).unwrap().into_iter().map(rustls::Certificate).collect() };
+    let certs: Vec<rustls::Certificate> = unsafe {
+        rustls_pemfile::certs(&mut (*auth_certs).to_bytes())
+            .unwrap()
+            .into_iter()
+            .map(rustls::Certificate)
+            .collect()
+    };
 
     let count = certs.len();
 
@@ -85,9 +127,18 @@ pub extern "C" fn yaha_client_config_add_client_auth_certificates(ctx: *mut Yaha
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_add_client_auth_key(ctx: *mut YahaNativeContext, auth_key: *const StringBuffer) -> usize {
+pub extern "C" fn yaha_client_config_add_client_auth_key(
+    ctx: *mut YahaNativeContext,
+    auth_key: *const StringBuffer,
+) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let keys: Vec<rustls::PrivateKey> = unsafe { rustls_pemfile::pkcs8_private_keys(&mut (*auth_key).to_bytes()).unwrap().into_iter().map(rustls::PrivateKey).collect() };
+    let keys: Vec<rustls::PrivateKey> = unsafe {
+        rustls_pemfile::pkcs8_private_keys(&mut (*auth_key).to_bytes())
+            .unwrap()
+            .into_iter()
+            .map(rustls::PrivateKey)
+            .collect()
+    };
 
     let count = keys.len();
 
@@ -99,20 +150,35 @@ pub extern "C" fn yaha_client_config_add_client_auth_key(ctx: *mut YahaNativeCon
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_skip_certificate_verification(ctx: *mut YahaNativeContext, val: bool) {
+pub extern "C" fn yaha_client_config_skip_certificate_verification(
+    ctx: *mut YahaNativeContext,
+    val: bool,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.skip_certificate_verification = Some(val);
 }
 #[no_mangle]
-pub extern "C" fn yaha_client_config_pool_idle_timeout(ctx: *mut YahaNativeContext, val_milliseconds: u64) {
+pub extern "C" fn yaha_client_config_pool_idle_timeout(
+    ctx: *mut YahaNativeContext,
+    val_milliseconds: u64,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().pool_idle_timeout(Duration::from_millis(val_milliseconds));
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .pool_idle_timeout(Duration::from_millis(val_milliseconds));
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_pool_max_idle_per_host(ctx: *mut YahaNativeContext, max_idle: usize) {
+pub extern "C" fn yaha_client_config_pool_max_idle_per_host(
+    ctx: *mut YahaNativeContext,
+    max_idle: usize,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().pool_max_idle_per_host(max_idle);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .pool_max_idle_per_host(max_idle);
 }
 
 #[no_mangle]
@@ -122,57 +188,105 @@ pub extern "C" fn yaha_client_config_http2_only(ctx: *mut YahaNativeContext, val
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_initial_stream_window_size(ctx: *mut YahaNativeContext, val: u32) {
+pub extern "C" fn yaha_client_config_http2_initial_stream_window_size(
+    ctx: *mut YahaNativeContext,
+    val: u32,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_initial_stream_window_size(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_initial_stream_window_size(val);
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_initial_connection_window_size(ctx: *mut YahaNativeContext, val: u32) {
+pub extern "C" fn yaha_client_config_http2_initial_connection_window_size(
+    ctx: *mut YahaNativeContext,
+    val: u32,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_initial_connection_window_size(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_initial_connection_window_size(val);
 }
 
 #[no_mangle]
 pub extern "C" fn yaha_client_config_http2_adaptive_window(ctx: *mut YahaNativeContext, val: bool) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_adaptive_window(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_adaptive_window(val);
 }
 
 #[no_mangle]
 pub extern "C" fn yaha_client_config_http2_max_frame_size(ctx: *mut YahaNativeContext, val: u32) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_max_frame_size(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_max_frame_size(val);
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_keep_alive_interval(ctx: *mut YahaNativeContext, interval_milliseconds: u64) {
+pub extern "C" fn yaha_client_config_http2_keep_alive_interval(
+    ctx: *mut YahaNativeContext,
+    interval_milliseconds: u64,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_keep_alive_interval(Duration::from_millis(interval_milliseconds));
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_keep_alive_interval(Duration::from_millis(interval_milliseconds));
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_keep_alive_timeout(ctx: *mut YahaNativeContext, timeout_milliseconds: u64) {
+pub extern "C" fn yaha_client_config_http2_keep_alive_timeout(
+    ctx: *mut YahaNativeContext,
+    timeout_milliseconds: u64,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_keep_alive_timeout(Duration::from_millis(timeout_milliseconds));
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_keep_alive_timeout(Duration::from_millis(timeout_milliseconds));
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_keep_alive_while_idle(ctx: *mut YahaNativeContext, val: bool) {
+pub extern "C" fn yaha_client_config_http2_keep_alive_while_idle(
+    ctx: *mut YahaNativeContext,
+    val: bool,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_keep_alive_while_idle(val);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_keep_alive_while_idle(val);
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_max_concurrent_reset_streams(ctx: *mut YahaNativeContext, max: usize) {
+pub extern "C" fn yaha_client_config_http2_max_concurrent_reset_streams(
+    ctx: *mut YahaNativeContext,
+    max: usize,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_max_concurrent_reset_streams(max.try_into().unwrap());
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_max_concurrent_reset_streams(max.try_into().unwrap());
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_client_config_http2_max_send_buf_size(ctx: *mut YahaNativeContext, max: usize) {
+pub extern "C" fn yaha_client_config_http2_max_send_buf_size(
+    ctx: *mut YahaNativeContext,
+    max: usize,
+) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.client_builder.as_mut().unwrap().http2_max_send_buf_size(max);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_max_send_buf_size(max);
 }
 
 #[no_mangle]
@@ -194,6 +308,7 @@ pub unsafe extern "C" fn yaha_request_new(
         sender: None,
         has_body: false,
         completed: false,
+        cancellation_token: CancellationToken::new(),
 
         response_version: YahaHttpVersion::Http10,
         response_trailers: None,
@@ -298,12 +413,13 @@ pub unsafe extern "C" fn yaha_request_set_header(
 pub extern "C" fn yaha_request_begin(
     ctx: *mut YahaNativeContext,
     req_ctx: *const YahaNativeRequestContext,
+    state: NonZeroIsize
 ) -> bool {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
 
     // Begin request on async runtime.
     let body;
-    let runtime_handle = ctx.runtime.handle().clone();
+
     let req_ctx = crate::context::to_internal_arc(req_ctx); // NOTE: we must call `Arc::into_raw` at last of the method.
 
     {
@@ -319,7 +435,12 @@ pub extern "C" fn yaha_request_begin(
     }
     {
         let req_ctx = req_ctx.clone();
-        runtime_handle.spawn(async move {
+        ctx.runtime.clone().spawn(async move {
+            let cancellation_token = {
+                let req_ctx = req_ctx.lock().unwrap();
+                req_ctx.cancellation_token.clone()
+            };
+
             // Prepare for begin request
             let (seq, req) = {
                 let mut req_ctx = req_ctx.lock().unwrap();
@@ -334,19 +455,28 @@ pub extern "C" fn yaha_request_begin(
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
                 });
-                (ctx.on_complete)(seq, 1);
+                (ctx.on_complete)(seq, state, CompletionReason::Error);
                 return;
             }
 
             // Send a request and wait for response status and headers.
-            let res = ctx.client.as_ref().unwrap().request(req).await;
-            if let Err(err) = res {
-                LAST_ERROR.with(|v| {
-                    *v.borrow_mut() = Some(err.to_string());
-                });
-                (ctx.on_complete)(seq, 1);
-                return;
-            }
+            let res = select! {
+                _ = cancellation_token.cancelled() => {
+                    (ctx.on_complete)(seq, state, CompletionReason::Aborted);
+                    return;
+                }
+                res = ctx.client.as_ref().unwrap().request(req) => {
+                    if let Err(err) = res {
+                        LAST_ERROR.with(|v| {
+                            *v.borrow_mut() = Some(err.to_string());
+                        });
+                        (ctx.on_complete)(seq, state, CompletionReason::Error);
+                        return;
+                    } else {
+                        res
+                    }
+                }
+            };
 
             // Status code and response headers are received.
             let mut res = res.unwrap();
@@ -368,6 +498,7 @@ pub extern "C" fn yaha_request_begin(
             }
             (ctx.on_status_code_and_headers_receive)(
                 seq,
+                state,
                 res.status().as_u16() as i32,
                 YahaHttpVersion::from(res.version()),
             );
@@ -376,28 +507,34 @@ pub extern "C" fn yaha_request_begin(
             let body = res.body_mut();
 
             while !body.is_end_stream() {
-                //println!("body.data().await");
-                let received = body.data().await;
-                match received {
-                    Some(x) => {
-                        match x {
-                            Ok(y) => {
-                                //println!("body.data: on_receive {}; is_end_stream={}", y.len(), body.is_end_stream());
-                                (ctx.on_receive)(seq, y.len(), y.as_ptr());
+                select! {
+                    _ = cancellation_token.cancelled() => {
+                        (ctx.on_complete)(seq, state, CompletionReason::Aborted);
+                        return;
+                    }
+                    received = body.data() => {
+                        match received {
+                            Some(x) => {
+                                match x {
+                                    Ok(y) => {
+                                        //println!("body.data: on_receive {}; is_end_stream={}", y.len(), body.is_end_stream());
+                                        (ctx.on_receive)(seq, state, y.len(), y.as_ptr());
+                                    }
+                                    Err(err) => {
+                                        //println!("body.data: on_complete_error");
+                                        LAST_ERROR.with(|v| {
+                                            *v.borrow_mut() = Some(err.to_string());
+                                        });
+                                        (ctx.on_complete)(seq, state, CompletionReason::Error);
+                                        return;
+                                    }
+                                }
                             }
-                            Err(err) => {
-                                //println!("body.data: on_complete_error");
-                                LAST_ERROR.with(|v| {
-                                    *v.borrow_mut() = Some(err.to_string());
-                                });
-                                (ctx.on_complete)(seq, 1);
-                                return;
+                            None => {
+                                //println!("body.data: None; is_end_stream={}", body.is_end_stream());
+                                break;
                             }
                         }
-                    }
-                    None => {
-                        //println!("body.data: None; is_end_stream={}", body.is_end_stream());
-                        break;
                     }
                 }
             }
@@ -408,28 +545,32 @@ pub extern "C" fn yaha_request_begin(
             }
 
             //println!("trailers");
-            let trailers = res.trailers().await.unwrap_or_default();
-
-            //println!("on_complete");
-            match trailers {
-                Some(trailers) => {
-                    {
-                        let mut req_ctx = req_ctx.lock().unwrap();
-                        req_ctx.response_trailers = Some(
-                            trailers
-                                .iter()
-                                .map(|x| {
-                                    (
-                                        x.0.to_string(),
-                                        x.1.to_str().unwrap_or_default().to_string(),
-                                    )
-                                })
-                                .collect::<Vec<(String, String)>>(),
-                        );
-                    }
-                    (ctx.on_complete)(seq, 0);
+            select! {
+                _ = cancellation_token.cancelled() => {
+                    (ctx.on_complete)(seq, state, CompletionReason::Aborted);
                 }
-                None => (ctx.on_complete)(seq, 0),
+                trailers = res.trailers() => {
+                    match trailers.unwrap_or_default() {
+                        Some(trailers) => {
+                            {
+                                let mut req_ctx = req_ctx.lock().unwrap();
+                                req_ctx.response_trailers = Some(
+                                    trailers
+                                        .iter()
+                                        .map(|x| {
+                                            (
+                                                x.0.to_string(),
+                                                x.1.to_str().unwrap_or_default().to_string(),
+                                            )
+                                        })
+                                        .collect::<Vec<(String, String)>>(),
+                                );
+                            }
+                            (ctx.on_complete)(seq, state, CompletionReason::Success);
+                        }
+                        None => (ctx.on_complete)(seq, state, CompletionReason::Success),
+                    }
+                }
             }
 
             {
@@ -441,6 +582,12 @@ pub extern "C" fn yaha_request_begin(
 
     _ = Arc::into_raw(req_ctx);
     true
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_request_abort(ctx: *const YahaNativeContext, req_ctx: *const YahaNativeRequestContext) {
+    let req_ctx = crate::context::to_internal(req_ctx).lock().unwrap();
+    req_ctx.cancellation_token.cancel()
 }
 
 #[no_mangle]

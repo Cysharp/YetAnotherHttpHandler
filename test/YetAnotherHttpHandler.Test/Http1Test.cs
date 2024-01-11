@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using System.Net;
 using System.Runtime.ExceptionServices;
 using _YetAnotherHttpHandler.Test.Helpers;
@@ -96,5 +97,27 @@ public class Http1Test : UseTestServerTestBase
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Konnichiwa", responseBody);
+    }
+
+    [Fact]
+    public async Task Post_Cancel()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1>(TestWebAppServerListenMode.InsecureHttp1Only);
+        var pipe = new Pipe();
+        var content = new StreamContent(pipe.Reader.AsStream());
+        var cts = new CancellationTokenSource();
+
+        // Act
+        var responseTask = httpClient.PostAsync($"{server.BaseUri}/slow-upload", content, cts.Token);
+        await Task.Delay(1000);
+        cts.Cancel();
+        var ex = await Record.ExceptionAsync(async () => await responseTask);
+
+        // Assert
+        Assert.NotNull(ex);
+        Assert.IsAssignableFrom<OperationCanceledException>(ex);
     }
 }
