@@ -435,6 +435,59 @@ public abstract class Http2TestBase : UseTestServerTestBase
         Assert.Equal(new [] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responses);
     }
 
+
+    [ConditionalFact]
+    public async Task Grpc_Duplex_Concurrency()
+    {
+        // Arrange
+        const int RequestCount = 10;
+        using var httpHandler = CreateHandler();
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
+
+        // Act
+        var tasks = new List<Task<(IReadOnlyList<string> ResponsesBeforeCompleted, IReadOnlyList<string> Responses)>>();
+        for (var i = 0; i < 10; i++)
+        {
+            tasks.Add(DoRequestAsync(i * 1000, channel, TimeoutToken));
+        }
+        var results = await Task.WhenAll(tasks);
+
+        static async Task<(IReadOnlyList<string> ResponsesBeforeCompleted, IReadOnlyList<string> Responses)> DoRequestAsync(int sequenceBase, ChannelBase channel, CancellationToken cancellationToken)
+        {
+            var client = new Greeter.GreeterClient(channel);
+            var request = client.SayHelloDuplex(deadline: DateTime.UtcNow.AddSeconds(10));
+            var responses = new List<string>();
+            var readTask = Task.Run(async () =>
+            {
+                await foreach (var response in request.ResponseStream.ReadAllAsync())
+                {
+                    responses.Add(response.Message);
+                }
+            });
+            for (var i = 0; i < RequestCount; i++)
+            {
+                await request.RequestStream.WriteAsync(new HelloRequest { Name = $"User-{i + sequenceBase}" }, cancellationToken);
+                await Task.Delay(500);
+            }
+            // all requests are processed on the server and receive the responses. (but the request stream is not completed at this time)
+            var responsesBeforeCompleted = responses.ToArray();
+
+            // complete the request stream.
+            await request.RequestStream.CompleteAsync().WaitAsync(cancellationToken);
+            await readTask.WaitAsync(cancellationToken);
+
+            return (responsesBeforeCompleted, responses);
+        }
+
+        // Assert
+        for (var i = 0; i < results.Length; i++)
+        {
+            Assert.Equal(Enumerable.Range((i * 1000), RequestCount).Select(x => $"Hello User-{x}"), results[i].ResponsesBeforeCompleted);
+            Assert.Equal(Enumerable.Range((i * 1000), RequestCount).Select(x => $"Hello User-{x}"), results[i].Responses);
+        }
+    }
+
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.
     class DuplexStreamContent : HttpContent
     {
