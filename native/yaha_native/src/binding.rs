@@ -605,7 +605,7 @@ pub extern "C" fn yaha_request_write_body(
         .sender
         .as_mut()
         .unwrap()
-        .try_send_data(Bytes::from_static(slice));
+        .try_send_data(Bytes::copy_from_slice(slice));
 
     result.is_ok()
 }

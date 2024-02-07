@@ -1,6 +1,7 @@
 using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Pipelines;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
@@ -146,6 +147,10 @@ namespace Cysharp.Net.Http
                         // TODO:
                         Thread.Sleep(10);
                     }
+#if DEBUG
+                    // Fill memory so that data corruption can be detected on debug build.
+                    data.Fill(0xff);
+#endif
                 }
                 finally
                 {
