@@ -18,6 +18,7 @@ namespace Cysharp.Net.Http
         private readonly int _requestSequence;
         private readonly object _handleLock = new object();
         private readonly ManualResetEventSlim _fullyCompleted = new ManualResetEventSlim(false);
+        private readonly bool _hasRequestContextHandleRef;
         private GCHandle _handle;
 
         internal YahaContextSafeHandle _ctxHandle;
@@ -40,6 +41,9 @@ namespace Cysharp.Net.Http
             _readRequestTask = default;
             _requestSequence = requestSequence;
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            // RequestContextHandle must be released after disposing this instance.
+            _requestContextHandle.DangerousAddRef(ref _hasRequestContextHandleRef);
         }
 
         internal void Start()
@@ -274,7 +278,6 @@ namespace Cysharp.Net.Http
 
             // Abort the request and dispose the request context handle whether called from manual Dispose or the finalizer.
             TryAbort();
-            _requestContextHandle.Dispose();
 
             if (disposing)
             {
@@ -290,6 +293,14 @@ namespace Cysharp.Net.Http
                 //       However, caution is needed with the invocation order and timing of callbacks, as well as the handling of locks, since the finalizer thread may become blocked.
                 _fullyCompleted.Wait();
             }
+
+            // RequestContextHandle can be released after all the processes using it are complete.
+            if (_hasRequestContextHandleRef)
+            {
+                Debug.Assert(!_requestContextHandle.IsClosed);
+                _requestContextHandle.DangerousRelease();
+            }
+            _requestContextHandle.Dispose();
         }
     }
 }

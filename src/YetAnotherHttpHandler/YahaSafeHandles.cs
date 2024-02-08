@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Cysharp.Net.Http
 {
@@ -29,11 +27,14 @@ namespace Cysharp.Net.Http
     internal sealed unsafe class YahaContextSafeHandle : SafeHandle
     {
         private YahaRuntimeSafeHandle? _parent;
+        private readonly int _instanceId;
+
         public override bool IsInvalid => handle == IntPtr.Zero;
 
-        public YahaContextSafeHandle(YahaNativeContext* context)
+        public YahaContextSafeHandle(YahaNativeContext* context, int instanceId)
             : base((IntPtr)context, true)
         {
+            _instanceId = instanceId;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -51,7 +52,7 @@ namespace Cysharp.Net.Http
 
         protected override bool ReleaseHandle()
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_dispose_context");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[Id:{_instanceId}] yaha_dispose_context");
             NativeMethods.yaha_dispose_context((YahaNativeContext*)handle);
 
             _parent?.DangerousRelease();
@@ -63,11 +64,14 @@ namespace Cysharp.Net.Http
     internal sealed unsafe class YahaRequestContextSafeHandle : SafeHandle
     {
         private YahaContextSafeHandle? _parent;
+        private readonly int _requestSequence;
+
         public override bool IsInvalid => handle == IntPtr.Zero;
 
-        public YahaRequestContextSafeHandle(YahaNativeRequestContext* context)
+        public YahaRequestContextSafeHandle(YahaNativeRequestContext* context, int requestSequence)
             : base((IntPtr)context, true)
         {
+            _requestSequence = requestSequence;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,7 +94,7 @@ namespace Cysharp.Net.Http
                 return false;
             }
 
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_request_destroy");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestSequence}] yaha_request_destroy");
             NativeMethods.yaha_request_destroy((YahaNativeContext*)_parent.DangerousGetHandle(), (YahaNativeRequestContext*)handle);
             _parent.DangerousRelease();
             return true;
