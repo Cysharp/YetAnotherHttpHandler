@@ -23,6 +23,7 @@ namespace Cysharp.Net.Http
     internal class NativeHttpHandlerCore : IDisposable
     {
         private static int _requestSequence = 0;
+        private static int _instanceId = 0;
 
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
@@ -31,6 +32,7 @@ namespace Cysharp.Net.Http
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
             var runtimeHandle = NativeRuntime.Instance.Acquire(); // NOTE: We need to call Release on finalizer.
+            var instanceId = Interlocked.Increment(ref _instanceId);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_context");
 #if USE_FUNCTION_POINTER
@@ -38,7 +40,7 @@ namespace Cysharp.Net.Http
 #else
             var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
 #endif
-            _handle = new YahaContextSafeHandle(ctx);
+            _handle = new YahaContextSafeHandle(ctx, instanceId);
             _handle.SetParent(runtimeHandle);
 
             var addRefContextHandle = false;
@@ -203,7 +205,7 @@ namespace Cysharp.Net.Http
                 var ctx = _handle.DangerousGet();
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_request_new: requestSequence={requestSequence}");
                 var reqCtx = NativeMethods.yaha_request_new(ctx, requestSequence);
-                var reqCtxHandle = new YahaRequestContextSafeHandle(reqCtx);
+                var reqCtxHandle = new YahaRequestContextSafeHandle(reqCtx, requestSequence);
                 reqCtxHandle.SetParent(_handle);
 
                 var addRefReqContext = false;

@@ -488,6 +488,53 @@ public abstract class Http2TestBase : UseTestServerTestBase
         }
     }
 
+
+    [ConditionalFact]
+    public async Task Grpc_ShutdownAndDispose()
+    {
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+
+        for (var i = 0; i < 10; i++)
+        {
+            await RunAsync();
+            GC.GetTotalMemory(forceFullCollection: true);
+        }
+
+
+        async Task RunAsync()
+        {
+            // Arrange
+            var httpHandler = CreateHandler();
+            var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions()
+            {
+                HttpHandler = httpHandler,
+                DisposeHttpClient = true,
+            });
+            var client = new Greeter.GreeterClient(channel);
+
+            // Act
+            var duplexStreaming = client.SayHelloDuplex();
+            await duplexStreaming.RequestStream.WriteAsync(new HelloRequest()).WaitAsync(TimeoutToken);
+            await duplexStreaming.ResponseHeadersAsync.WaitAsync(TimeoutToken);
+
+            duplexStreaming.Dispose();
+            duplexStreaming = null;
+            client = null;
+            GC.GetTotalMemory(forceFullCollection: true);
+
+            await channel.ShutdownAsync().WaitAsync(TimeoutToken);
+            GC.GetTotalMemory(forceFullCollection: true);
+
+            channel.Dispose();
+            channel = null;
+            GC.GetTotalMemory(forceFullCollection: true);
+
+            httpHandler.Dispose();
+            httpHandler = null;
+            GC.GetTotalMemory(forceFullCollection: true);
+        }
+    }
+
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.
     class DuplexStreamContent : HttpContent
     {
