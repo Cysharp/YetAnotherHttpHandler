@@ -117,7 +117,7 @@ https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHand
 2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity.
 
 ```
-https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v1.0.0
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v1.0.1
 ```
 
 ## Usage
