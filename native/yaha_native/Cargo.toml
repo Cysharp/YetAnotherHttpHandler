@@ -16,9 +16,9 @@ csbindgen = "1.8.3"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7.10" }
 hyper = { version = "0.14", features = ["client", "http1", "http2" ] }
-hyper-rustls = { optional = true, version = "0.24.0", default-features = false, features = ["webpki-tokio", "http1", "http2", "tls12", "logging"] }
-rustls = { optional = true, version = "0.21.1", default-features = false, features = ["dangerous_configuration"] }
-rustls-pemfile = { optional = true, version = "1.0.3" }
+hyper-rustls = { optional = true, version = "0.25.0", default-features = false, features = ["webpki-tokio", "http1", "http2", "tls12", "logging"] }
+rustls = { optional = true, version = "0.22.2" }
+rustls-pemfile = { optional = true, version = "2.1.0" }
 hyper-tls = { optional = true, version = "0.5.0" }
 
 [features]

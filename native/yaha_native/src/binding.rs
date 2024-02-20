@@ -10,6 +10,7 @@ use hyper::{
     http::{HeaderName, HeaderValue},
     Body, Request, StatusCode, Uri, Version,
 };
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
@@ -94,10 +95,12 @@ pub extern "C" fn yaha_client_config_add_root_certificates(
     let root_certificates = ctx
         .root_certificates
         .get_or_insert(rustls::RootCertStore::empty());
-    let (valid, _) = unsafe {
-        root_certificates.add_parsable_certificates(
-            &rustls_pemfile::certs(&mut (*root_certs).to_bytes()).unwrap(),
-        )
+    let valid: usize = unsafe {
+        rustls_pemfile::certs(&mut (*root_certs).to_bytes())
+            .filter_map(Result::ok)
+            .map(|cert| root_certificates.add(cert))
+            .filter_map(|result| result.is_ok().then(|| 1))
+            .sum()
     };
 
     valid
@@ -109,11 +112,10 @@ pub extern "C" fn yaha_client_config_add_client_auth_certificates(
     auth_certs: *const StringBuffer,
 ) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let certs: Vec<rustls::Certificate> = unsafe {
+    let certs: Vec<CertificateDer> = unsafe {
         rustls_pemfile::certs(&mut (*auth_certs).to_bytes())
-            .unwrap()
-            .into_iter()
-            .map(rustls::Certificate)
+            .filter_map(Result::ok)
+            .map(CertificateDer::from)
             .collect()
     };
 
@@ -132,18 +134,17 @@ pub extern "C" fn yaha_client_config_add_client_auth_key(
     auth_key: *const StringBuffer,
 ) -> usize {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    let keys: Vec<rustls::PrivateKey> = unsafe {
+    let keys: Vec<PrivateKeyDer> = unsafe {
         rustls_pemfile::pkcs8_private_keys(&mut (*auth_key).to_bytes())
-            .unwrap()
-            .into_iter()
-            .map(rustls::PrivateKey)
+            .filter_map(Result::ok)
+            .map(PrivateKeyDer::from)
             .collect()
     };
 
     let count = keys.len();
 
     if count > 0 {
-        ctx.client_auth_key.get_or_insert(keys[0].clone());
+        ctx.client_auth_key.get_or_insert(keys[0].clone_key());
     }
 
     count

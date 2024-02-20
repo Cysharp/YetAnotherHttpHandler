@@ -11,6 +11,7 @@ use hyper::{
 use hyper_rustls::{ConfigBuilderExt, HttpsConnector};
 #[cfg(feature = "native")]
 use hyper_tls::HttpsConnector;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_util::sync::CancellationToken;
 
 use crate::primitives::{YahaHttpVersion, CompletionReason};
@@ -37,20 +38,20 @@ impl YahaNativeRuntimeContextInternal {
 }
 
 pub struct YahaNativeContext;
-pub struct YahaNativeContextInternal {
+pub struct YahaNativeContextInternal<'a> {
     pub runtime: tokio::runtime::Handle,
     pub client_builder: Option<client::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
-    pub client_auth_certificates: Option<Vec<rustls::Certificate>>,
-    pub client_auth_key: Option<rustls::PrivateKey>,
+    pub client_auth_certificates: Option<Vec<CertificateDer<'a>>>,
+    pub client_auth_key: Option<PrivateKeyDer<'a>>,
     pub client: Option<Client<HttpsConnector<HttpConnector>, hyper::Body>>,
     pub on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
     pub on_receive: OnReceive,
     pub on_complete: OnComplete,
 }
 
-impl YahaNativeContextInternal {
+impl YahaNativeContextInternal<'_> {
     pub fn from_raw_context(ctx: *mut YahaNativeContext) -> &'static mut Self {
         unsafe { &mut *(ctx as *mut Self) }
     }
@@ -83,18 +84,19 @@ impl YahaNativeContextInternal {
 
     #[cfg(feature = "rustls")]
     fn new_connector(&mut self, skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
-        let tls_config_builder = rustls::ClientConfig::builder().with_safe_defaults();
+        let tls_config_builder = rustls::ClientConfig::builder();
 
         // Configure certificate root store.
         let tls_config: rustls::ClientConfig;
         if skip_verify_certificates {
             tls_config = tls_config_builder
+                .dangerous()
                 .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerification {}))
                 .with_no_client_auth();
         } else {
             let tls_config_builder_root: rustls::ConfigBuilder<
                 rustls::ClientConfig,
-                rustls::client::WantsTransparencyPolicyOrClientCert,
+                rustls::client::WantsClientCert,
             >;
             if let Some(root_certificates) = &self.root_certificates {
                 tls_config_builder_root =
@@ -105,11 +107,16 @@ impl YahaNativeContextInternal {
 
             tls_config = if let Some(client_auth_certificates) = &self.client_auth_certificates {
                 if let Some(client_auth_key) = &self.client_auth_key {
+                    let certs: Vec<CertificateDer> = client_auth_certificates
+                        .iter()
+                        .map(|c| c.clone().into_owned())
+                        .collect();
+
                     tls_config_builder_root
                         .clone()
                         .with_client_auth_cert(
-                            client_auth_certificates.to_owned(),
-                            client_auth_key.to_owned(),
+                            certs,
+                            client_auth_key.clone_key(),
                         )
                         .unwrap_or(tls_config_builder_root.with_no_client_auth())
                 } else {
@@ -137,19 +144,42 @@ impl YahaNativeContextInternal {
 
 #[cfg(feature = "rustls")]
 mod danger {
+    use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified};
+    use rustls::{DigitallySignedStruct, Error, SignatureScheme};
+    use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
+
+    #[derive(Debug)]
     pub struct NoCertificateVerification {}
 
-    impl rustls::client::ServerCertVerifier for NoCertificateVerification {
+    impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
         fn verify_server_cert(
             &self,
-            _end_entity: &rustls::Certificate,
-            _intermediates: &[rustls::Certificate],
-            _server_name: &rustls::ServerName,
-            _scts: &mut dyn Iterator<Item = &[u8]>,
-            _ocsp: &[u8],
-            _now: std::time::SystemTime,
-        ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-            Ok(rustls::client::ServerCertVerified::assertion())
+            _end_entity: &CertificateDer<'_>,
+            _intermediates: &[CertificateDer<'_>],
+            _server_name: &ServerName<'_>,
+            _ocsp_response: &[u8],
+            _now: UnixTime) -> Result<ServerCertVerified, Error> {
+            Ok(ServerCertVerified::assertion())
+        }
+
+        fn verify_tls12_signature(
+            &self,
+            _message: &[u8],
+            _cert: &CertificateDer<'_>,
+            _dss: &DigitallySignedStruct) -> Result<HandshakeSignatureValid, Error> {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+
+        fn verify_tls13_signature(
+            &self,
+            _message: &[u8],
+            _cert: &CertificateDer<'_>,
+            _dss: &DigitallySignedStruct) -> Result<HandshakeSignatureValid, Error> {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+
+        fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+            Vec::new()
         }
     }
 }
