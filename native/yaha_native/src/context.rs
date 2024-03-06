@@ -151,6 +151,20 @@ mod danger {
     #[derive(Debug)]
     pub struct NoCertificateVerification {}
 
+    const ALL_SCHEMES: [SignatureScheme; 12] = [
+        SignatureScheme::RSA_PKCS1_SHA1,
+        SignatureScheme::ECDSA_SHA1_Legacy,
+        SignatureScheme::RSA_PKCS1_SHA256,
+        SignatureScheme::ECDSA_NISTP256_SHA256,
+        SignatureScheme::RSA_PKCS1_SHA384,
+        SignatureScheme::ECDSA_NISTP384_SHA384,
+        SignatureScheme::ECDSA_NISTP521_SHA512,
+        SignatureScheme::RSA_PSS_SHA256,
+        SignatureScheme::RSA_PSS_SHA384,
+        SignatureScheme::RSA_PSS_SHA512,
+        SignatureScheme::ED25519,
+        SignatureScheme::ED448];
+
     impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
         fn verify_server_cert(
             &self,
@@ -178,8 +192,10 @@ mod danger {
             Ok(HandshakeSignatureValid::assertion())
         }
 
+
+
         fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-            Vec::new()
+            Vec::from(ALL_SCHEMES)
         }
     }
 }
