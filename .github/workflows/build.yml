@@ -255,6 +255,8 @@ jobs:
     if: ${{ inputs.build-only-linux && needs.build-linux-x64.result == 'success' || success() }}
     needs:
       - build-win-x64
+      - build-win-arm64
+      - build-win-arm64-uwp
       - build-linux-x64
       - build-osx-x64
       - build-osx-arm64
