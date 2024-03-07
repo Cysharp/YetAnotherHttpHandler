@@ -37,7 +37,7 @@ jobs:
   build-win-x64:
     name: Build Native library (win-x64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: windows-2019
+    runs-on: windows-2022
     timeout-minutes: 30
     defaults:
       run:
@@ -52,6 +52,52 @@ jobs:
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
           retention-days: 1
       - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+
+  build-win-arm64:
+    name: Build Native library (win-arm64)
+    if: ${{ !inputs.build-only-linux }}
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - run: rustup target add aarch64-pc-windows-msvc
+      - run: |
+          $env:Path += ";C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin"
+          cargo build --target aarch64-pc-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: win-arm64
+          path: native/target/aarch64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+          retention-days: 1
+      #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+
+  build-win-arm64-uwp:
+    name: Build Native library (win-arm64-uwp)
+    if: ${{ !inputs.build-only-linux }}
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: native
+    steps:
+      - uses: actions/checkout@v3
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - run: rustup toolchain install nightly-x86_64-pc-windows-msvc
+      - run: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+      - run: rustup default nightly
+      - run: |
+          $env:Path += ";C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin"
+          cargo -Z build-std build --target aarch64-uwp-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: win-arm64
+          path: native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+          retention-days: 1
+      #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-linux-x64:
     name: Build Native library (linux-x64)
