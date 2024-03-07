@@ -94,7 +94,7 @@ jobs:
           cargo -Z build-std build --target aarch64-uwp-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: actions/upload-artifact@v3
         with:
-          name: win-arm64
+          name: win-arm64-uwp
           path: native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
           retention-days: 1
       #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
