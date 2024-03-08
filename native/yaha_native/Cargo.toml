@@ -10,7 +10,7 @@ license = "MIT"
 crate-type = ["staticlib", "cdylib"]
 
 [build-dependencies]
-csbindgen = "1.8.3"
+csbindgen = "1.9.1"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }

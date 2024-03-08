@@ -39,6 +39,7 @@
     <YahaNativeArtifactTarget Include="win-x86" RustTarget="i686-pc-windows-msvc" Prefix="" Ext=".dll" />
     <YahaNativeArtifactTarget Include="win-x64" RustTarget="x86_64-pc-windows-msvc" Prefix="" Ext=".dll" />
     <YahaNativeArtifactTarget Include="win-arm64" RustTarget="aarch64-pc-windows-msvc" Prefix="" Ext=".dll" />
+    <YahaNativeArtifactTarget Include="win-arm64-uwp" RustTarget="aarch64-uwp-windows-msvc" Prefix="" Ext=".dll" />
     <YahaNativeArtifactTarget Include="linux-x64" RustTarget="x86_64-unknown-linux-gnu" Prefix="lib" Ext=".so" />
     <YahaNativeArtifactTarget Include="linux-arm64" RustTarget="aarch64-unknown-linux-gnu" Prefix="lib" Ext=".so" />
     <YahaNativeArtifactTarget Include="osx-x64" RustTarget="x86_64-apple-darwin" Prefix="lib" Ext=".dylib" />

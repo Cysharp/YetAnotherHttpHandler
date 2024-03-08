@@ -20,7 +20,7 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 Architecture/Platform | Windows | macOS | Linux | Android | iOS
 -- | -- | -- | -- | -- | --
 <strong>x64 (x86_64)</strong> | ✔ | ✔ | ☁ | ☁ | ☁
-<strong>arm64 (aarch64, Apple Silicon)</strong> | 📆 | ✔ | 📆 | ✔ | ✔
+<strong>arm64 (aarch64, Apple Silicon)</strong> | ☁ | ✔ | 📆 | ✔ | ✔
 <strong>armv7</strong> | - | - | - | ☁ | -
 
 - ✔ (Tier 1): Verify that it works, and active development support.
@@ -50,15 +50,14 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 	- Multiple streams on a single connection
 	- Compatible with grpc-dotnet (Grpc.Net.Client)
 	- HTTP/2 over cleartext
-	- TLS 1.2 with ALPN
+	- TLS 1.2/1.3 with ALPN
 		- TLS support is powered by Rustls + webpki
+		- Client certificate
 
 ### Not supported yet
-- Client certificate
 - HTTP proxy support
 - Verification of certificates by security features built into the OS
 - More platform supports
-	- Windows on Arm
 	- Linux on Arm
 
 ### Not supported (not planned)
