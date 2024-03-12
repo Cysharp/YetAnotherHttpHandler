@@ -1,4 +1,4 @@
-#define ENABLE_STRESS_TEST
+//#define ENABLE_STRESS_TEST
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
