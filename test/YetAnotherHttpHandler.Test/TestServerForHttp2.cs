@@ -135,12 +135,11 @@ class TestServerForHttp2 : ITestServerBuilder
         {
             await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
             {
+                await responseStream.WriteAsync(new HelloReply { Message = request.Name });
                 if (Random.Shared.Next(0, 9) == 0)
                 {
                     return;
                 }
-
-                await responseStream.WriteAsync(new HelloReply { Message = request.Name });
             }
         }
 
@@ -148,13 +147,12 @@ class TestServerForHttp2 : ITestServerBuilder
         {
             await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
             {
+                await responseStream.WriteAsync(new HelloReply { Message = request.Name });
                 if (Random.Shared.Next(0, 9) == 0)
                 {
                     context.GetHttpContext().Abort();
                     return;
                 }
-
-                await responseStream.WriteAsync(new HelloReply { Message = request.Name });
             }
         }
 
