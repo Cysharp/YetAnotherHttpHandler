@@ -17,7 +17,11 @@ public class Http2Test : Http2TestBase
     protected override HttpMessageHandler CreateHandler()
     {
         // Use self-signed certificate for testing purpose.
-        return new YetAnotherHttpHandler() { SkipCertificateVerification = true };
+        return new YetAnotherHttpHandler()
+        {
+            SkipCertificateVerification = true,
+            //Http2MaxFrameSize = 1024 * 1024,
+        };
     }
 
     protected override Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null)
@@ -27,6 +31,7 @@ public class Http2Test : Http2TestBase
             // Use self-signed certificate for testing purpose.
             builder.WebHost.ConfigureKestrel(options =>
             {
+                //options.Limits.Http2.MaxFrameSize = 1024 * 1024;
                 options.ConfigureHttpsDefaults(options =>
                 {
                     options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");

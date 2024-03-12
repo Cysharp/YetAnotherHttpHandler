@@ -138,18 +138,29 @@ namespace Cysharp.Net.Http
                     var ctx = _ctxHandle.DangerousGet();
                     var requestContext = _requestContextHandle.DangerousGet();
 
+                    var retryInterval = 16; //ms
+                    var retryAfter = 0;
                     while (!_requestBodyCompleted)
                     {
                         // If the internal buffer is full, yaha_request_write_body returns false. We need to wait until ready to send bytes again.
-                        if (NativeMethods.yaha_request_write_body(ctx, requestContext, (byte*)Unsafe.AsPointer(ref data.GetPinnableReference()), (UIntPtr)data.Length))
+                        var result = NativeMethods.yaha_request_write_body(ctx, requestContext, (byte*)Unsafe.AsPointer(ref data.GetPinnableReference()), (UIntPtr)data.Length);
+
+                        if (result == WriteResult.Success)
                         {
                             break;
+                        }
+                        if (result == WriteResult.AlreadyCompleted)
+                        {
+                            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Failed to write the request body. Because the request has been completed.");
+                            ThrowHelper.ThrowOperationCanceledException();
+                            return;
                         }
 
                         if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Send buffer is full.");
 
                         // TODO:
-                        Thread.Sleep(10);
+                        retryAfter += retryInterval;
+                        Thread.Sleep(Math.Min(1000, retryAfter));
                     }
 #if DEBUG
                     // Fill memory so that data corruption can be detected on debug build.
@@ -175,6 +186,15 @@ namespace Cysharp.Net.Http
         {
             lock (_handleLock)
             {
+                if (_requestBodyCompleted)
+                {
+                    return;
+                }
+
+                // Stop reading the request body from the stream. Errors may occur or the server side may complete first.
+                _pipe.Reader.Complete(exception);
+                _requestBodyCompleted = true;
+
                 if (!_handle.IsAllocated)
                 {
                     // The request has already completed. (`on_complete` callback has been called).
@@ -184,11 +204,6 @@ namespace Cysharp.Net.Http
                 if (_ctxHandle.IsClosed || _requestContextHandle.IsClosed)
                 {
                     // The request has already completed. We need to nothing to do at here.
-                    return;
-                }
-
-                if (_requestBodyCompleted)
-                {
                     return;
                 }
 
@@ -217,10 +232,6 @@ namespace Cysharp.Net.Http
                         _requestContextHandle.DangerousRelease();
                     }
                 }
-                
-                _pipe.Reader.Complete(exception);
-
-                _requestBodyCompleted = true;
             }
         }
 
@@ -259,6 +270,18 @@ namespace Cysharp.Net.Http
                 }
                 return true;
             }
+        }
+
+        public void Complete()
+        {
+            Response.Complete();
+            _cancellationTokenSource.Cancel(); // Stop reading the request body.
+        }
+
+        public void CompleteAsFailed(string errorMessage)
+        {
+            Response.CompleteAsFailed(errorMessage);
+            _cancellationTokenSource.Cancel(); // Stop reading the request body.
         }
 
         public void Dispose()

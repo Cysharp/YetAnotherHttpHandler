@@ -130,6 +130,41 @@ class TestServerForHttp2 : ITestServerBuilder
                 await responseStream.WriteAsync(new HelloReply { Message = $"Hello {request.Name}" });
             }
         }
+
+        public override async Task SayHelloDuplexCompleteRandomly(IAsyncStreamReader<HelloRequest> requestStream, IServerStreamWriter<HelloReply> responseStream, ServerCallContext context)
+        {
+            await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
+            {
+                if (Random.Shared.Next(0, 9) == 0)
+                {
+                    return;
+                }
+
+                await responseStream.WriteAsync(new HelloReply { Message = request.Name });
+            }
+        }
+
+        public override async Task SayHelloDuplexAbortRandomly(IAsyncStreamReader<HelloRequest> requestStream, IServerStreamWriter<HelloReply> responseStream, ServerCallContext context)
+        {
+            await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
+            {
+                if (Random.Shared.Next(0, 9) == 0)
+                {
+                    context.GetHttpContext().Abort();
+                    return;
+                }
+
+                await responseStream.WriteAsync(new HelloReply { Message = request.Name });
+            }
+        }
+
+        public override async Task EchoDuplex(IAsyncStreamReader<EchoRequest> requestStream, IServerStreamWriter<EchoReply> responseStream, ServerCallContext context)
+        {
+            await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))
+            {
+                await responseStream.WriteAsync(new EchoReply() { Message = request.Message });
+            }
+        }
 #pragma warning restore CS1998
     }
 

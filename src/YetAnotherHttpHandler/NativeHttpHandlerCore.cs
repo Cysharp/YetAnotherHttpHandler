@@ -440,14 +440,14 @@ namespace Cysharp.Net.Http
                         }
                     }
 
-                    requestContext.Response.Complete();
+                    requestContext.Complete();
                 }
                 else if (reason == CompletionReason.Error)
                 {
                     var buf = NativeMethods.yaha_get_last_error();
                     try
                     {
-                        requestContext.Response.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()));
+                        requestContext.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()));
                     }
                     catch
                     {
@@ -456,7 +456,7 @@ namespace Cysharp.Net.Http
                 }
                 else
                 {
-                    requestContext.Response.CompleteAsFailed("Canceled");
+                    requestContext.CompleteAsFailed("Canceled");
                 }
             }
             finally

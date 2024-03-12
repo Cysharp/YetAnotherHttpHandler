@@ -441,13 +441,14 @@ public abstract class Http2TestBase : UseTestServerTestBase
     {
         // Arrange
         const int RequestCount = 10;
+        const int Concurrency = 10;
         using var httpHandler = CreateHandler();
         await using var server = await LaunchServerAsync<TestServerForHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
         var tasks = new List<Task<(IReadOnlyList<string> ResponsesBeforeCompleted, IReadOnlyList<string> Responses)>>();
-        for (var i = 0; i < 10; i++)
+        for (var i = 0; i < Concurrency; i++)
         {
             tasks.Add(DoRequestAsync(i * 1000, channel, TimeoutToken));
         }
@@ -487,7 +488,6 @@ public abstract class Http2TestBase : UseTestServerTestBase
             Assert.Equal(Enumerable.Range((i * 1000), RequestCount).Select(x => $"Hello User-{x}"), results[i].Responses);
         }
     }
-
 
     [ConditionalFact]
     public async Task Grpc_ShutdownAndDispose()
