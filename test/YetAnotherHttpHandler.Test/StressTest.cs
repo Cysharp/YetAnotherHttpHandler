@@ -1,5 +1,6 @@
-//#define ENABLE_STRESS_TEST
+#define ENABLE_STRESS_TEST
 
+#if ENABLE_STRESS_TEST
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -61,7 +62,7 @@ public class StressTest : UseTestServerTestBase
         const int RequestCount = 1000;
         const int Concurrency = 10;
 
-        var requestStringSuffix = string.Create(1024 * 16, default(object), (span, _) => { span.Fill('X'); }); // UTF-8 = 64KiB
+        var requestStringSuffix = CreateRandomString(1024 * 32 /* UTF-8 = 32KB */);
         using var httpHandler = CreateHandler();
         await using var server = await LaunchServerAsync<TestServerForHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
@@ -117,7 +118,7 @@ public class StressTest : UseTestServerTestBase
         const int Concurrency = 2;
         const int MaxRetry = 5;
 
-        var data = string.Create(1024 * 64, default(object), (span, _) => { span.Fill('X'); }); // UTF-8 = 64KB
+        var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
         await using var server = await LaunchServerAsync<TestServerForHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
@@ -178,7 +179,7 @@ public class StressTest : UseTestServerTestBase
         const int Concurrency = 2;
         const int MaxRetry = 5;
 
-        var data = string.Create(1024 * 64, default(object), (span, _) => { span.Fill('X'); }); // UTF-8 = 64KB
+        var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
         await using var server = await LaunchServerAsync<TestServerForHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
@@ -244,13 +245,7 @@ public class StressTest : UseTestServerTestBase
         // Arrange
         const int RequestCount = 1000;
         const int Concurrency = 3;
-        var data = string.Create(1024 * 1024 /* UTF-8 = 1MB */, default(object), static (span, _) =>
-        {
-            for (var i = 0; i < span.Length; i++)
-            {
-                span[i] = (char)Random.Shared.Next(33, 126);
-            }
-        });
+        var data = CreateRandomString(1024 * 1024 /* UTF-8 = 1MB */);
         var hash = SHA1.HashData(Encoding.UTF8.GetBytes(data));
 
         using var httpHandler = CreateHandler();
@@ -295,4 +290,14 @@ public class StressTest : UseTestServerTestBase
         Assert.All(results, x => Assert.Equal(RequestCount, x.Count));
         Assert.All(results, x => Assert.All(x, y => Assert.Equal(hash, SHA1.HashData(Encoding.UTF8.GetBytes(y)))));
     }
+
+    private static string CreateRandomString(int length) =>
+        string.Create(length, default(object), static (span, _) =>
+        {
+            for (var i = 0; i < span.Length; i++)
+            {
+                span[i] = (char)Random.Shared.Next(33, 126);
+            }
+        });
 }
+#endif
