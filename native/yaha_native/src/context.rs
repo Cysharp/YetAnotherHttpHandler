@@ -218,6 +218,7 @@ pub struct YahaNativeRequestContextInternal {
 impl YahaNativeRequestContextInternal {
     pub fn try_complete(&mut self) {
         if self.sender.is_some() {
+            // By dropping, the sending body channel is completed.
             self.sender = None;
         }
     }

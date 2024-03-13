@@ -20,6 +20,12 @@ namespace Cysharp.Net.Http
             if (reqCtx.IsInvalid) throw new ArgumentNullException(nameof(reqCtx));
         }
 
+#if NET6_0_OR_GREATER
+        [DoesNotReturn]
+#endif
+        public static void ThrowOperationCanceledException()
+            => throw new OperationCanceledException();
+
 #if NETSTANDARD2_0
         public static unsafe void ThrowIfFailed(bool result)
 #else

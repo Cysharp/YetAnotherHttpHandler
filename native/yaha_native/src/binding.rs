@@ -14,10 +14,9 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
-use crate::context::{
-    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext, YahaNativeRuntimeContext,
-    YahaNativeRequestContextInternal, YahaNativeRuntimeContextInternal,
-};
+use crate::{context::{
+    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext, YahaNativeRequestContextInternal, YahaNativeRuntimeContext, YahaNativeRuntimeContextInternal
+}, primitives::WriteResult};
 use crate::interop::{ByteBuffer, StringBuffer};
 use crate::primitives::{YahaHttpVersion, CompletionReason};
 
@@ -597,18 +596,24 @@ pub extern "C" fn yaha_request_write_body(
     req_ctx: *const YahaNativeRequestContext,
     buf: *const u8,
     len: usize,
-) -> bool {
+) -> WriteResult {
     let mut req_ctx = crate::context::to_internal(req_ctx).lock().unwrap();
     debug_assert!(!req_ctx.completed);
 
     let slice = unsafe { std::slice::from_raw_parts(buf, len) };
-    let result = req_ctx
-        .sender
-        .as_mut()
-        .unwrap()
-        .try_send_data(Bytes::copy_from_slice(slice));
 
-    result.is_ok()
+    match req_ctx.sender.as_mut() {
+        Some(sender) => {
+            let result = sender.try_send_data(Bytes::copy_from_slice(slice));
+            match result {
+                Ok(_) => WriteResult::Success,
+                Err(_) => WriteResult::Full,
+            }
+        }
+
+        // The request has been completed.
+        None => WriteResult::AlreadyCompleted
+    }
 }
 
 #[no_mangle]

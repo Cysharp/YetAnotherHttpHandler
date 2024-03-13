@@ -9,6 +9,9 @@ service Greeter {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply);
   rpc SayHelloDuplex (stream HelloRequest) returns (stream HelloReply);
+  rpc SayHelloDuplexCompleteRandomly (stream HelloRequest) returns (stream HelloReply);
+  rpc SayHelloDuplexAbortRandomly (stream HelloRequest) returns (stream HelloReply);
+  rpc EchoDuplex (stream EchoRequest) returns (stream EchoReply);
 }
 
 // The request message containing the user's name.
@@ -18,5 +21,13 @@ message HelloRequest {
 
 // The response message containing the greetings.
 message HelloReply {
+  string message = 1;
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoReply {
   string message = 1;
 }

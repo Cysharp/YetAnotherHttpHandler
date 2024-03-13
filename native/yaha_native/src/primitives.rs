@@ -30,3 +30,11 @@ pub enum CompletionReason {
     Error,
     Aborted,
 }
+
+#[repr(i32)]
+#[derive(Debug)]
+pub enum WriteResult {
+    Success,
+    Full,
+    AlreadyCompleted,
+}
