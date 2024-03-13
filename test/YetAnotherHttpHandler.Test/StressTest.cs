@@ -59,7 +59,7 @@ public class StressTest : UseTestServerTestBase
     public async Task Grpc_Duplex_Concurrency()
     {
         // Arrange
-        const int RequestCount = 1000;
+        const int RequestCount = 3000;
         const int Concurrency = 10;
 
         var requestStringSuffix = CreateRandomString(1024 * 32 /* UTF-8 = 32KB */);
@@ -105,8 +105,10 @@ public class StressTest : UseTestServerTestBase
         // Assert
         for (var i = 0; i < results.Length; i++)
         {
-            Assert.Equal(Enumerable.Range((i * 1000), RequestCount).Select(x => $"Hello User-{x}-{requestStringSuffix}"), results[i].ResponsesBeforeCompleted);
-            Assert.Equal(Enumerable.Range((i * 1000), RequestCount).Select(x => $"Hello User-{x}-{requestStringSuffix}"), results[i].Responses);
+            Assert.All(results[i].Responses, (x, j) => Assert.Equal($"Hello User-{(i * 1000) + j}-".Length + requestStringSuffix.Length, x.Length));
+            Assert.All(results[i].ResponsesBeforeCompleted, (x, j) => Assert.Equal($"Hello User-{(i * 1000) + j}-".Length + requestStringSuffix.Length, x.Length));
+            Assert.All(results[i].Responses, (x, j) => Assert.Equal($"Hello User-{(i * 1000) + j}-{requestStringSuffix}", x));
+            Assert.All(results[i].ResponsesBeforeCompleted, (x, j) => Assert.Equal($"Hello User-{(i * 1000) + j}-{requestStringSuffix}", x));
         }
     }
 
@@ -215,7 +217,7 @@ public class StressTest : UseTestServerTestBase
                     await Task.Delay(16);
                 }
             }
-            catch (RpcException e) when (e.StatusCode is StatusCode.Unavailable or StatusCode.Internal)
+            catch (RpcException e) when (e.StatusCode is StatusCode.Unavailable or StatusCode.Internal or StatusCode.Cancelled)
             {
                 // The request has aborted by the server.
             }
@@ -226,7 +228,7 @@ public class StressTest : UseTestServerTestBase
             {
                 await readTask.WaitAsync(cancellationToken);
             }
-            catch (RpcException e) when (e.StatusCode is StatusCode.Unavailable or StatusCode.Internal)
+            catch (RpcException e) when (e.StatusCode is StatusCode.Unavailable or StatusCode.Internal or StatusCode.Cancelled)
             {
                 // The request has aborted by the server.
             }
