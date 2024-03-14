@@ -25,7 +25,7 @@ jobs:
   # release
   create-release:
     name: Create Release
-    needs: [update-packagejson, update-packagejson-deps]
+    needs: [update-packagejson]
     uses: Cysharp/Actions/.github/workflows/create-release.yaml@main
     with:
       commit-id: ${{ needs.update-packagejson.outputs.sha }}
