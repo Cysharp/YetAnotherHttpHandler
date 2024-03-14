@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "tag: git tag you want create. (sample 1.0.0)"
+        required: true
+      dry-run:
+        description: "dry-run: true will never create relase/nuget."
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  update-packagejson:
+    uses: Cysharp/Actions/.github/workflows/update-packagejson.yaml@main
+    with:
+      file-path: ./src/YetAnotherHttpHandler/package.json
+      tag: ${{ inputs.tag }}
+      dry-run: ${{ inputs.dry-run }}
+      push-tag: false
+
+  # release
+  create-release:
+    needs: [update-packagejson]
+    uses: Cysharp/Actions/.github/workflows/create-release.yaml@main
+    with:
+      commit-id: ${{ needs.update-packagejson.outputs.sha }}
+      dry-run: ${{ inputs.dry-run }}
+      tag: ${{ inputs.tag }}
+      nuget-push: false
+      release-upload: false
+      release-format: '{0}'
+    secrets: inherit
+
+  cleanup:
+    if: ${{ needs.update-packagejson.outputs.is-branch-created == 'true' }}
+    needs: [update-packagejson]
+    uses: Cysharp/Actions/.github/workflows/clean-packagejson-branch.yaml@main
+    with:
+      branch: ${{ needs.update-packagejson.outputs.branch-name }}
