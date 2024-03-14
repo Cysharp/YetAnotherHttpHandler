@@ -25,7 +25,7 @@ jobs:
   # release
   create-release:
     name: Create Release
-    needs: [update-packagejson]
+    needs: [update-packagejson, update-packagejson-deps]
     uses: Cysharp/Actions/.github/workflows/create-release.yaml@main
     with:
       commit-id: ${{ needs.update-packagejson.outputs.sha }}
@@ -33,7 +33,7 @@ jobs:
       tag: ${{ inputs.tag }}
       nuget-push: false
       release-upload: false
-      release-format: 'v{0}'
+      release-format: '{0}'
     secrets: inherit
 
   cleanup:
