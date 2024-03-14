@@ -85,8 +85,11 @@ This library depends on the following additional libraries:
     - System.Runtime.CompilerServices.Unsafe
 3. Specify the following URL in `Add package from git URL...` of Package Manager on Unity
 ```
-https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v1.0.0
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#{Version}
 ```
+
+> [!NOTE]
+> Please replace `{Version}` with the version number you want to install (e.g. `1.2.0`).
 
 #### Method 2: Using UnityNuGet scope registry
 
@@ -99,14 +102,17 @@ https://github.com/xoofx/UnityNuGet#add-scope-registry-manifestjson
 2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity. This is the package that resolves NuGet dependencies.
 
 ```
-https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler.Dependencies#v1.0.0
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler.Dependencies#{Version}
 ```
 
 3. Specify the following URL in `Add package from git URL...` of Package Manager on Unity. This is the main packagee.
 
 ```
-https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v1.0.0
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#{Version}
 ```
+
+> [!NOTE]
+> Please replace `{Version}` with the version number you want to install (e.g. `1.2.0`).
 
 #### Method 3: Install from GitHub / Git repository
 
@@ -116,8 +122,11 @@ https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHand
 2. Specify the following URL in `Add package from git URL...` of Package Manager on Unity.
 
 ```
-https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#v1.0.1
+https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHandler#{Version}
 ```
+
+> [!NOTE]
+> Please replace `{Version}` with the version number you want to install (e.g. `1.2.0`).
 
 ## Usage
 
@@ -146,10 +155,7 @@ To use grpc-dotnet (Grpc.Net.Client), add the following additional libraries:
 - Grpc.Net.Client
 - Grpc.Net.Common
 - Microsoft.Extensions.Logging.Abstractions
-- System.Buffers
 - System.Diagnostics.DiagnosticSource
-- System.Memory
-- System.Numerics.Vectors
 
 #### Method 1: Using NuGetForUnity
 
