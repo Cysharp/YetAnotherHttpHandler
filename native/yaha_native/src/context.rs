@@ -132,7 +132,11 @@ impl YahaNativeContextInternal<'_> {
             .https_or_http()
             .enable_http2();
 
-        builder.build()
+        // Almost the same as `builder.build()`, but specify `set_nodelay(true)`.
+        let mut http_conn = HttpConnector::new();
+        http_conn.set_nodelay(true);
+        http_conn.enforce_http(false);
+        builder.wrap_connector(http_conn)
     }
 
     #[cfg(feature = "native")]
