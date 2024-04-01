@@ -8,12 +8,17 @@ MemoryProfiler.CollectAllocations(true);
 using var httpHandler = new YetAnotherHttpHandler();
 using var client = new HttpClient(httpHandler);
 
+var buffer = new byte[1024 * 64];
 MemoryProfiler.GetSnapshot("Handler and HttpClient are created.");
 
 for (var i = 0; i < 10; i++)
 {
     Console.WriteLine($"Request: Begin ({i})");
-    var result = await client.GetByteArrayAsync("https://cysharp.co.jp");
+    var stream = await client.GetStreamAsync("https://cysharp.co.jp");
+    while (await stream.ReadAsync(buffer) != 0)
+    {
+    }
+
     MemoryProfiler.GetSnapshot($"Request End ({i})");
     Console.WriteLine($"Request: End ({i})");
     await Task.Delay(1000);

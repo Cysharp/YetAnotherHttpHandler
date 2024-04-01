@@ -61,22 +61,17 @@ namespace Cysharp.Net.Http
             }
         }
 
-        public void SetHeader(string name, string value)
+        public void SetHeader(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
         {
-            if (!_message.Headers.TryAddWithoutValidation(name, value))
+            var (name, isHttpContentHeader) = Utf8Strings.HttpHeaders.FromSpan(nameBytes);
+            var value = UnsafeUtilities.GetStringFromUtf8Bytes(valueBytes);
+            if (isHttpContentHeader)
             {
                 _message.Content.Headers.TryAddWithoutValidation(name, value);
             }
-        }
-        
-        public void SetHeader(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
-        {
-            var name = UnsafeUtilities.GetStringFromUtf8Bytes(nameBytes);
-            var value = UnsafeUtilities.GetStringFromUtf8Bytes(valueBytes);
-
-            if (!_message.Headers.TryAddWithoutValidation(name, value))
+            else
             {
-                _message.Content.Headers.TryAddWithoutValidation(name, value);
+                _message.Headers.TryAddWithoutValidation(name, value);
             }
         }
 
@@ -91,14 +86,12 @@ namespace Cysharp.Net.Http
             };
         }
 
-        public void SetTrailer(string name, string value)
+        public void SetTrailer(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
         {
-            _message.TrailingHeaders().TryAddWithoutValidation(name, value);
-        }
+            var (name, isHttpContentHeader) = Utf8Strings.HttpHeaders.FromSpan(nameBytes);
+            var value = UnsafeUtilities.GetStringFromUtf8Bytes(valueBytes);
 
-        public void SetTrailer(ReadOnlySpan<byte> name, ReadOnlySpan<byte> value)
-        {
-            _message.TrailingHeaders().TryAddWithoutValidation(UnsafeUtilities.GetStringFromUtf8Bytes(name), UnsafeUtilities.GetStringFromUtf8Bytes(value));
+            _message.TrailingHeaders().TryAddWithoutValidation(name, value);
         }
 
         public void SetStatusCode(int statusCode)
