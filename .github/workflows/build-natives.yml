@@ -1,10 +1,10 @@
-name: Build
+name: Build Native Libraries
 on:
   workflow_dispatch:
     inputs:
       build-config:
         required: true
-        default: 'debug'
+        default: 'release'
         type: choice
         options:
           - debug
@@ -43,10 +43,10 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: cargo build --target x86_64-pc-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: win-x64
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
@@ -62,13 +62,13 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add aarch64-pc-windows-msvc
       - run: |
           $env:Path += ";C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin"
           cargo build --target aarch64-pc-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: win-arm64
           path: native/target/aarch64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
@@ -84,7 +84,7 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup toolchain install nightly-x86_64-pc-windows-msvc
       - run: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
@@ -92,7 +92,7 @@ jobs:
       - run: |
           $env:Path += ";C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin"
           cargo -Z build-std build --target aarch64-uwp-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: win-arm64-uwp
           path: native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
@@ -107,10 +107,10 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
@@ -126,10 +126,10 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: cargo build --target x86_64-apple-darwin --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: osx-x64
           path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
@@ -145,10 +145,10 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: rustup target add aarch64-apple-darwin
       - run: cargo build --target aarch64-apple-darwin --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: osx-arm64
           path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
@@ -163,10 +163,10 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: rustup target add x86_64-apple-ios
       - run: cargo build --target x86_64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ios-x64
           path: native/target/x86_64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
@@ -181,10 +181,10 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: rustup target add aarch64-apple-ios
       - run: cargo build --target aarch64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ios-arm64
           path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
@@ -199,12 +199,12 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt update && sudo apt install gcc-multilib
       - run: rustup target add armv7-linux-androideabi
       - run: cargo install cargo-ndk
       - run: cargo ndk -t armeabi-v7a build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: android-arm
           path: native/target/armv7-linux-androideabi/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
@@ -219,12 +219,12 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt update && sudo apt install gcc-multilib
       - run: rustup target add aarch64-linux-android
       - run: cargo install cargo-ndk
       - run: cargo ndk -t arm64-v8a build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: android-arm64
           path: native/target/aarch64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
@@ -239,12 +239,12 @@ jobs:
       run:
         working-directory: native
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: sudo apt update && sudo apt install gcc-multilib
       - run: rustup target add x86_64-linux-android
       - run: cargo install cargo-ndk
       - run: cargo ndk -t x86_64 build --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: android-x64
           path: native/target/x86_64-linux-android/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
@@ -267,14 +267,14 @@ jobs:
       - build-android-x64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
           path: native/artifacts
       - run: ls -lFaR native/artifacts
       - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source -o ./publish
       #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Packaging.Test
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: nuget-packages
           path: ./publish/
@@ -287,8 +287,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
           name: nuget-packages
           path: ./publish/
