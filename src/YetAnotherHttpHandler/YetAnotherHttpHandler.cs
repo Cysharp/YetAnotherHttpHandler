@@ -153,11 +153,11 @@ namespace Cysharp.Net.Http
             return _handler;
         }
 
-        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             ThrowIfDisposed();
             var handler = _handler ?? SetupHandler();
-            return await handler.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            return handler.SendAsync(request, cancellationToken);
         }
 
         protected override void Dispose(bool disposing)

@@ -3,12 +3,14 @@
 #endif
 
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -162,22 +164,23 @@ namespace Cysharp.Net.Http
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"{nameof(NativeHttpHandlerCore)} created");
         }
 
-        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}");
 
             var requestContext = Send(request, cancellationToken);
+
             if (request.Content != null)
             {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Start sending the request body: {request.Content.GetType().FullName}");
-                _ = SendBodyAsync(request.Content, requestContext.Writer, cancellationToken);
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Start sending the request body: {request.Content!.GetType().FullName}");
+                _ = SendBodyAsync(request.Content!, requestContext.Writer, cancellationToken);
             }
             else
             {
-                await requestContext.Writer.CompleteAsync().ConfigureAwait(false);
+                requestContext.Writer.Complete();
             }
 
-            return await requestContext.Response.GetResponseAsync().ConfigureAwait(false);
+            return requestContext.Response.GetResponseAsync();
 
             static async Task SendBodyAsync(HttpContent requestContent, PipeWriter writer, CancellationToken cancellationToken)
             {
@@ -239,39 +242,28 @@ namespace Cysharp.Net.Http
             var reqCtx = reqCtxHandle.DangerousGet();
 
             // Set request headers
-            var headers = request.Content is null
-                ? request.Headers
-                : request.Headers.Concat(request.Content.Headers);
-            foreach (var header in headers)
+            SetRequestHeaders(request.Headers, ctx, reqCtx);
+            if (request.Content is not null)
             {
-                var keyBytes = Encoding.UTF8.GetBytes(header.Key);
-                var valueBytes = Encoding.UTF8.GetBytes(string.Join(",", header.Value));
-
-                fixed (byte* pKey = keyBytes)
-                fixed (byte* pValue = valueBytes)
-                {
-                    var bufKey = new StringBuffer(pKey, keyBytes.Length);
-                    var bufValue = new StringBuffer(pValue, valueBytes.Length);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(ctx, reqCtx, &bufKey, &bufValue));
-                }
+                SetRequestHeaders(request.Content.Headers, ctx, reqCtx);
             }
 
             // Set HTTP method
             {
-                var strBytes = Encoding.UTF8.GetBytes(request.Method.ToString());
-                fixed (byte* p = strBytes)
+                using var strBytes = Utf8Strings.HttpMethods.FromHttpMethod(request.Method);
+                fixed (byte* p = strBytes.Span)
                 {
-                    var buf = new StringBuffer(p, strBytes.Length);
+                    var buf = new StringBuffer(p, strBytes.Span.Length);
                     ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_method(ctx, reqCtx, &buf));
                 }
             }
 
             // Set URI
             {
-                var strBytes = Encoding.UTF8.GetBytes( UriHelper.ToSafeUriString(request.RequestUri));
-                fixed (byte* p = strBytes)
+                using var strBytes = new TempUtf8String(UriHelper.ToSafeUriString(request.RequestUri));
+                fixed (byte* p = strBytes.Span)
                 {
-                    var buf = new StringBuffer(p, strBytes.Length);
+                    var buf = new StringBuffer(p, strBytes.Span.Length);
                     ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(ctx, reqCtx, &buf));
                 }
             }
@@ -305,7 +297,7 @@ namespace Cysharp.Net.Http
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}:State:0x{requestContextManaged.Handle:X}] Begin HTTP request to the server.");
                 ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(ctx, reqCtx, requestContextManaged.Handle));
-                requestContextManaged.Start(); // NOTE: ReadRequestLoop must be started after `request_begin`.
+                requestContextManaged.Start(hasBody: request.Content != null); // NOTE: ReadRequestLoop must be started after `request_begin`.
             }
             catch
             {
@@ -317,6 +309,21 @@ namespace Cysharp.Net.Http
             return requestContextManaged;
         }
 
+        private static unsafe void SetRequestHeaders(HttpHeaders headers, YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx)
+        {
+            foreach (var header in headers)
+            {
+                using var key = new TempUtf8String(header.Key);
+                using var value = new TempUtf8String(string.Join(",", header.Value));
+                fixed (byte* pKey = key.Span)
+                fixed (byte* pValue = value.Span)
+                {
+                    var bufKey = new StringBuffer(pKey, key.Span.Length);
+                    var bufValue = new StringBuffer(pValue, value.Span.Length);
+                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(ctx, reqCtx, &bufKey, &bufValue));
+                }
+            }
+        }
 
 #if USE_FUNCTION_POINTER
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
