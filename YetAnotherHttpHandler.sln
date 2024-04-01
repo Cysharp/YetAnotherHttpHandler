@@ -17,6 +17,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		THIRD-PARTY-NOTICES = THIRD-PARTY-NOTICES
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "perf", "perf", "{49D0877D-6B51-4A83-8B93-9DC19BAEABB4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerformanceCheck", "perf\PerformanceCheck\PerformanceCheck.csproj", "{BD12E8F7-E190-4B76-AFF5-62376CF0BD57}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,12 +35,17 @@ Global
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BD12E8F7-E190-4B76-AFF5-62376CF0BD57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BD12E8F7-E190-4B76-AFF5-62376CF0BD57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BD12E8F7-E190-4B76-AFF5-62376CF0BD57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BD12E8F7-E190-4B76-AFF5-62376CF0BD57}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870} = {EDDCC9A6-BB1C-4AB9-A0C1-9AD888858442}
+		{BD12E8F7-E190-4B76-AFF5-62376CF0BD57} = {49D0877D-6B51-4A83-8B93-9DC19BAEABB4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0F200E0E-4EC0-4C1A-BF65-BA52D3291577}

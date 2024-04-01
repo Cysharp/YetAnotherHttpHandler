@@ -13,11 +13,11 @@ namespace Cysharp.Net.Http
 {
     internal class RequestContext : IDisposable
     {
-        private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
+        private readonly Pipe _pipe = new(PipeOptions.Default);
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly int _requestSequence;
-        private readonly object _handleLock = new object();
-        private readonly ManualResetEventSlim _fullyCompleted = new ManualResetEventSlim(false);
+        private readonly object _handleLock = new();
+        private readonly ManualResetEventSlim _fullyCompleted = new(false);
         private readonly bool _hasRequestContextHandleRef;
         private GCHandle _handle;
 
@@ -46,9 +46,17 @@ namespace Cysharp.Net.Http
             _requestContextHandle.DangerousAddRef(ref _hasRequestContextHandleRef);
         }
 
-        internal void Start()
+        internal void Start(bool hasBody)
         {
-            _readRequestTask = RunReadRequestLoopAsync(_cancellationTokenSource.Token);
+            if (hasBody)
+            {
+                _readRequestTask = RunReadRequestLoopAsync(_cancellationTokenSource.Token);
+            }
+            else
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] The request has no body. Complete immediately.");
+                TryCompleteBody();
+            }
         }
 
         public void Allocate()

@@ -162,22 +162,23 @@ namespace Cysharp.Net.Http
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"{nameof(NativeHttpHandlerCore)} created");
         }
 
-        public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}");
 
             var requestContext = Send(request, cancellationToken);
+
             if (request.Content != null)
             {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Start sending the request body: {request.Content.GetType().FullName}");
-                _ = SendBodyAsync(request.Content, requestContext.Writer, cancellationToken);
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Start sending the request body: {request.Content!.GetType().FullName}");
+                _ = SendBodyAsync(request.Content!, requestContext.Writer, cancellationToken);
             }
             else
             {
-                await requestContext.Writer.CompleteAsync().ConfigureAwait(false);
+                requestContext.Writer.Complete();
             }
 
-            return await requestContext.Response.GetResponseAsync().ConfigureAwait(false);
+            return requestContext.Response.GetResponseAsync();
 
             static async Task SendBodyAsync(HttpContent requestContent, PipeWriter writer, CancellationToken cancellationToken)
             {
@@ -305,7 +306,7 @@ namespace Cysharp.Net.Http
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}:State:0x{requestContextManaged.Handle:X}] Begin HTTP request to the server.");
                 ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(ctx, reqCtx, requestContextManaged.Handle));
-                requestContextManaged.Start(); // NOTE: ReadRequestLoop must be started after `request_begin`.
+                requestContextManaged.Start(hasBody: request.Content != null); // NOTE: ReadRequestLoop must be started after `request_begin`.
             }
             catch
             {
