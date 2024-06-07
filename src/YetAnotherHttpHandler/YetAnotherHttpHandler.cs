@@ -140,6 +140,15 @@ namespace Cysharp.Net.Http
         /// </remarks>
         public ulong? Http2MaxSendBufferSize { get => _settings.Http2MaxSendBufferSize; set => _settings.Http2MaxSendBufferSize = value; }
 
+        /// <summary>
+        /// Gets or sets the initial maximum of locally initiated (send) streams.
+        /// This value will be overwritten by the value included in the initial SETTINGS frame received from the peer as part of a connection preface.
+        /// </summary>
+        /// <remarks>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_initial_max_send_streams">hyper_util: http2_initial_max_send_streams</see>
+        /// </remarks>
+        public ulong? Http2InitialMaxSendStreams { get => _settings.Http2InitialMaxSendStreams; set => _settings.Http2InitialMaxSendStreams = value; }
+
         private NativeHttpHandlerCore SetupHandler()
         {
             var settings = _settings.Clone();
@@ -194,6 +203,7 @@ namespace Cysharp.Net.Http
         public bool? Http2KeepAliveWhileIdle { get; set; }
         public ulong? Http2MaxConcurrentResetStreams { get; set; }
         public ulong? Http2MaxSendBufferSize { get; set; }
+        public ulong? Http2InitialMaxSendStreams { get; set; }
 
         public NativeClientSettings Clone()
         {
@@ -215,6 +225,7 @@ namespace Cysharp.Net.Http
                 Http2KeepAliveWhileIdle = this.Http2KeepAliveWhileIdle,
                 Http2MaxConcurrentResetStreams = this.Http2MaxConcurrentResetStreams,
                 Http2MaxSendBufferSize = this.Http2MaxSendBufferSize,
+                Http2InitialMaxSendStreams = this.Http2InitialMaxSendStreams,
             };
         }
     }

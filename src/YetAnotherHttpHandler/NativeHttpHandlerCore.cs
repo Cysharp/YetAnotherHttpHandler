@@ -158,6 +158,11 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2MaxSendBufferSize)}' = {http2MaxSendBufferSize}");
                 NativeMethods.yaha_client_config_http2_max_send_buf_size(ctx, (nuint)http2MaxSendBufferSize);
             }
+            if (settings.Http2InitialMaxSendStreams is { } http2InitialMaxSendStreams)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2InitialMaxSendStreams)}' = {http2InitialMaxSendStreams}");
+                NativeMethods.yaha_client_config_http2_initial_max_send_streams(ctx, (nuint)http2InitialMaxSendStreams);
+            }
 
             NativeMethods.yaha_build_client(ctx);
 

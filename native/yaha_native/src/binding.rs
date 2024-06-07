@@ -254,7 +254,7 @@ pub extern "C" fn yaha_client_config_http2_keep_alive_timeout(
     ctx: *mut YahaNativeContext,
     timeout_milliseconds: u64,
 ) {
-    let ctx: &mut YahaNativeContextInternal = YahaNativeContextInternal::from_raw_context(ctx);
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.client_builder
         .as_mut()
         .unwrap()
@@ -295,6 +295,18 @@ pub extern "C" fn yaha_client_config_http2_max_send_buf_size(
         .as_mut()
         .unwrap()
         .http2_max_send_buf_size(max);
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_http2_initial_max_send_streams(
+    ctx: *mut YahaNativeContext,
+    initial: usize,
+) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_initial_max_send_streams(initial);
 }
 
 #[no_mangle]
@@ -515,6 +527,8 @@ pub extern "C" fn yaha_request_begin(
             // Read the response body stream.
             let body = res.body_mut();
 
+            let mut trailer_reveived = false;
+
             while !body.is_end_stream() {
                 select! {
                     _ = cancellation_token.cancelled() => {
@@ -527,25 +541,30 @@ pub extern "C" fn yaha_request_begin(
                                 match x {
                                     Ok(frame) => {
                                         if frame.is_data() {
-                                            if let Ok(data) = frame.into_data() {
-                                                (ctx.on_receive)(seq, state, data.len(), data.as_ptr());
-                                            }
+                                            let data = frame.into_data().unwrap();
+                                            (ctx.on_receive)(seq, state, data.len(), data.as_ptr());
                                         } else if frame.is_trailers() {
-                                            if let Ok(trailers) = frame.into_trailers()
+
+                                            trailer_reveived = true;
+
                                             {
                                                 let mut req_ctx = req_ctx.lock().unwrap();
-                                                req_ctx.response_trailers = Some(
-                                                    trailers
-                                                        .iter()
-                                                        .map(|x| {
-                                                            (
-                                                                x.0.to_string(),
-                                                                x.1.to_str().unwrap_or_default().to_string(),
-                                                            )
-                                                        })
-                                                        .collect::<Vec<(String, String)>>(),
-                                                );
+                                                req_ctx.try_complete();
                                             }
+
+                                            let trailers = frame.into_trailers().unwrap();
+                                            let mut req_ctx = req_ctx.lock().unwrap();
+                                            req_ctx.response_trailers = Some(
+                                                trailers
+                                                    .iter()
+                                                    .map(|x| {
+                                                        (
+                                                            x.0.to_string(),
+                                                            x.1.to_str().unwrap_or_default().to_string(),
+                                                        )
+                                                    })
+                                                    .collect::<Vec<(String, String)>>(),
+                                            );
                                         }
                                     }
                                     Err(err) => {
@@ -567,7 +586,7 @@ pub extern "C" fn yaha_request_begin(
                 }
             }
 
-            {
+            if !trailer_reveived {
                 let mut req_ctx = req_ctx.lock().unwrap();
                 req_ctx.try_complete();
             }
