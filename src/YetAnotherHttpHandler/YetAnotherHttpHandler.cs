@@ -19,7 +19,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets an optional timeout for idle sockets being kept-alive. Default is 90 seconds.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.pool_idle_timeout">hyper: pool_idle_timeout</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.pool_idle_timeout">hyper: pool_idle_timeout</see>
         /// </remarks>
         public TimeSpan? PoolIdleTimeout { get => _settings.PoolIdleTimeout; set => _settings.PoolIdleTimeout = value; }
 
@@ -27,7 +27,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets the maximum idle connection per host allowed in the pool. Default is usize::MAX (no limit).
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.pool_max_idle_per_host">hyper: pool_max_idle_per_host</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.pool_max_idle_per_host">hyper: pool_max_idle_per_host</see>
         /// </remarks>
         public ulong? MaxIdlePerHost { get => _settings.MaxIdlePerHost; set => _settings.MaxIdlePerHost = value; }
 
@@ -35,7 +35,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets a value that indicates whether to force the use of HTTP/2.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_only">hyper: http2_only</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_only">hyper: http2_only</see>
         /// </remarks>
         public bool? Http2Only { get => _settings.Http2Only; set => _settings.Http2Only = value; }
 
@@ -63,7 +63,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets the SETTINGS_INITIAL_WINDOW_SIZE option for HTTP2 stream-level flow control.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_initial_stream_window_size">hyper: http2_initial_stream_window_size</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_initial_stream_window_size">hyper: http2_initial_stream_window_size</see>
         /// </remarks>
         public uint? Http2InitialStreamWindowSize { get => _settings.Http2InitialStreamWindowSize; set => _settings.Http2InitialStreamWindowSize = value; }
 
@@ -71,7 +71,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets the max connection-level flow control for HTTP2
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_initial_connection_window_size">hyper: http2_initial_connection_window_size</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_initial_connection_window_size">hyper: http2_initial_connection_window_size</see>
         /// </remarks>
         public uint? Http2InitialConnectionWindowSize { get => _settings.Http2InitialConnectionWindowSize; set => _settings.Http2InitialConnectionWindowSize = value; }
 
@@ -79,7 +79,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets whether to use an adaptive flow control. Enabling this will override the limits set in http2_initial_stream_window_size and http2_initial_connection_window_size.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_adaptive_window">hyper: http2_adaptive_window</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_adaptive_window">hyper: http2_adaptive_window</see>
         /// </remarks>
         public bool? Http2AdaptiveWindow { get => _settings.Http2AdaptiveWindow; set => _settings.Http2AdaptiveWindow = value; }
 
@@ -87,7 +87,7 @@ namespace Cysharp.Net.Http
         /// Gets or sets the maximum frame size to use for HTTP2.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_max_frame_size">hyper: http2_max_frame_size</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_max_frame_size">hyper: http2_max_frame_size</see>
         /// </remarks>
         public uint? Http2MaxFrameSize { get => _settings.Http2MaxFrameSize; set => _settings.Http2MaxFrameSize = value; }
 
@@ -97,7 +97,7 @@ namespace Cysharp.Net.Http
         /// Default is currently disabled.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_keep_alive_interval">hyper: http2_keep_alive_interval</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_keep_alive_interval">hyper: http2_keep_alive_interval</see>
         /// </remarks>
         public TimeSpan? Http2KeepAliveInterval { get => _settings.Http2KeepAliveInterval; set => _settings.Http2KeepAliveInterval = value; }
 
@@ -107,7 +107,7 @@ namespace Cysharp.Net.Http
         /// Default is 20 seconds.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_keep_alive_timeout">hyper: http2_keep_alive_timeout</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_keep_alive_timeout">hyper: http2_keep_alive_timeout</see>
         /// </remarks>
         public TimeSpan? Http2KeepAliveTimeout { get => _settings.Http2KeepAliveTimeout; set => _settings.Http2KeepAliveTimeout = value; }
 
@@ -117,7 +117,7 @@ namespace Cysharp.Net.Http
         /// Default is false.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_keep_alive_while_idle">hyper: http2_keep_alive_while_idle</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_keep_alive_while_idle">hyper: http2_keep_alive_while_idle</see>
         /// </remarks>
         public bool? Http2KeepAliveWhileIdle { get => _settings.Http2KeepAliveWhileIdle; set => _settings.Http2KeepAliveWhileIdle = value; }
 
@@ -127,7 +127,7 @@ namespace Cysharp.Net.Http
         /// The default value is determined by the h2 crate.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_max_concurrent_reset_streams">hyper: http2_max_concurrent_reset_streams</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_max_concurrent_reset_streams">hyper: http2_max_concurrent_reset_streams</see>
         /// </remarks>
         public ulong? Http2MaxConcurrentResetStreams { get => _settings.Http2MaxConcurrentResetStreams; set => _settings.Http2MaxConcurrentResetStreams = value; }
 
@@ -136,7 +136,7 @@ namespace Cysharp.Net.Http
         /// Default is currently 1MB, but may change.
         /// </summary>
         /// <remarks>
-        /// <see href="https://docs.rs/hyper/0.14.28/hyper/client/struct.Builder.html#method.http2_max_send_buf_size">hyper: http2_max_send_buf_size</see>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_max_send_buf_size">hyper: http2_max_send_buf_size</see>
         /// </remarks>
         public ulong? Http2MaxSendBufferSize { get => _settings.Http2MaxSendBufferSize; set => _settings.Http2MaxSendBufferSize = value; }
 
