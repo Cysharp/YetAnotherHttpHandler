@@ -527,7 +527,7 @@ pub extern "C" fn yaha_request_begin(
             // Read the response body stream.
             let body = res.body_mut();
 
-            let mut trailer_reveived = false;
+            let mut trailer_received = false;
 
             while !body.is_end_stream() {
                 select! {
@@ -545,7 +545,7 @@ pub extern "C" fn yaha_request_begin(
                                             (ctx.on_receive)(seq, state, data.len(), data.as_ptr());
                                         } else if frame.is_trailers() {
 
-                                            trailer_reveived = true;
+                                            trailer_received = true;
 
                                             {
                                                 let mut req_ctx = req_ctx.lock().unwrap();
@@ -586,7 +586,7 @@ pub extern "C" fn yaha_request_begin(
                 }
             }
 
-            if !trailer_reveived {
+            if !trailer_received {
                 let mut req_ctx = req_ctx.lock().unwrap();
                 req_ctx.try_complete();
             }
