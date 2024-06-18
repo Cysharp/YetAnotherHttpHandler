@@ -1,24 +1,32 @@
 use std::{
     cell::RefCell,
+    num::NonZeroIsize,
     ptr::null,
     sync::{Arc, Mutex},
-    time::Duration, num::NonZeroIsize,
+    time::Duration,
 };
 
+use http_body_util::{combinators::BoxBody, BodyExt};
 use hyper::{
-    body::{Bytes, HttpBody},
+    body::{Body, Bytes, Frame},
     http::{HeaderName, HeaderValue},
-    Body, Request, StatusCode, Uri, Version,
+    Request, StatusCode, Uri, Version,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
-use crate::{context::{
-    YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext, YahaNativeRequestContextInternal, YahaNativeRuntimeContext, YahaNativeRuntimeContextInternal
-}, primitives::WriteResult};
 use crate::interop::{ByteBuffer, StringBuffer};
-use crate::primitives::{YahaHttpVersion, CompletionReason};
+use crate::primitives::{CompletionReason, YahaHttpVersion};
+use crate::{
+    context::{
+        YahaNativeContext, YahaNativeContextInternal, YahaNativeRequestContext,
+        YahaNativeRequestContextInternal, YahaNativeRuntimeContext,
+        YahaNativeRuntimeContextInternal,
+    },
+    primitives::WriteResult,
+};
+use futures_util::StreamExt;
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -290,6 +298,18 @@ pub extern "C" fn yaha_client_config_http2_max_send_buf_size(
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_http2_initial_max_send_streams(
+    ctx: *mut YahaNativeContext,
+    initial: usize,
+) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.client_builder
+        .as_mut()
+        .unwrap()
+        .http2_initial_max_send_streams(initial);
+}
+
+#[no_mangle]
 pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.build_client(ctx.skip_certificate_verification.unwrap_or_default());
@@ -425,12 +445,13 @@ pub extern "C" fn yaha_request_begin(
     {
         let mut req_ctx = req_ctx.lock().unwrap();
 
+        let (tx, rx) = futures_channel::mpsc::channel::<Bytes>(0);
+        body = BoxBody::new(http_body_util::StreamBody::new(rx.map(|data| Result::Ok(Frame::data(data)))));
+        
         if req_ctx.has_body {
-            let sender;
-            (sender, body) = Body::channel();
-            req_ctx.sender = Some(sender);
+            req_ctx.sender = Some(tx);
         } else {
-            body = Body::empty();
+            drop(tx); // close
         }
     }
     {
@@ -506,19 +527,45 @@ pub extern "C" fn yaha_request_begin(
             // Read the response body stream.
             let body = res.body_mut();
 
+            let mut trailer_received = false;
+
             while !body.is_end_stream() {
                 select! {
                     _ = cancellation_token.cancelled() => {
                         (ctx.on_complete)(seq, state, CompletionReason::Aborted);
                         return;
                     }
-                    received = body.data() => {
+                    received = body.frame() => {
                         match received {
                             Some(x) => {
                                 match x {
-                                    Ok(y) => {
-                                        //println!("body.data: on_receive {}; is_end_stream={}", y.len(), body.is_end_stream());
-                                        (ctx.on_receive)(seq, state, y.len(), y.as_ptr());
+                                    Ok(frame) => {
+                                        if frame.is_data() {
+                                            let data = frame.into_data().unwrap();
+                                            (ctx.on_receive)(seq, state, data.len(), data.as_ptr());
+                                        } else if frame.is_trailers() {
+
+                                            trailer_received = true;
+
+                                            {
+                                                let mut req_ctx = req_ctx.lock().unwrap();
+                                                req_ctx.try_complete();
+                                            }
+
+                                            let trailers = frame.into_trailers().unwrap();
+                                            let mut req_ctx = req_ctx.lock().unwrap();
+                                            req_ctx.response_trailers = Some(
+                                                trailers
+                                                    .iter()
+                                                    .map(|x| {
+                                                        (
+                                                            x.0.to_string(),
+                                                            x.1.to_str().unwrap_or_default().to_string(),
+                                                        )
+                                                    })
+                                                    .collect::<Vec<(String, String)>>(),
+                                            );
+                                        }
                                     }
                                     Err(err) => {
                                         //println!("body.data: on_complete_error");
@@ -539,39 +586,12 @@ pub extern "C" fn yaha_request_begin(
                 }
             }
 
-            {
+            if !trailer_received {
                 let mut req_ctx = req_ctx.lock().unwrap();
                 req_ctx.try_complete();
             }
 
-            //println!("trailers");
-            select! {
-                _ = cancellation_token.cancelled() => {
-                    (ctx.on_complete)(seq, state, CompletionReason::Aborted);
-                }
-                trailers = res.trailers() => {
-                    match trailers.unwrap_or_default() {
-                        Some(trailers) => {
-                            {
-                                let mut req_ctx = req_ctx.lock().unwrap();
-                                req_ctx.response_trailers = Some(
-                                    trailers
-                                        .iter()
-                                        .map(|x| {
-                                            (
-                                                x.0.to_string(),
-                                                x.1.to_str().unwrap_or_default().to_string(),
-                                            )
-                                        })
-                                        .collect::<Vec<(String, String)>>(),
-                                );
-                            }
-                            (ctx.on_complete)(seq, state, CompletionReason::Success);
-                        }
-                        None => (ctx.on_complete)(seq, state, CompletionReason::Success),
-                    }
-                }
-            }
+            (ctx.on_complete)(seq, state, CompletionReason::Success);
 
             {
                 let mut req_ctx = req_ctx.lock().unwrap();
@@ -604,7 +624,7 @@ pub extern "C" fn yaha_request_write_body(
 
     match req_ctx.sender.as_mut() {
         Some(sender) => {
-            let result = sender.try_send_data(Bytes::copy_from_slice(slice));
+            let result = sender.try_send(Bytes::copy_from_slice(slice));
             match result {
                 Ok(_) => WriteResult::Success,
                 Err(_) => WriteResult::Full,

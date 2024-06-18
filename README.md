@@ -224,8 +224,9 @@ Once the handler sends a request, these settings become immutable and cannot be 
 |Http2KeepAliveWhileIdle|Gets or sets whether HTTP2 keep-alive should apply while the connection is idle. If disabled, keep-alive pings are only sent while there are open request/responses streams. If enabled, pings are also sent when no streams are active. Does nothing if http2_keep_alive_interval is disabled. Default is false.|
 |Http2MaxConcurrentResetStreams|Gets or sets the maximum number of HTTP2 concurrent locally reset streams. See the documentation of h2::client::Builder::max_concurrent_reset_streams for more details. The default value is determined by the h2 crate.|
 |Http2MaxSendBufferSize|Gets or sets the maximum write buffer size for each HTTP/2 stream. Default is currently 1MB, but may change.|
+|Http2InitialMaxSendStreams|Gets or sets the initial maximum of locally initiated (send) streams. This value will be overwritten by the value included in the initial SETTINGS frame received from the peer as part of a connection preface.|
 
-Most of them expose [hyper client settings](https://docs.rs/hyper/latest/hyper/client/struct.Builder.html), so please check those as well.
+Most of them expose [hyper client settings](https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html), so please check those as well.
 
 ## Advanced
 ### Using HTTP/2 over cleartext (h2c)

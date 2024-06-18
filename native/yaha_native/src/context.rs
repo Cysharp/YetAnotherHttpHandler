@@ -1,14 +1,25 @@
-use std::{sync::{Arc, Mutex}, num::NonZeroIsize};
+use std::{
+    num::NonZeroIsize,
+    sync::{Arc, Mutex},
+};
+use futures_channel::mpsc::Sender;
+use http_body_util::combinators::BoxBody;
 use tokio::runtime::{Handle, Runtime};
 
 use hyper::{
-    body::Sender,
-    client::{self, HttpConnector},
-    Client, StatusCode,
+    body::Bytes,
+    StatusCode,
 };
 
+use hyper_util::{
+    client::{self, legacy::connect::HttpConnector, legacy::Client},
+    rt::TokioExecutor,
+};
+
+use hyper_rustls::ConfigBuilderExt;
+
 #[cfg(feature = "rustls")]
-use hyper_rustls::{ConfigBuilderExt, HttpsConnector};
+use hyper_rustls::HttpsConnector;
 #[cfg(feature = "native")]
 use hyper_tls::HttpsConnector;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
@@ -40,12 +51,12 @@ impl YahaNativeRuntimeContextInternal {
 pub struct YahaNativeContext;
 pub struct YahaNativeContextInternal<'a> {
     pub runtime: tokio::runtime::Handle,
-    pub client_builder: Option<client::Builder>,
+    pub client_builder: Option<client::legacy::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
     pub client_auth_certificates: Option<Vec<CertificateDer<'a>>>,
     pub client_auth_key: Option<PrivateKeyDer<'a>>,
-    pub client: Option<Client<HttpsConnector<HttpConnector>, hyper::Body>>,
+    pub client: Option<Client<HttpsConnector<HttpConnector>, BoxBody<Bytes, hyper::Error>>>,
     pub on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
     pub on_receive: OnReceive,
     pub on_complete: OnComplete,
@@ -65,7 +76,7 @@ impl YahaNativeContextInternal<'_> {
         YahaNativeContextInternal {
             runtime: runtime_handle,
             client: None,
-            client_builder: Some(Client::builder()),
+            client_builder: Some(Client::builder(TokioExecutor::new())),
             skip_certificate_verification: None,
             root_certificates: None,
             client_auth_certificates: None,
@@ -208,7 +219,7 @@ pub struct YahaNativeRequestContext;
 pub struct YahaNativeRequestContextInternal {
     pub seq: i32,
     pub builder: Option<hyper::http::request::Builder>,
-    pub sender: Option<Sender>,
+    pub sender: Option<Sender<Bytes>>,
     pub has_body: bool,
     pub completed: bool,
     pub cancellation_token: CancellationToken,
