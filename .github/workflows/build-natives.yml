@@ -120,7 +120,7 @@ jobs:
   build-osx-x64:
     name: Build Native library (osx-x64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest
+    runs-on: macos-13 # Intel
     timeout-minutes: 30
     defaults:
       run:
@@ -140,7 +140,7 @@ jobs:
   build-osx-arm64:
     name: Build Native library (osx-arm64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest
+    runs-on: macos-latest # Apple Silicon
     timeout-minutes: 30
     defaults:
       run:
@@ -154,6 +154,7 @@ jobs:
           name: osx-arm64
           path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
           retention-days: 1
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-ios-x64:
     name: Build Native library (ios-x64)
