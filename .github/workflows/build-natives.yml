@@ -120,7 +120,7 @@ jobs:
   build-osx-x64:
     name: Build Native library (osx-x64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest
+    runs-on: macos-13 # Intel
     timeout-minutes: 30
     defaults:
       run:
@@ -128,6 +128,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - run: rustup target add x86_64-apple-darwin
       - run: cargo build --target x86_64-apple-darwin --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
@@ -139,7 +140,7 @@ jobs:
   build-osx-arm64:
     name: Build Native library (osx-arm64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest
+    runs-on: macos-latest # Apple Silicon
     timeout-minutes: 30
     defaults:
       run:
@@ -153,6 +154,7 @@ jobs:
           name: osx-arm64
           path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
           retention-days: 1
+      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-ios-x64:
     name: Build Native library (ios-x64)
