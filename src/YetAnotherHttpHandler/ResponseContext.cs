@@ -155,7 +155,7 @@ namespace Cysharp.Net.Http
             }
             catch (Exception e)
             {
-                throw new HttpRequestException(e.Message);
+                throw new HttpRequestException(e.Message, e);
             }
         }
     }
