@@ -6,6 +6,34 @@ using System.Text;
 
 namespace Cysharp.Net.Http
 {
+#if UNITY_2021_1_OR_NEWER
+    internal class YahaEventSource
+    {
+        public bool IsEnabled() => false;
+
+        public static YahaEventSource Log { get; } = new();
+
+        public void Trace(string message)
+        {
+            UnityEngine.Debug.Log(message);
+        }
+
+        public void Info(string message)
+        {
+            UnityEngine.Debug.Log(message);
+        }
+
+        public void Warning(string message)
+        {
+            UnityEngine.Debug.LogWarning(message);
+        }
+
+        public void Error(string message)
+        {
+            UnityEngine.Debug.LogError(message);
+        }
+    }
+#else
     [EventSource(Name = "Cysharp.Net.Http.YetAnotherHttpHandler")]
     internal class YahaEventSource : EventSource
     {
@@ -14,7 +42,7 @@ namespace Cysharp.Net.Http
         public const int EventIdWarning = 30;
         public const int EventIdError = 40;
 
-        public static YahaEventSource Log { get; } = new YahaEventSource();
+        public static YahaEventSource Log { get; } = new();
 
         [Event(EventIdTrace, Level = EventLevel.Verbose, Message = "{0}")]
         public void Trace(string message)
@@ -44,4 +72,5 @@ namespace Cysharp.Net.Http
             WriteEvent(EventIdError, message);
         }
     }
+#endif
 }

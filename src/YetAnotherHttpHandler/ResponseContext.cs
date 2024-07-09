@@ -133,7 +133,7 @@ namespace Cysharp.Net.Http
                 {
                     throw ex;
                 }
-                catch (IOException e)
+                catch (Exception e)
                 {
                     ex = e;
                 }
