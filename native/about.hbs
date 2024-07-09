@@ -1,0 +1,16 @@
+This library depends on following third-party components.
+
+Overview of included licences:
+{{#each overview}}
+- {{{name}}}
+{{/each}}
+{{#each licenses}}
+
+--------------------------------------------------------------------------------
+{{#each used_by}}
+{{{crate.name}}} {{{crate.version}}}
+{{#if crate.repository}}{{{crate.repository}}}{{else}}https://crates.io/crates/{{{crate.name}}}{{/if}}
+{{/each}}
+
+{{{text}}}
+{{/each}}
