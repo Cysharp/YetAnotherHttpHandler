@@ -1,0 +1,16 @@
+accepted = [
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "OpenSSL",
+    "Unicode-DFS-2016",
+]
+
+workarounds = [
+    "ring"
+]
+
+[ring.clarify]
+license = "ISC AND MIT AND OpenSSL"
