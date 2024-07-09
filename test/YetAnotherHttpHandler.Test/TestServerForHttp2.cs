@@ -26,7 +26,10 @@ class TestServerForHttp2 : ITestServerBuilder
         {
             httpContext.Response.Headers["x-request-content-type"] = httpContext.Request.ContentType;
 
-            return Results.Bytes(await bodyStream.ToArrayAsync(), "application/octet-stream");
+            var memStream = new MemoryStream();
+            await bodyStream.CopyToAsync(memStream);
+
+            return Results.Bytes(memStream.ToArray(), "application/octet-stream");
         });
         app.MapPost("/post-streaming", async (HttpContext httpContext, PipeReader reader) =>
         {
@@ -154,6 +157,12 @@ class TestServerForHttp2 : ITestServerBuilder
                     return;
                 }
             }
+        }
+
+        public override async Task<ResetReply> ResetByServer(ResetRequest request, ServerCallContext context)
+        {
+            context.GetHttpContext().Features.GetRequiredFeature<IHttpResetFeature>().Reset(errorCode: request.ErrorCode); 
+            return new ResetReply {  };
         }
 
         public override async Task EchoDuplex(IAsyncStreamReader<EchoRequest> requestStream, IServerStreamWriter<EchoReply> responseStream, ServerCallContext context)

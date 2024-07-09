@@ -1,9 +1,5 @@
 use std::{
-    cell::RefCell,
-    num::NonZeroIsize,
-    ptr::null,
-    sync::{Arc, Mutex},
-    time::Duration,
+    cell::RefCell, error::Error, num::NonZeroIsize, ptr::null, sync::{Arc, Mutex}, time::Duration
 };
 
 use http_body_util::{combinators::BoxBody, BodyExt};
@@ -70,7 +66,7 @@ pub extern "C" fn yaha_init_context(
         version: YahaHttpVersion,
     ),
     on_receive: extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8),
-    on_complete: extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason),
+    on_complete: extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason, h2_error_code: u32),
 ) -> *mut YahaNativeContext {
     let runtime_ctx = YahaNativeRuntimeContextInternal::from_raw_context(runtime_ctx);
     let ctx = Box::new(YahaNativeContextInternal::new(
@@ -89,7 +85,7 @@ pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
     ctx.on_receive = _sentinel_on_receive;
     ctx.on_status_code_and_headers_receive = _sentinel_on_status_code_and_headers_receive;
 }
-extern "C" fn _sentinel_on_complete(_: i32, _: NonZeroIsize, _: CompletionReason) { panic!("The context has already disposed: on_complete"); }
+extern "C" fn _sentinel_on_complete(_: i32, _: NonZeroIsize, _: CompletionReason, _: u32) { panic!("The context has already disposed: on_complete"); }
 extern "C" fn _sentinel_on_receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8) { panic!("The context has already disposed: on_receive"); }
 extern "C" fn _sentinel_on_status_code_and_headers_receive(_: i32, _: NonZeroIsize, _: i32, _: YahaHttpVersion) { panic!("The context has already disposed: on_status_code_and_headers_receive"); }
 
@@ -476,14 +472,14 @@ pub extern "C" fn yaha_request_begin(
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
                 });
-                (ctx.on_complete)(seq, state, CompletionReason::Error);
+                (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
                 return;
             }
 
             // Send a request and wait for response status and headers.
             let res = select! {
                 _ = cancellation_token.cancelled() => {
-                    (ctx.on_complete)(seq, state, CompletionReason::Aborted);
+                    (ctx.on_complete)(seq, state, CompletionReason::Aborted, 0);
                     return;
                 }
                 res = ctx.client.as_ref().unwrap().request(req) => {
@@ -491,7 +487,26 @@ pub extern "C" fn yaha_request_begin(
                         LAST_ERROR.with(|v| {
                             *v.borrow_mut() = Some(err.to_string());
                         });
-                        (ctx.on_complete)(seq, state, CompletionReason::Error);
+
+                        // If the inner error is `hyper::Error`, use its error message instead.
+                        let error_inner = err.source()
+                            .and_then(|e| e.downcast_ref::<hyper::Error>());
+
+                        if let Some(err) = error_inner {
+                            LAST_ERROR.with(|v| {
+                                *v.borrow_mut() = Some(err.to_string());
+                            });
+                        }
+
+                        // If the `hyper::Error` has `h2::Error` as inner error, the error has HTTP/2 error code.
+                        let reason = error_inner
+                            .and_then(|e| e.source())
+                            .and_then(|e| e.downcast_ref::<h2::Error>())
+                            .and_then(|e| e.reason());
+
+                        let rc = reason.map(|r| u32::from(r));
+
+                        (ctx.on_complete)(seq, state, CompletionReason::Error, rc.unwrap_or_default());
                         return;
                     } else {
                         res
@@ -532,7 +547,7 @@ pub extern "C" fn yaha_request_begin(
             while !body.is_end_stream() {
                 select! {
                     _ = cancellation_token.cancelled() => {
-                        (ctx.on_complete)(seq, state, CompletionReason::Aborted);
+                        (ctx.on_complete)(seq, state, CompletionReason::Aborted, 0);
                         return;
                     }
                     received = body.frame() => {
@@ -572,7 +587,15 @@ pub extern "C" fn yaha_request_begin(
                                         LAST_ERROR.with(|v| {
                                             *v.borrow_mut() = Some(err.to_string());
                                         });
-                                        (ctx.on_complete)(seq, state, CompletionReason::Error);
+
+                                        // If the `hyper::Error` has `h2::Error` as inner error, the error has HTTP/2 error code.
+                                        let reason = err.source()
+                                            .and_then(|e| e.downcast_ref::<h2::Error>())
+                                            .and_then(|e| e.reason());
+
+                                        let rc = reason.map(|r| u32::from(r));
+
+                                        (ctx.on_complete)(seq, state, CompletionReason::Error, rc.unwrap_or_default());
                                         return;
                                     }
                                 }
@@ -591,7 +614,7 @@ pub extern "C" fn yaha_request_begin(
                 req_ctx.try_complete();
             }
 
-            (ctx.on_complete)(seq, state, CompletionReason::Success);
+            (ctx.on_complete)(seq, state, CompletionReason::Success, 0);
 
             {
                 let mut req_ctx = req_ctx.lock().unwrap();
