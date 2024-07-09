@@ -11,6 +11,7 @@ service Greeter {
   rpc SayHelloDuplex (stream HelloRequest) returns (stream HelloReply);
   rpc SayHelloDuplexCompleteRandomly (stream HelloRequest) returns (stream HelloReply);
   rpc SayHelloDuplexAbortRandomly (stream HelloRequest) returns (stream HelloReply);
+  rpc ResetByServer (ResetRequest) returns (ResetReply);
   rpc EchoDuplex (stream EchoRequest) returns (stream EchoReply);
 }
 
@@ -30,4 +31,11 @@ message EchoRequest {
 
 message EchoReply {
   string message = 1;
+}
+
+message ResetRequest {
+  int32 errorCode = 1;
+}
+
+message ResetReply {
 }

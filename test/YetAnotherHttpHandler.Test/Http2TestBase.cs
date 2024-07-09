@@ -535,6 +535,39 @@ public abstract class Http2TestBase : UseTestServerTestBase
         }
     }
 
+    [ConditionalFact]
+    public async Task Grpc_Error_Status_ErrorCode()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await client.ResetByServerAsync(new ResetRequest { ErrorCode = 0x8 /* CANCELED */ }, deadline: DateTime.UtcNow.AddSeconds(5)));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_Status_Unavailable_By_IOException()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress("http://server.does.not.exists", new GrpcChannelOptions() { HttpHandler = httpHandler }));
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloAsync(new HelloRequest() { Name = "Alice" }, deadline: DateTime.UtcNow.AddSeconds(5)));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.Unavailable, ((RpcException)ex).StatusCode);
+    }
+
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.
     class DuplexStreamContent : HttpContent
     {

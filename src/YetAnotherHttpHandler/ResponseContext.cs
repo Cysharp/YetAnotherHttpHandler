@@ -110,13 +110,22 @@ namespace Cysharp.Net.Http
             }
         }
 
-        public void CompleteAsFailed(string errorMessage)
+        public void CompleteAsFailed(string errorMessage, uint h2ErrorCode)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed with failure ({errorMessage})");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed with failure ({errorMessage}) (0x{h2ErrorCode:x})");
 
             lock (_writeLock)
             {
-                var ex = new IOException(errorMessage);
+                Exception ex = new IOException(errorMessage);
+                if (h2ErrorCode != 0)
+                {
+#if NET7_0_OR_GREATER
+                    ex = new HttpProtocolException(h2ErrorCode, $"The HTTP/2 server reset the stream. HTTP/2 error code (0x{h2ErrorCode:x}).", ex);
+#else
+                    ex = new Http2StreamException($"The HTTP/2 server reset the stream. HTTP/2 error code (0x{h2ErrorCode:x}).", ex);
+#endif
+                }
+
 #if NET5_0_OR_GREATER
                 ExceptionDispatchInfo.SetCurrentStackTrace(ex);
 #else
@@ -124,7 +133,7 @@ namespace Cysharp.Net.Http
                 {
                     throw ex;
                 }
-                catch (IOException e)
+                catch (Exception e)
                 {
                     ex = e;
                 }

@@ -402,9 +402,9 @@ namespace Cysharp.Net.Http
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
 #endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
-        private static unsafe void OnComplete(int reqSeq, IntPtr state, CompletionReason reason)
+        private static unsafe void OnComplete(int reqSeq, IntPtr state, CompletionReason reason, uint h2ErrorCode)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response completed: Reason={reason}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response completed: Reason={reason}; H2ErrorCode=0x{h2ErrorCode:x}");
 
             var requestContext = RequestContext.FromHandle(state);
             try
@@ -459,7 +459,7 @@ namespace Cysharp.Net.Http
                     var buf = NativeMethods.yaha_get_last_error();
                     try
                     {
-                        requestContext.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()));
+                        requestContext.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()), h2ErrorCode);
                     }
                     catch
                     {
@@ -468,7 +468,7 @@ namespace Cysharp.Net.Http
                 }
                 else
                 {
-                    requestContext.CompleteAsFailed("Canceled");
+                    requestContext.CompleteAsFailed("Canceled", 0);
                 }
             }
             finally
