@@ -64,7 +64,7 @@ public class StressTest : UseTestServerTestBase
 
         var requestStringSuffix = CreateRandomString(1024 * 32 /* UTF-8 = 32KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -122,7 +122,7 @@ public class StressTest : UseTestServerTestBase
 
         var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -183,7 +183,7 @@ public class StressTest : UseTestServerTestBase
 
         var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -251,7 +251,7 @@ public class StressTest : UseTestServerTestBase
         var hash = SHA1.HashData(Encoding.UTF8.GetBytes(data));
 
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act

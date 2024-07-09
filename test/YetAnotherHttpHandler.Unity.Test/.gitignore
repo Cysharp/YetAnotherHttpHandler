@@ -1,0 +1,8 @@
+*.sln
+*.csproj
+Temp/*
+Library/*
+Logs/*
+Build/*
+UserSettings/*
+!Packages/*

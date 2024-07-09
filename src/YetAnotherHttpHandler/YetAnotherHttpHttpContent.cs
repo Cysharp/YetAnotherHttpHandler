@@ -28,8 +28,22 @@ namespace Cysharp.Net.Http
         protected async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
 #endif
         {
+#if UNITY_2021_1_OR_NEWER
+            // NOTE: Unity's Mono has older implementations of HttpClient and HttpContent.
+            //       We need to wrap exceptions in HttpRequestException to align to the behavior of the .NET runtime.
+            try
+            {
+                await _pipeReader.CopyToAsync(stream, cancellationToken).ConfigureAwait(false);
+                await _pipeReader.CompleteAsync().ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is IOException or ObjectDisposedException)
+            {
+                throw new HttpRequestException("Error while copying content to a stream.", e);
+            }
+#else
             await _pipeReader.CopyToAsync(stream, cancellationToken).ConfigureAwait(false);
             await _pipeReader.CompleteAsync().ConfigureAwait(false);
+#endif
         }
 
         protected override Task<Stream> CreateContentReadStreamAsync()

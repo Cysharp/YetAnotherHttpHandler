@@ -1,0 +1,26 @@
+{
+    "name": "Tests",
+    "rootNamespace": "",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Cysharp.Net.Http.YetAnotherHttpHandler"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Google.Protobuf.dll",
+        "Grpc.Core.Api.dll",
+        "Grpc.Net.Client.dll",
+        "System.IO.Pipelines.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
