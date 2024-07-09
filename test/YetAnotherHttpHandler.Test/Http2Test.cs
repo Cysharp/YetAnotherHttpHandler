@@ -46,7 +46,7 @@ public class Http2Test : Http2TestBase
     public async Task SelfSignedCertificate_NotTrusted()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
         var httpClient = new HttpClient(httpHandler);
 
@@ -62,7 +62,7 @@ public class Http2Test : Http2TestBase
     public async Task SelfSignedCertificate_NotTrusted_SkipValidation()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = true };
         var httpClient = new HttpClient(httpHandler);
 
@@ -79,7 +79,7 @@ public class Http2Test : Http2TestBase
     public async Task SelfSignedCertificate_Trusted_CustomRootCA()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp2>();
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
         var httpHandler = new YetAnotherHttpHandler()
         {
             // We need to verify server certificate.

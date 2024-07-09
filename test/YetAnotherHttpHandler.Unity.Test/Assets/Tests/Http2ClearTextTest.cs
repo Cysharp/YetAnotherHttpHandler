@@ -1,26 +1,22 @@
-using Microsoft.AspNetCore.Builder;
-using System.IO.Pipelines;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Net.Http.Headers;
+
+using ConditionalFact = NUnit.Framework.TestAttribute;
 using Grpc.Core;
+using System.IO;
+using System.IO.Pipelines;
+using System.Linq;
 using Grpc.Net.Client;
 using TestWebApp;
-using Xunit.Abstractions;
 
-namespace _YetAnotherHttpHandler.Test;
-
-public abstract class Http2TestBase : UseTestServerTestBase
+public class Http2ClearTextTest : YahaUnityTestBase
 {
-    protected Http2TestBase(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
-    protected abstract HttpMessageHandler CreateHandler();
-    protected abstract Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder;
-
-    protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
-        => LaunchServerAsyncCore<T>(configure);
-
     [ConditionalFact]
     public async Task Get_Ok()
     {
@@ -34,7 +30,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         {
             Version = HttpVersion.Version20,
         };
-        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var response = await httpClient.SendAsync(request);//.WaitAsync(TimeoutToken);
         var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
 
         // Assert
@@ -117,33 +113,6 @@ public abstract class Http2TestBase : UseTestServerTestBase
         Assert.Equal("foo", response.Headers.TryGetValues("x-header-1", out var values) ? string.Join(',', values) : null);
         Assert.False(responseBodyTask.IsCompleted);
     }
-    
-    // NOTE: SocketHttpHandler waits for the completion of sending the request body before the response headers.
-    //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/SocketsHttpHandler/Http2Connection.cs#L1980-L1988
-    //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/HttpContent.cs#L343-L349
-    //[ConditionalFact]
-    //public async Task Post_NotDuplex_DoNot_Receive_ResponseHeaders_Before_RequestBodyCompleted()
-    //{
-    //    // Arrange
-    //    using var httpHandler = CreateHandler();
-    //    var httpClient = new HttpClient(httpHandler);
-    //    await using var server = await LaunchAsync<TestServerForHttp1AndHttp2>();
-    //
-    //    // Act
-    //    var pipe = new Pipe();
-    //    var content = new StreamContent(pipe.Reader.AsStream());
-    //    content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
-    //    var request = new HttpRequestMessage(HttpMethod.Post, $"{server.BaseUri}/post-response-headers-immediately")
-    //    {
-    //        Version = HttpVersion.Version20,
-    //        Content = content,
-    //    };
-    //    var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-    //    var ex = await Assert.ThrowsAsync<TaskCanceledException>(async () => await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(timeout.Token));
-    //
-    //    // Assert
-    //    Assert.Equal(timeout.Token, ex.CancellationToken);
-    //}
 
     [ConditionalFact]
     public async Task Post_NotDuplex_Body_StreamingBody()
@@ -362,7 +331,6 @@ public abstract class Http2TestBase : UseTestServerTestBase
         //TestOutputHelper.WriteLine(ex?.ToString());
 
         // Assert
-        Assert.NotNull(ex);
         Assert.IsAssignableFrom<HttpRequestException>(ex);
         Assert.IsAssignableFrom<IOException>(ex.InnerException);
     }
@@ -421,7 +389,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
 
         // Act
-        var request = client.SayHelloDuplex(deadline:  DateTime.UtcNow.AddSeconds(10));
+        var request = client.SayHelloDuplex(deadline: DateTime.UtcNow.AddSeconds(10));
         var responses = new List<string>();
         var readTask = Task.Run(async () =>
         {
@@ -443,8 +411,8 @@ public abstract class Http2TestBase : UseTestServerTestBase
         await readTask.WaitAsync(TimeoutToken);
 
         // Assert
-        Assert.Equal(new [] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responsesBeforeCompleted);
-        Assert.Equal(new [] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responses);
+        Assert.Equal(new[] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responsesBeforeCompleted);
+        Assert.Equal(new[] { "Hello User-0", "Hello User-1", "Hello User-2", "Hello User-3", "Hello User-4" }, responses);
     }
 
 

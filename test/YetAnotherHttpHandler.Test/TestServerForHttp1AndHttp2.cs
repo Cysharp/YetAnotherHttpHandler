@@ -9,12 +9,13 @@ using TestWebApp;
 
 namespace _YetAnotherHttpHandler.Test;
 
-class TestServerForHttp2 : ITestServerBuilder
+class TestServerForHttp1AndHttp2 : ITestServerBuilder
 {
     public static WebApplication BuildApplication(WebApplicationBuilder builder)
     {
         var app = builder.Build();
 
+        // HTTP/1 and HTTP/2
         app.MapGet("/", () => Results.Content("__OK__"));
         app.MapGet("/not-found", () => Results.Content("__Not_Found__", statusCode: 404));
         app.MapGet("/response-headers", (HttpContext httpContext) =>
@@ -22,14 +23,23 @@ class TestServerForHttp2 : ITestServerBuilder
             httpContext.Response.Headers["x-test"] = "foo";
             return Results.Content("__OK__");
         });
+        app.MapGet("/ハロー", () => Results.Content("Konnichiwa"));
+        app.MapPost("/slow-upload", async (HttpContext ctx, PipeReader reader) =>
+        {
+            while (true)
+            {
+                await Task.Delay(1000);
+                var readResult = await reader.ReadAsync();
+                reader.AdvanceTo(readResult.Buffer.End);
+                if (readResult.IsCompleted || readResult.IsCanceled) break;
+            }
+            return Results.Content("OK");
+        });
         app.MapPost("/post-echo", async (HttpContext httpContext, Stream bodyStream) =>
         {
             httpContext.Response.Headers["x-request-content-type"] = httpContext.Request.ContentType;
 
-            var memStream = new MemoryStream();
-            await bodyStream.CopyToAsync(memStream);
-
-            return Results.Bytes(memStream.ToArray(), "application/octet-stream");
+            return Results.Bytes(await bodyStream.ToArrayAsync(), "application/octet-stream");
         });
         app.MapPost("/post-streaming", async (HttpContext httpContext, PipeReader reader) =>
         {
@@ -161,8 +171,8 @@ class TestServerForHttp2 : ITestServerBuilder
 
         public override async Task<ResetReply> ResetByServer(ResetRequest request, ServerCallContext context)
         {
-            context.GetHttpContext().Features.GetRequiredFeature<IHttpResetFeature>().Reset(errorCode: request.ErrorCode); 
-            return new ResetReply {  };
+            context.GetHttpContext().Features.GetRequiredFeature<IHttpResetFeature>().Reset(errorCode: request.ErrorCode);
+            return new ResetReply { };
         }
 
         public override async Task EchoDuplex(IAsyncStreamReader<EchoRequest> requestStream, IServerStreamWriter<EchoReply> responseStream, ServerCallContext context)
