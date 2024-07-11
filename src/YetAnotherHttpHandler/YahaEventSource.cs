@@ -9,7 +9,12 @@ namespace Cysharp.Net.Http
 #if UNITY_2021_1_OR_NEWER
     internal class YahaEventSource
     {
-        public bool IsEnabled() => false;
+        public bool IsEnabled()
+#if YAHA_ENABLE_DEBUG_TRACING
+            => true;
+#else
+            => false;
+#endif
 
         public static YahaEventSource Log { get; } = new();
 
