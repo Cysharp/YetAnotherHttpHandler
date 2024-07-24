@@ -136,6 +136,18 @@ class TestServerForHttp1AndHttp2 : ITestServerBuilder
             return new HelloReply { Message = $"Hello {request.Name}" };
         }
 
+        public override async Task<HelloReply> SayHelloSlow(HelloRequest request, ServerCallContext context)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30));
+            return new HelloReply { Message = $"Hello {request.Name}" };
+        }
+
+        public override async Task<HelloReply> SayHelloNever(HelloRequest request, ServerCallContext context)
+        {
+            await Task.Delay(-1);
+            throw new NotImplementedException();
+        }
+
         public override async Task SayHelloDuplex(IAsyncStreamReader<HelloRequest> requestStream, IServerStreamWriter<HelloReply> responseStream, ServerCallContext context)
         {
             await foreach (var request in requestStream.ReadAllAsync(context.CancellationToken))

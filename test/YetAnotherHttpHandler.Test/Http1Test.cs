@@ -118,12 +118,28 @@ public class Http1Test : UseTestServerTestBase
 
         // Assert
         Assert.NotNull(ex);
-#if UNITY_2021_1_OR_NEWER
-        Assert.IsAssignableFrom<HttpRequestException>(ex);
-        Assert.IsAssignableFrom<OperationCanceledException>(ex.InnerException);
-#else
-        // NOTE: .NET HttpClient throws HttpRequestException with OperationCanceledException if it contains an OperationCanceledException
+        // NOTE: .NET's HttpClient will unwrap OperationCanceledException if an HttpRequestException containing OperationCanceledException is thrown.
         Assert.IsAssignableFrom<OperationCanceledException>(ex);
-#endif
+    }
+
+    [Fact]
+    public async Task Post_Timeout()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        var httpClient = new HttpClient(httpHandler) { Timeout = TimeSpan.FromSeconds(2) };
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        var pipe = new Pipe();
+        var content = new StreamContent(pipe.Reader.AsStream());
+        var cts = new CancellationTokenSource();
+
+        // Act
+        var responseTask = httpClient.PostAsync($"{server.BaseUri}/slow-upload", content);
+        var ex = await Record.ExceptionAsync(async () => await responseTask);
+
+        // Assert
+        Assert.NotNull(ex);
+        // NOTE: .NET's HttpClient will unwrap OperationCanceledException if an HttpRequestException containing OperationCanceledException is thrown.
+        Assert.IsAssignableFrom<OperationCanceledException>(ex);
     }
 }

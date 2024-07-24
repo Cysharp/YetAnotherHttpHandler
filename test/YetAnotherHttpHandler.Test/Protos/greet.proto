@@ -8,6 +8,8 @@ package greet;
 service Greeter {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc SayHelloSlow (HelloRequest) returns (HelloReply);
+  rpc SayHelloNever (HelloRequest) returns (HelloReply);
   rpc SayHelloDuplex (stream HelloRequest) returns (stream HelloReply);
   rpc SayHelloDuplexCompleteRandomly (stream HelloRequest) returns (stream HelloReply);
   rpc SayHelloDuplexAbortRandomly (stream HelloRequest) returns (stream HelloReply);

@@ -32,7 +32,7 @@ internal static class Assert
 
     public static T IsType<T>(object actual)
     {
-        NUnit.Framework.Assert.True(actual.GetType() == typeof(T));
+        NUnit.Framework.Assert.True(actual.GetType() == typeof(T), $"Expected: {typeof(T)}\nActual: {actual.GetType()}");
         return (T)actual;
     }
 }
