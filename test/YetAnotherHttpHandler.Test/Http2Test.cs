@@ -14,7 +14,7 @@ public class Http2Test : Http2TestBase
     {
     }
 
-    protected override HttpMessageHandler CreateHandler()
+    protected override YetAnotherHttpHandler CreateHandler()
     {
         // Use self-signed certificate for testing purpose.
         return new YetAnotherHttpHandler()

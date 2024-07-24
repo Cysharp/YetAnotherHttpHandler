@@ -12,8 +12,8 @@ use hyper::{
 };
 
 use hyper_util::{
-    client::{self, legacy::connect::HttpConnector, legacy::Client},
-    rt::TokioExecutor,
+    client::{self, legacy::{connect::HttpConnector, Client}},
+    rt::{TokioExecutor, TokioTimer},
 };
 
 use hyper_rustls::ConfigBuilderExt;
@@ -88,9 +88,9 @@ impl YahaNativeContextInternal<'_> {
     }
 
     pub fn build_client(&mut self, skip_verify_certificates: bool) {
-        let builder = self.client_builder.take().unwrap();
+        let mut builder = self.client_builder.take().unwrap();
         let https = self.new_connector(skip_verify_certificates);
-        self.client = Some(builder.build(https));
+        self.client = Some(builder.timer(TokioTimer::new()).build(https));
     }
 
     #[cfg(feature = "rustls")]
