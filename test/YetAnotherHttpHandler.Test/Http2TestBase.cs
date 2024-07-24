@@ -298,12 +298,9 @@ public abstract class Http2TestBase : UseTestServerTestBase
         var ex = await Record.ExceptionAsync(async () => await httpClient.SendAsync(request, cts.Token).WaitAsync(TimeoutToken));
 
         // Assert
-#if UNITY_2021_1_OR_NEWER
-        Assert.IsAssignableFrom<HttpRequestException>(ex);
-        Assert.IsAssignableFrom<OperationCanceledException>(ex.InnerException);
-#else
-        // NOTE: .NET HttpClient throws HttpRequestException with OperationCanceledException if it contains an OperationCanceledException
+        // NOTE: .NET's HttpClient will unwrap OperationCanceledException if an HttpRequestException containing OperationCanceledException is thrown.
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
+#if !UNITY_2021_1_OR_NEWER
         // NOTE: Unity's Mono HttpClient internally creates a new CancellationTokenSource.
         Assert.Equal(cts.Token, operationCanceledException.CancellationToken);
 #endif
@@ -578,6 +575,59 @@ public abstract class Http2TestBase : UseTestServerTestBase
         // Assert
         Assert.IsType<RpcException>(ex);
         Assert.Equal(StatusCode.Unavailable, ((RpcException)ex).StatusCode);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_TimedOut_With_HttpClientTimeout()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler) { Timeout = TimeSpan.FromSeconds(3) };
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloNeverAsync(new HelloRequest() { Name = "Alice" }));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
+        Assert.IsType<TaskCanceledException>(((RpcException)ex).Status.DebugException);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_TimedOut_With_Deadline()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloNeverAsync(new HelloRequest() { Name = "Alice" }, deadline: DateTime.UtcNow.AddSeconds(3)));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.DeadlineExceeded, ((RpcException)ex).StatusCode);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_TimedOut_With_CancellationToken()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
+
+        // Act
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloNeverAsync(new HelloRequest() { Name = "Alice" }, cancellationToken: cts.Token));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
     }
 
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.

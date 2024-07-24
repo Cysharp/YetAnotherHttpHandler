@@ -30,7 +30,7 @@ public class Http2ClearTextTest : YahaUnityTestBase
         {
             Version = HttpVersion.Version20,
         };
-        var response = await httpClient.SendAsync(request);//.WaitAsync(TimeoutToken);
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
         var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
 
         // Assert
@@ -113,6 +113,33 @@ public class Http2ClearTextTest : YahaUnityTestBase
         Assert.Equal("foo", response.Headers.TryGetValues("x-header-1", out var values) ? string.Join(',', values) : null);
         Assert.False(responseBodyTask.IsCompleted);
     }
+
+    // NOTE: SocketHttpHandler waits for the completion of sending the request body before the response headers.
+    //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/SocketsHttpHandler/Http2Connection.cs#L1980-L1988
+    //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/HttpContent.cs#L343-L349
+    //[ConditionalFact]
+    //public async Task Post_NotDuplex_DoNot_Receive_ResponseHeaders_Before_RequestBodyCompleted()
+    //{
+    //    // Arrange
+    //    using var httpHandler = CreateHandler();
+    //    var httpClient = new HttpClient(httpHandler);
+    //    await using var server = await LaunchAsync<TestServerForHttp1AndHttp2>();
+    //
+    //    // Act
+    //    var pipe = new Pipe();
+    //    var content = new StreamContent(pipe.Reader.AsStream());
+    //    content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+    //    var request = new HttpRequestMessage(HttpMethod.Post, $"{server.BaseUri}/post-response-headers-immediately")
+    //    {
+    //        Version = HttpVersion.Version20,
+    //        Content = content,
+    //    };
+    //    var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+    //    var ex = await Assert.ThrowsAsync<TaskCanceledException>(async () => await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(timeout.Token));
+    //
+    //    // Assert
+    //    Assert.Equal(timeout.Token, ex.CancellationToken);
+    //}
 
     [ConditionalFact]
     public async Task Post_NotDuplex_Body_StreamingBody()
@@ -267,12 +294,9 @@ public class Http2ClearTextTest : YahaUnityTestBase
         var ex = await Record.ExceptionAsync(async () => await httpClient.SendAsync(request, cts.Token).WaitAsync(TimeoutToken));
 
         // Assert
-#if UNITY_2021_1_OR_NEWER
-        Assert.IsAssignableFrom<HttpRequestException>(ex);
-        Assert.IsAssignableFrom<OperationCanceledException>(ex.InnerException);
-#else
-        // NOTE: .NET HttpClient throws HttpRequestException with OperationCanceledException if it contains an OperationCanceledException
+        // NOTE: .NET's HttpClient will unwrap OperationCanceledException if an HttpRequestException containing OperationCanceledException is thrown.
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
+#if !UNITY_2021_1_OR_NEWER
         // NOTE: Unity's Mono HttpClient internally creates a new CancellationTokenSource.
         Assert.Equal(cts.Token, operationCanceledException.CancellationToken);
 #endif
@@ -303,7 +327,7 @@ public class Http2ClearTextTest : YahaUnityTestBase
         // Assert
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
         Assert.Equal(cts.Token, operationCanceledException.CancellationToken);
-    }
+}
 #endif
 
     [ConditionalFact]
@@ -331,6 +355,7 @@ public class Http2ClearTextTest : YahaUnityTestBase
         //TestOutputHelper.WriteLine(ex?.ToString());
 
         // Assert
+        Assert.NotNull(ex);
         Assert.IsAssignableFrom<HttpRequestException>(ex);
         Assert.IsAssignableFrom<IOException>(ex.InnerException);
     }
@@ -546,6 +571,63 @@ public class Http2ClearTextTest : YahaUnityTestBase
         // Assert
         Assert.IsType<RpcException>(ex);
         Assert.Equal(StatusCode.Unavailable, ((RpcException)ex).StatusCode);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_TimedOut_With_HttpClientTimeout()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler) { Timeout = TimeSpan.FromSeconds(3) };
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloNeverAsync(new HelloRequest() { Name = "Alice" }));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
+#if UNITY_2021_1_OR_NEWER
+        Assert.IsType<OperationCanceledException>(((RpcException)ex).Status.DebugException);
+#else
+        Assert.IsType<TaskCanceledException>(((RpcException)ex).Status.DebugException);
+#endif
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_TimedOut_With_Deadline()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloNeverAsync(new HelloRequest() { Name = "Alice" }, deadline: DateTime.UtcNow.AddSeconds(3)));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.DeadlineExceeded, ((RpcException)ex).StatusCode);
+    }
+
+    [ConditionalFact]
+    public async Task Grpc_Error_TimedOut_With_CancellationToken()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
+
+        // Act
+        var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var ex = await Record.ExceptionAsync(async () => await client.SayHelloNeverAsync(new HelloRequest() { Name = "Alice" }, cancellationToken: cts.Token));
+
+        // Assert
+        Assert.IsType<RpcException>(ex);
+        Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
     }
 
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.
