@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using System.IO.Pipelines;
 using System.Net;
 using System.Net.Http.Headers;
+using Cysharp.Net.Http;
 using Grpc.Core;
 using Grpc.Net.Client;
 using TestWebApp;
@@ -15,7 +16,7 @@ public abstract class Http2TestBase : UseTestServerTestBase
     {
     }
 
-    protected abstract HttpMessageHandler CreateHandler();
+    protected abstract YetAnotherHttpHandler CreateHandler();
     protected abstract Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder;
 
     protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
@@ -629,6 +630,33 @@ public abstract class Http2TestBase : UseTestServerTestBase
         Assert.IsType<RpcException>(ex);
         Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
     }
+
+    [ConditionalFact]
+    public async Task Enable_Http2KeepAlive()
+    {
+        // Arrange
+        using var httpHandler = CreateHandler();
+        httpHandler.Http2KeepAliveInterval = TimeSpan.FromSeconds(5);
+        httpHandler.Http2KeepAliveTimeout = TimeSpan.FromSeconds(5);
+        httpHandler.Http2KeepAliveWhileIdle = true;
+
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+
+        // Act
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
+        {
+            Version = HttpVersion.Version20,
+        };
+        var response = await httpClient.SendAsync(request).WaitAsync(TimeoutToken);
+        var responseBody = await response.Content.ReadAsStringAsync().WaitAsync(TimeoutToken);
+
+        // Assert
+        Assert.Equal("__OK__", responseBody);
+        Assert.Equal(HttpVersion.Version20, response.Version);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
 
     // Content with default value of true for AllowDuplex because AllowDuplex is internal.
     class DuplexStreamContent : HttpContent

@@ -10,7 +10,7 @@ public class Http2ClearTextTest : Http2TestBase
     {
     }
 
-    protected override HttpMessageHandler CreateHandler()
+    protected override YetAnotherHttpHandler CreateHandler()
     {
         return new YetAnotherHttpHandler() { Http2Only = true };
     }
