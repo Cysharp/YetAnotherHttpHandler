@@ -86,8 +86,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
-      - run: rustup toolchain install nightly-x86_64-pc-windows-msvc
-      - run: rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+      - run: rustup toolchain install nightly-2024-07-10-x86_64-pc-windows-msvc
+      - run: rustup component add rust-src --toolchain nightly-2024-07-10-x86_64-pc-windows-msvc
       - run: rustup default nightly
       - run: |
           $env:Path += ";C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\bin"
