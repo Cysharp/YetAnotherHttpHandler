@@ -26,6 +26,7 @@ public class Http1Test : UseTestServerTestBase
 
         // Assert
         Assert.IsType<HttpRequestException>(ex);
+        Assert.Contains("(Connect): dns error", ex.Message);
     }
 
     [Fact]
