@@ -26,6 +26,24 @@ public class Http1Test : UseTestServerTestBase
 
         // Assert
         Assert.IsType<HttpRequestException>(ex);
+        Assert.Contains("(Connect): dns error", ex.Message);
+    }
+
+    [Fact]
+    public async Task FailedToConnect_VersionMismatch()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler() { Http2Only = true };
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+
+        // Act
+        var ex = await Record.ExceptionAsync(async () => (await httpClient.GetAsync($"{server.BaseUri}/")).EnsureSuccessStatusCode());
+
+        // Assert
+        Assert.IsType<HttpRequestException>(ex);
+        Assert.Null(((HttpRequestException)ex).StatusCode);
+        Assert.Contains("'HTTP_1_1_REQUIRED' (0xd)", ex.Message);
     }
 
     [Fact]

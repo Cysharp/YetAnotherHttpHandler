@@ -484,29 +484,7 @@ pub extern "C" fn yaha_request_begin(
                 }
                 res = ctx.client.as_ref().unwrap().request(req) => {
                     if let Err(err) = res {
-                        LAST_ERROR.with(|v| {
-                            *v.borrow_mut() = Some(err.to_string());
-                        });
-
-                        // If the inner error is `hyper::Error`, use its error message instead.
-                        let error_inner = err.source()
-                            .and_then(|e| e.downcast_ref::<hyper::Error>());
-
-                        if let Some(err) = error_inner {
-                            LAST_ERROR.with(|v| {
-                                *v.borrow_mut() = Some(err.to_string());
-                            });
-                        }
-
-                        // If the `hyper::Error` has `h2::Error` as inner error, the error has HTTP/2 error code.
-                        let reason = error_inner
-                            .and_then(|e| e.source())
-                            .and_then(|e| e.downcast_ref::<h2::Error>())
-                            .and_then(|e| e.reason());
-
-                        let rc = reason.map(|r| u32::from(r));
-
-                        (ctx.on_complete)(seq, state, CompletionReason::Error, rc.unwrap_or_default());
+                        complete_with_error(ctx, seq, state, err);
                         return;
                     } else {
                         res
@@ -625,6 +603,29 @@ pub extern "C" fn yaha_request_begin(
 
     _ = Arc::into_raw(req_ctx);
     true
+}
+
+fn complete_with_error(ctx: &mut YahaNativeContextInternal, seq: i32, state: NonZeroIsize, err: hyper_util::client::legacy::Error) {
+    let mut h2_error_code = None;
+
+    // If the error has the inner error, use its error message instead.
+    if let Some(error_inner) = err.source() {
+        LAST_ERROR.with(|v| {
+            *v.borrow_mut() = Some(format!("{}: {}", err.to_string(), error_inner.to_string()));
+        });
+        
+        // If the Error has `h2::Error` as inner error, the error has HTTP/2 error code.
+        h2_error_code = error_inner.source()
+            .and_then(|e| e.downcast_ref::<h2::Error>())
+            .and_then(|e| e.reason())
+            .map(|e| u32::from(e));
+    } else {
+        LAST_ERROR.with(|v| {
+            *v.borrow_mut() = Some(err.to_string());
+        });
+    }
+
+    (ctx.on_complete)(seq, state, CompletionReason::Error, h2_error_code.unwrap_or_default());
 }
 
 #[no_mangle]

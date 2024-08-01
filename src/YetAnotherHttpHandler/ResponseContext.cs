@@ -120,9 +120,9 @@ namespace Cysharp.Net.Http
                 if (h2ErrorCode != 0)
                 {
 #if NET7_0_OR_GREATER
-                    ex = new HttpProtocolException(h2ErrorCode, $"The HTTP/2 server reset the stream. HTTP/2 error code (0x{h2ErrorCode:x}).", ex);
+                    ex = new HttpProtocolException(h2ErrorCode, $"The HTTP/2 server closed the connection or reset the stream. HTTP/2 error code '{Http2ErrorCode.ToName(h2ErrorCode)}' (0x{h2ErrorCode:x}).", ex);
 #else
-                    ex = new Http2StreamException($"The HTTP/2 server reset the stream. HTTP/2 error code (0x{h2ErrorCode:x}).", ex);
+                    ex = new Http2StreamException($"The HTTP/2 server closed the connection or reset the stream. HTTP/2 error code '{Http2ErrorCode.ToName(h2ErrorCode)}' (0x{h2ErrorCode:x}).", ex);
 #endif
                 }
 
@@ -174,6 +174,30 @@ namespace Cysharp.Net.Http
             {
                 throw new HttpRequestException(e.Message, e);
             }
+        }
+
+        internal static class Http2ErrorCode
+        {
+            // https://github.com/dotnet/aspnetcore/blob/release/8.0/src/Shared/ServerInfrastructure/Http2/Http2ErrorCode.cs
+            // https://github.com/dotnet/runtime/blob/release/8.0/src/libraries/System.Net.Http/src/System/Net/Http/HttpProtocolException.cs#L63
+            public static string ToName(uint code) => code switch
+            {
+                0x0 => "NO_ERROR",
+                0x1 => "PROTOCOL_ERROR",
+                0x2 => "INTERNAL_ERROR",
+                0x3 => "FLOW_CONTROL_ERROR",
+                0x4 => "SETTINGS_TIMEOUT",
+                0x5 => "STREAM_CLOSED",
+                0x6 => "FRAME_SIZE_ERROR",
+                0x7 => "REFUSED_STREAM",
+                0x8 => "CANCEL",
+                0x9 => "COMPRESSION_ERROR",
+                0xa => "CONNECT_ERROR",
+                0xb => "ENHANCE_YOUR_CALM",
+                0xc => "INADEQUATE_SECURITY",
+                0xd => "HTTP_1_1_REQUIRED",
+                _ => "(unknown error)",
+            };
         }
     }
 }
