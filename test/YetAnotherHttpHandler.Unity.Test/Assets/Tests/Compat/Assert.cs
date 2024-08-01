@@ -30,6 +30,9 @@ internal static class Assert
         return (T)actual;
     }
 
+    public static void Contains(string expected, string actual)
+        => NUnit.Framework.Assert.That(() => actual.Contains(expected));
+
     public static T IsType<T>(object actual)
     {
         NUnit.Framework.Assert.True(actual.GetType() == typeof(T), $"Expected: {typeof(T)}\nActual: {actual.GetType()}");
