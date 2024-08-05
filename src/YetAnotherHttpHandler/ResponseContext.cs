@@ -150,6 +150,7 @@ namespace Cysharp.Net.Http
 
             lock (_writeLock)
             {
+                _requestContext.TryAbort();
                 _responseTask.TrySetCanceled(_cancellationToken);
                 _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
                 _completed = true;

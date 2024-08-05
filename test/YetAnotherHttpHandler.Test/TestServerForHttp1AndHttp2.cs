@@ -1,19 +1,59 @@
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using System.Net;
 using Grpc.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.DependencyInjection;
 using TestWebApp;
 
 namespace _YetAnotherHttpHandler.Test;
 
 class TestServerForHttp1AndHttp2 : ITestServerBuilder
 {
+    private const string SessionStateKey = "SessionState";
+    public const string SessionStateHeaderKey = "x-yahatest-session-id";
+
+    record SessionStateFeature(ConcurrentDictionary<string, object> Items);
+
     public static WebApplication BuildApplication(WebApplicationBuilder builder)
     {
+        builder.Services.AddKeyedSingleton(SessionStateKey, new ConcurrentDictionary<string, ConcurrentDictionary<string, object>>());
+
         var app = builder.Build();
+
+        // SessionState
+        app.Use((ctx, next) =>
+        {
+            if (ctx.Request.Headers.TryGetValue(SessionStateHeaderKey, out var headerValues))
+            {
+                var sessionStates = ctx.RequestServices.GetRequiredKeyedService<ConcurrentDictionary<string, ConcurrentDictionary<string, object>>>(SessionStateKey);
+                var sessionStateItems = sessionStates.GetOrAdd(headerValues.ToString(), _ => new ConcurrentDictionary<string, object>());
+                ctx.Features.Set(new SessionStateFeature(sessionStateItems));
+            }
+            else
+            {
+                ctx.Features.Set(new SessionStateFeature(new ConcurrentDictionary<string, object>()));
+            }
+
+            return next(ctx);
+        });
+        app.MapGet("/session-state", (HttpContext ctx, string id, string key) =>
+        {
+            var sessionStates = ctx.RequestServices.GetRequiredKeyedService<ConcurrentDictionary<string, ConcurrentDictionary<string, object>>>(SessionStateKey);
+            if (sessionStates.TryGetValue(id, out var items))
+            {
+                if (items.TryGetValue(key, out var value))
+                {
+                    return Results.Content(value.ToString());
+                }
+                return Results.Content(string.Empty);
+            }
+
+            return Results.NotFound();
+        });
 
         // HTTP/1 and HTTP/2
         app.MapGet("/", () => Results.Content("__OK__"));
@@ -21,6 +61,18 @@ class TestServerForHttp1AndHttp2 : ITestServerBuilder
         app.MapGet("/response-headers", (HttpContext httpContext) =>
         {
             httpContext.Response.Headers["x-test"] = "foo";
+            return Results.Content("__OK__");
+        });
+        app.MapGet("/slow-response-headers", async (HttpContext httpContext) =>
+        {
+            using var _ = httpContext.RequestAborted.Register(() =>
+            {
+                httpContext.Features.GetRequiredFeature<SessionStateFeature>().Items["IsCanceled"] = true;
+            });
+
+            await Task.Delay(1000);
+            httpContext.Response.Headers["x-test"] = "foo";
+
             return Results.Content("__OK__");
         });
         app.MapGet("/ハロー", () => Results.Content("Konnichiwa"));

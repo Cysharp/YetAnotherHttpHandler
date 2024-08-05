@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 public abstract class YahaUnityTestBase
 {
-    protected HttpMessageHandler CreateHandler()
+    protected YetAnotherHttpHandler CreateHandler()
         => new YetAnotherHttpHandler() { Http2Only = true };
 
     protected CancellationToken TimeoutToken { get; private set; }
@@ -43,7 +43,10 @@ public abstract class YahaUnityTestBase
         SecureHttp1AndHttp2,
     }
 
-    protected class TestServerForHttp1AndHttp2 { }
+    protected class TestServerForHttp1AndHttp2
+    {
+        public const string SessionStateHeaderKey = "x-yahatest-session-id";
+    }
 
     [SetUp]
     public void Setup()
