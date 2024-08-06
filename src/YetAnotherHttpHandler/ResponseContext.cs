@@ -166,7 +166,7 @@ namespace Cysharp.Net.Http
 #if UNITY_2021_1_OR_NEWER
             // NOTE: .NET's HttpClient will unwrap OperationCanceledException if HttpRequestException is thrown, including OperationCanceledException.
             //        However, Unity's Mono does not do this, so you will need to unwrap it manually.
-            catch (Exception e) when (e is TaskCanceledException or OperationCanceledException)
+            catch (OperationCanceledException)
             {
                 throw;
             }
