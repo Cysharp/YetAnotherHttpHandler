@@ -27,13 +27,17 @@ namespace Cysharp.Net.Http
         private readonly YahaContextSafeHandle _handle;
         private bool _disposed = false;
 
+        private static readonly unsafe NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate OnStatusCodeAndHeaderReceiveCallback = OnStatusCodeAndHeaderReceive;
+        private static readonly unsafe NativeMethods.yaha_init_context_on_receive_delegate OnReceiveCallback = OnReceive;
+        private static readonly unsafe NativeMethods.yaha_init_context_on_complete_delegate OnCompleteCallback = OnComplete;
+
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
             var runtimeHandle = NativeRuntime.Instance.Acquire(); // NOTE: We need to call Release on finalizer.
             var instanceId = Interlocked.Increment(ref _instanceId);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_context");
-            var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
+            var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceiveCallback, OnReceiveCallback, OnCompleteCallback);
             _handle = new YahaContextSafeHandle(ctx, instanceId);
             _handle.SetParent(runtimeHandle);
 
