@@ -27,6 +27,8 @@ namespace Cysharp.Net.Http
         private readonly YahaContextSafeHandle _handle;
         private bool _disposed = false;
 
+        // NOTE: We need to keep the callback delegates in advance.
+        //       The delegates are kept on the Rust side, so it will crash if they are garbage collected.
         private static readonly unsafe NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate OnStatusCodeAndHeaderReceiveCallback = OnStatusCodeAndHeaderReceive;
         private static readonly unsafe NativeMethods.yaha_init_context_on_receive_delegate OnReceiveCallback = OnReceive;
         private static readonly unsafe NativeMethods.yaha_init_context_on_complete_delegate OnCompleteCallback = OnComplete;
