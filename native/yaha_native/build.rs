@@ -30,12 +30,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         .generate_csharp_file("../../src/YetAnotherHttpHandler/NativeMethods.Uwp.g.cs")
         .unwrap();
 
-    csbindgen::Builder::default()
-        .input_extern_file("src/binding.rs")
-        .csharp_namespace("Cysharp.Net.Http")
-        .csharp_dll_name("Cysharp.Net.Http.YetAnotherHttpHandler.Native")
-        .csharp_class_name("NativeMethodsFuncPtr")
-        .generate_csharp_file("../../src/YetAnotherHttpHandler/NativeMethodsFuncPtr.g.cs")
-        .unwrap();
     Ok(())
 }

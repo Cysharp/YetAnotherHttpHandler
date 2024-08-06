@@ -1,7 +1,3 @@
-#if NET5_0_OR_GREATER
-#define USE_FUNCTION_POINTER
-#endif
-
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -31,17 +27,19 @@ namespace Cysharp.Net.Http
         private readonly YahaContextSafeHandle _handle;
         private bool _disposed = false;
 
+        // NOTE: We need to keep the callback delegates in advance.
+        //       The delegates are kept on the Rust side, so it will crash if they are garbage collected.
+        private static readonly unsafe NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate OnStatusCodeAndHeaderReceiveCallback = OnStatusCodeAndHeaderReceive;
+        private static readonly unsafe NativeMethods.yaha_init_context_on_receive_delegate OnReceiveCallback = OnReceive;
+        private static readonly unsafe NativeMethods.yaha_init_context_on_complete_delegate OnCompleteCallback = OnComplete;
+
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
             var runtimeHandle = NativeRuntime.Instance.Acquire(); // NOTE: We need to call Release on finalizer.
             var instanceId = Interlocked.Increment(ref _instanceId);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_context");
-#if USE_FUNCTION_POINTER
-            var ctx = NativeMethodsFuncPtr.yaha_init_context(runtimeHandle.DangerousGet(), &OnStatusCodeAndHeaderReceive, &OnReceive, &OnComplete);
-#else
-            var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceive, OnReceive, OnComplete);
-#endif
+            var ctx = NativeMethods.yaha_init_context(runtimeHandle.DangerousGet(), OnStatusCodeAndHeaderReceiveCallback, OnReceiveCallback, OnCompleteCallback);
             _handle = new YahaContextSafeHandle(ctx, instanceId);
             _handle.SetParent(runtimeHandle);
 
@@ -330,9 +328,6 @@ namespace Cysharp.Net.Http
             }
         }
 
-#if USE_FUNCTION_POINTER
-        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-#endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate))]
         private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, IntPtr state, int statusCode, YahaHttpVersion version)
         {
@@ -385,9 +380,6 @@ namespace Cysharp.Net.Http
             requestContext.Response.SetStatusCode(statusCode);
         }
 
-#if USE_FUNCTION_POINTER
-        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-#endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
         private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf)
         {
@@ -398,9 +390,6 @@ namespace Cysharp.Net.Http
             requestContext.Response.Write(bufSpan);
         }
 
-#if USE_FUNCTION_POINTER
-        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
-#endif
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
         private static unsafe void OnComplete(int reqSeq, IntPtr state, CompletionReason reason, uint h2ErrorCode)
         {
