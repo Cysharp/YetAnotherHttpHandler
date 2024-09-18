@@ -128,10 +128,30 @@ namespace Cysharp.Net.Http
             }
         }
 
-        private unsafe void WriteBody(Span<byte> data)
+        private void WriteBody(Span<byte> data)
+        {
+            var retryInterval = 16; //ms
+            var retryAfter = 0;
+
+            while (!_cancellationTokenSource.IsCancellationRequested && !TryWriteBody(data))
+            {
+                // TODO:
+                retryAfter += retryInterval;
+                Thread.Sleep(Math.Min(1000, retryAfter));
+            }
+        }
+
+        private unsafe bool TryWriteBody(Span<byte> data)
         {
             lock (_handleLock)
             {
+                if (!_handle.IsAllocated)
+                {
+                    // If the handle has been already released, the request is fully completed.
+                    ThrowHelper.ThrowOperationCanceledException();
+                    return true; // the method never return from here.
+                }
+
                 Debug.Assert(_handle.IsAllocated);
 
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Sending the request body: Length={data.Length}");
@@ -146,8 +166,6 @@ namespace Cysharp.Net.Http
                     var ctx = _ctxHandle.DangerousGet();
                     var requestContext = _requestContextHandle.DangerousGet();
 
-                    var retryInterval = 16; //ms
-                    var retryAfter = 0;
                     while (!_requestBodyCompleted)
                     {
                         // If the internal buffer is full, yaha_request_write_body returns false. We need to wait until ready to send bytes again.
@@ -161,14 +179,11 @@ namespace Cysharp.Net.Http
                         {
                             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Failed to write the request body. Because the request has been completed.");
                             ThrowHelper.ThrowOperationCanceledException();
-                            return;
+                            return true; // the method never return from here.
                         }
 
                         if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Send buffer is full.");
-
-                        // TODO:
-                        retryAfter += retryInterval;
-                        Thread.Sleep(Math.Min(1000, retryAfter));
+                        return false;
                     }
 #if DEBUG
                     // Fill memory so that data corruption can be detected on debug build.
@@ -188,6 +203,8 @@ namespace Cysharp.Net.Http
                     }
                 }
             }
+
+            return true;
         }
 
         private unsafe void TryCompleteBody(Exception? exception = default)

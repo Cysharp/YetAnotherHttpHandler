@@ -424,6 +424,65 @@ public abstract class Http2TestBase : UseTestServerTestBase
 #endif
     }
 
+
+    [ConditionalFact]
+    public async Task DisposeHandler_During_SendBuffer_Is_Full()
+    {
+        var runtimeHandle = NativeRuntime.Instance.Acquire();
+
+        // To prevent references remaining from local variables, make it a local function.
+        async Task RunAsync()
+        {
+            // Arrange
+            var httpHandler = CreateHandler();
+            var httpClient = new HttpClient(httpHandler);
+            await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+
+            // Act
+            var pipe = new Pipe();
+            var writeTask = Task.Run(async () =>
+            {
+                var buffer = new byte[1024 * 1024];
+                while (true)
+                {
+                    await pipe.Writer.WriteAsync(buffer);
+                }
+            });
+            var content = new StreamContent(pipe.Reader.AsStream());
+            content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{server.BaseUri}/post-never-read")
+            {
+                Version = HttpVersion.Version20,
+                Content = content,
+            };
+            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken);
+            await Task.Delay(TimeSpan.FromSeconds(5)); // Wait for the send buffer to overflow.
+
+            // Decrease the reference count of manually held internal handles for direct observation.
+            NativeRuntime.Instance.Release();
+
+            // Dispose all related resources.
+            request.Dispose();
+            response.Dispose();
+            httpHandler.Dispose();
+            httpClient.Dispose();
+        }
+
+        await RunAsync();
+
+        // Run Finalizer.
+        await Task.Delay(100);
+        GC.Collect();
+        GC.Collect();
+        GC.Collect();
+        GC.Collect();
+        await Task.Delay(100);
+
+        // Assert
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+        Assert.True(runtimeHandle.IsClosed);
+    }
+
     [ConditionalFact]
     public async Task Grpc_Unary()
     {
