@@ -41,7 +41,7 @@ public class ClientCertificateTest : UseTestServerTestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new YetAnotherHttpHandler()
+        using var httpHandler = new YetAnotherHttpHandler()
         {
             //ClientAuthCertificates = File.ReadAllText("./Certificates/client.crt"),
             //ClientAuthKey = File.ReadAllText("./Certificates/client.key"),
@@ -63,7 +63,7 @@ public class ClientCertificateTest : UseTestServerTestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new YetAnotherHttpHandler()
+        using var httpHandler = new YetAnotherHttpHandler()
         {
             ClientAuthCertificates = File.ReadAllText("./Certificates/client.crt"),
             ClientAuthKey = File.ReadAllText("./Certificates/client.key"),
@@ -85,7 +85,7 @@ public class ClientCertificateTest : UseTestServerTestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new YetAnotherHttpHandler()
+        using var httpHandler = new YetAnotherHttpHandler()
         {
             ClientAuthCertificates = File.ReadAllText("./Certificates/client_unknown.crt"), // CN=unknown.example.com
             ClientAuthKey = File.ReadAllText("./Certificates/client_unknown.key"),
@@ -106,7 +106,7 @@ public class ClientCertificateTest : UseTestServerTestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new SocketsHttpHandler();
+        using var httpHandler = new SocketsHttpHandler();
         httpHandler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
         var httpClient = new HttpClient(httpHandler);
 
@@ -123,7 +123,7 @@ public class ClientCertificateTest : UseTestServerTestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new SocketsHttpHandler();
+        using var httpHandler = new SocketsHttpHandler();
         httpHandler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
         httpHandler.SslOptions.ClientCertificates = new X509CertificateCollection()
         {
@@ -145,7 +145,7 @@ public class ClientCertificateTest : UseTestServerTestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new SocketsHttpHandler();
+        using var httpHandler = new SocketsHttpHandler();
         httpHandler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true;
         httpHandler.SslOptions.ClientCertificates = new X509CertificateCollection()
         {

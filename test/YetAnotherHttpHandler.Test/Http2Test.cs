@@ -8,12 +8,8 @@ using Xunit.Abstractions;
 namespace _YetAnotherHttpHandler.Test;
 
 [OSSkipCondition(OperatingSystems.MacOSX)] // .NET 7 or earlier does not support ALPN on macOS.
-public class Http2Test : Http2TestBase
+public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testOutputHelper)
 {
-    public Http2Test(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
     protected override YetAnotherHttpHandler CreateHandler()
     {
         // Use self-signed certificate for testing purpose.
@@ -47,7 +43,7 @@ public class Http2Test : Http2TestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
+        using var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
         var httpClient = new HttpClient(httpHandler);
 
         // Act
@@ -63,7 +59,7 @@ public class Http2Test : Http2TestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = true };
+        using var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = true };
         var httpClient = new HttpClient(httpHandler);
 
         // Act
@@ -80,7 +76,7 @@ public class Http2Test : Http2TestBase
     {
         // Arrange
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
-        var httpHandler = new YetAnotherHttpHandler()
+        using var httpHandler = new YetAnotherHttpHandler()
         {
             // We need to verify server certificate.
             SkipCertificateVerification = false,

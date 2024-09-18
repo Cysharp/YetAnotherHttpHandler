@@ -1,18 +1,11 @@
 using System.IO.Pipelines;
 using System.Net;
-using System.Runtime.ExceptionServices;
-using _YetAnotherHttpHandler.Test.Helpers;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace _YetAnotherHttpHandler.Test;
 
-public class Http1Test : UseTestServerTestBase
+public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBase(testOutputHelper)
 {
-    public Http1Test(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
     [Fact]
     public async Task FailedToConnect()
     {
