@@ -10,12 +10,8 @@ using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
-public abstract class Http2TestBase : UseTestServerTestBase
+public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTestServerTestBase(testOutputHelper)
 {
-    protected Http2TestBase(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
     protected abstract YetAnotherHttpHandler CreateHandler();
     protected abstract Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder;
 

@@ -5,12 +5,8 @@ using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
-public class Http2ClearTextTest : Http2TestBase
+public class Http2ClearTextTest(ITestOutputHelper testOutputHelper) : Http2TestBase(testOutputHelper)
 {
-    public Http2ClearTextTest(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
-    {
-    }
-
     protected override YetAnotherHttpHandler CreateHandler()
     {
         return new YetAnotherHttpHandler() { Http2Only = true };

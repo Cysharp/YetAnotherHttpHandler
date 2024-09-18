@@ -9,7 +9,7 @@ namespace Cysharp.Net.Http
         public static NativeRuntime Instance { get; } = new NativeRuntime();
 
         private readonly object _lock = new object();
-        private int _refCount;
+        internal /* for unit testing */ int _refCount;
         private YahaRuntimeSafeHandle? _handle;
 
         private NativeRuntime()

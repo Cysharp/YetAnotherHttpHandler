@@ -164,6 +164,19 @@ class TestServerForHttp1AndHttp2 : ITestServerBuilder
             }
             return Results.Empty;
         });
+        app.MapPost("/post-never-read", async (HttpContext httpContext) =>
+        {
+            // Send status code and response headers.
+            httpContext.Response.Headers["x-header-1"] = "foo";
+            httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
+            await httpContext.Response.BodyWriter.FlushAsync();
+
+            while (!httpContext.RequestAborted.IsCancellationRequested)
+            {
+                await Task.Delay(100);
+            }
+            return Results.Empty;
+        });
 
         // HTTP/2
         app.MapGet("/error-reset", (HttpContext httpContext) =>

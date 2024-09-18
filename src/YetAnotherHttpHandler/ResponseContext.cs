@@ -26,7 +26,7 @@ namespace Cysharp.Net.Http
             _requestContext = requestContext;
             _responseTask = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             _cancellationToken = cancellationToken;
-            _tokenRegistration = cancellationToken.Register((state) =>
+            _tokenRegistration = cancellationToken.Register(static (state) =>
             {
                 ((ResponseContext)state!).Cancel();
             }, this);
