@@ -141,7 +141,7 @@ impl YahaNativeContextInternal<'_> {
         let builder = hyper_rustls::HttpsConnectorBuilder::new()
             .with_tls_config(tls_config)
             .https_or_http()
-            .enable_http2();
+            .enable_all_versions();
 
         // Almost the same as `builder.build()`, but specify `set_nodelay(true)`.
         let mut http_conn = HttpConnector::new();
