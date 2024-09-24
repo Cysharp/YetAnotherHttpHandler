@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Hosting;
 using System.IO.Pipelines;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
@@ -152,5 +154,38 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         Assert.NotNull(ex);
         // NOTE: .NET's HttpClient will unwrap OperationCanceledException if an HttpRequestException containing OperationCanceledException is thrown.
         Assert.IsAssignableFrom<OperationCanceledException>(ex);
+    }
+
+    [Fact]
+    public async Task Secure_Get_Ok()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler()
+        {
+            // We need to verify server certificate.
+            SkipCertificateVerification = false,
+            RootCertificates = File.ReadAllText("./Certificates/localhost.crt")
+        };
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.SecureHttp1Only, builder =>
+        {
+            // Use self-signed certificate for testing purpose.
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.ConfigureHttpsDefaults(options =>
+                {
+                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
+                });
+            });
+        });
+
+        // Act
+        var response = await httpClient.GetAsync($"{server.BaseUri}/");
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpVersion.Version11, response.Version);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("__OK__", responseBody);
     }
 }
