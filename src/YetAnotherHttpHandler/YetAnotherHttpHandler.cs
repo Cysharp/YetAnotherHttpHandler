@@ -173,7 +173,7 @@ namespace Cysharp.Net.Http
         {
             _handler?.Dispose();
             _handler = null;
-            _disposed = true;
+            _disposed = disposing;
         }
 
         private void ThrowIfDisposed()
