@@ -54,6 +54,7 @@ pub struct YahaNativeContextInternal<'a> {
     pub client_builder: Option<client::legacy::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
+    pub override_server_name: Option<String>,
     pub client_auth_certificates: Option<Vec<CertificateDer<'a>>>,
     pub client_auth_key: Option<PrivateKeyDer<'a>>,
     pub client: Option<Client<HttpsConnector<HttpConnector>, BoxBody<Bytes, hyper::Error>>>,
@@ -79,6 +80,7 @@ impl YahaNativeContextInternal<'_> {
             client_builder: Some(Client::builder(TokioExecutor::new())),
             skip_certificate_verification: None,
             root_certificates: None,
+            override_server_name: None,
             client_auth_certificates: None,
             client_auth_key: None,
             on_status_code_and_headers_receive,
@@ -140,7 +142,15 @@ impl YahaNativeContextInternal<'_> {
 
         let builder = hyper_rustls::HttpsConnectorBuilder::new()
             .with_tls_config(tls_config)
-            .https_or_http()
+            .https_or_http();
+
+        let builder = if let Some(override_server_name) = &self.override_server_name {
+            builder.with_server_name(override_server_name.clone())
+        } else {
+            builder
+        };
+
+        let builder = builder
             .enable_all_versions();
 
         // Almost the same as `builder.build()`, but specify `set_nodelay(true)`.
