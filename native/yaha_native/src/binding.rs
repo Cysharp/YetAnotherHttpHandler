@@ -110,6 +110,16 @@ pub extern "C" fn yaha_client_config_add_root_certificates(
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_add_override_server_name(
+    ctx: *mut YahaNativeContext,
+    override_server_name: *const StringBuffer,
+) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    let server_name = unsafe { (*override_server_name).to_str() };
+    ctx.override_server_name.get_or_insert(server_name.to_string());
+}
+
+#[no_mangle]
 pub extern "C" fn yaha_client_config_add_client_auth_certificates(
     ctx: *mut YahaNativeContext,
     auth_certs: *const StringBuffer,

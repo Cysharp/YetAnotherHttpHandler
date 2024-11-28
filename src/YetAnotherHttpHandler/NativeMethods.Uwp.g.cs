@@ -47,6 +47,9 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_client_config_add_root_certificates", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern nuint yaha_client_config_add_root_certificates(YahaNativeContext* ctx, StringBuffer* root_certs);
 
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_add_override_server_name", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_add_override_server_name(YahaNativeContext* ctx, StringBuffer* override_server_name);
+
         [DllImport(__DllName, EntryPoint = "yaha_client_config_add_client_auth_certificates", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern nuint yaha_client_config_add_client_auth_certificates(YahaNativeContext* ctx, StringBuffer* auth_certs);
 

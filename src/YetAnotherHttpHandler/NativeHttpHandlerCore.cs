@@ -86,6 +86,16 @@ namespace Cysharp.Net.Http
                     if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_client_config_add_root_certificates: ValidCertificatesCount={validCertificatesCount}");
                 }
             }
+            if (settings.OverrideServerName is { } overrideServerName)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.OverrideServerName)}' = {overrideServerName}");
+                var overrideServerNameBytes = Encoding.UTF8.GetBytes(overrideServerName);
+                fixed (byte* buffer = overrideServerNameBytes)
+                {
+                    var sb = new StringBuffer(buffer, overrideServerNameBytes.Length);
+                    NativeMethods.yaha_client_config_add_override_server_name(ctx, &sb);
+                }
+            }
             if (settings.ClientAuthKey is { } clientAuthKey)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.ClientAuthKey)}' = {clientAuthKey}");

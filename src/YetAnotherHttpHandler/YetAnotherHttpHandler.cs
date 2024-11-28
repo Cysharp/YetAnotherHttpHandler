@@ -50,6 +50,11 @@ namespace Cysharp.Net.Http
         public string? RootCertificates { get => _settings.RootCertificates; set => _settings.RootCertificates = value; }
 
         /// <summary>
+        /// Gets or sets a value that specifies subject alternative name (SAN) of the certificate.
+        /// </summary>
+        public string? OverrideServerName { get => _settings.OverrideServerName; set => _settings.OverrideServerName = value; }
+
+        /// <summary>
         /// Gets or sets a custom client auth certificates.
         /// </summary>
         public string? ClientAuthCertificates { get => _settings.ClientAuthCertificates; set => _settings.ClientAuthCertificates = value; }
@@ -192,6 +197,7 @@ namespace Cysharp.Net.Http
         public bool? Http2Only { get; set; }
         public bool? SkipCertificateVerification { get; set; }
         public string? RootCertificates { get; set; }
+        public string? OverrideServerName { get; set; }
         public string? ClientAuthCertificates { get; set; }
         public string? ClientAuthKey { get; set; }
         public uint? Http2InitialStreamWindowSize { get; set; }
@@ -214,6 +220,7 @@ namespace Cysharp.Net.Http
                 Http2Only = this.Http2Only,
                 SkipCertificateVerification = this.SkipCertificateVerification,
                 RootCertificates = this.RootCertificates,
+                OverrideServerName = this.OverrideServerName,
                 ClientAuthCertificates = this.ClientAuthCertificates,
                 ClientAuthKey = this.ClientAuthKey,
                 Http2InitialStreamWindowSize = this.Http2InitialStreamWindowSize,
