@@ -280,6 +280,15 @@ pub extern "C" fn yaha_client_config_http2_keep_alive_while_idle(
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_connect_timeout(
+    ctx: *mut YahaNativeContext,
+    timeout_milliseconds: u64,
+) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.connect_timeout.get_or_insert(Duration::from_millis(timeout_milliseconds));
+}
+
+#[no_mangle]
 pub extern "C" fn yaha_client_config_http2_max_concurrent_reset_streams(
     ctx: *mut YahaNativeContext,
     max: usize,
