@@ -94,6 +94,9 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_keep_alive_while_idle", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_http2_keep_alive_while_idle(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
 
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_connect_timeout", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_connect_timeout(YahaNativeContext* ctx, ulong timeout_milliseconds);
+
         [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_max_concurrent_reset_streams", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_http2_max_concurrent_reset_streams(YahaNativeContext* ctx, nuint max);
 

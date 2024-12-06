@@ -1,6 +1,7 @@
 use std::{
     num::NonZeroIsize,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 use futures_channel::mpsc::Sender;
 use http_body_util::combinators::BoxBody;
@@ -55,6 +56,7 @@ pub struct YahaNativeContextInternal<'a> {
     pub skip_certificate_verification: Option<bool>,
     pub root_certificates: Option<rustls::RootCertStore>,
     pub override_server_name: Option<String>,
+    pub connect_timeout: Option<Duration>,
     pub client_auth_certificates: Option<Vec<CertificateDer<'a>>>,
     pub client_auth_key: Option<PrivateKeyDer<'a>>,
     pub client: Option<Client<HttpsConnector<HttpConnector>, BoxBody<Bytes, hyper::Error>>>,
@@ -81,6 +83,7 @@ impl YahaNativeContextInternal<'_> {
             skip_certificate_verification: None,
             root_certificates: None,
             override_server_name: None,
+            connect_timeout: None,
             client_auth_certificates: None,
             client_auth_key: None,
             on_status_code_and_headers_receive,
@@ -157,6 +160,7 @@ impl YahaNativeContextInternal<'_> {
         let mut http_conn = HttpConnector::new();
         http_conn.set_nodelay(true);
         http_conn.enforce_http(false);
+        http_conn.set_connect_timeout(self.connect_timeout);
         builder.wrap_connector(http_conn)
     }
 
