@@ -5,6 +5,12 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[package.metadata.winres]
+ProductName = "YetAnotherHttpHandler"
+FileDescription = "Native implementation for YetAnotherHttpHandler"
+OriginalFilename = "Cysharp.Net.Http.YetAnotherHttpHandler.Native.dll"
+LegalCopyright = "Copyright © Cysharp, Inc."
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -12,6 +18,9 @@ crate-type = ["staticlib", "cdylib"]
 
 [build-dependencies]
 csbindgen = "1.9.1"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1.12"
 
 [dependencies]
 h2 = { version = "0.4.5" }
@@ -35,6 +44,7 @@ tokio-stream = "0.1.15"
 futures-channel = "0.3.30"
 futures-util = "0.3.30"
 
+
 [features]
 default = [ "rustls" ]
 rustls = [ "hyper-rustls", "dep:rustls", "rustls-pemfile" ]
@@ -45,3 +55,4 @@ strip = true
 
 [profile.release]
 strip = true
+
