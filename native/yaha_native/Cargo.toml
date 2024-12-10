@@ -18,8 +18,6 @@ crate-type = ["staticlib", "cdylib"]
 
 [build-dependencies]
 csbindgen = "1.9.1"
-
-[target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"
 
 [dependencies]
