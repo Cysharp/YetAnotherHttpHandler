@@ -30,5 +30,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         .generate_csharp_file("../../src/YetAnotherHttpHandler/NativeMethods.Uwp.g.cs")
         .unwrap();
 
+    if cfg!(target_os = "windows") {
+        let res = winres::WindowsResource::new();
+        res.compile().unwrap();
+    }
+
     Ok(())
 }
