@@ -101,7 +101,7 @@ jobs:
 
   build-linux-x64:
     name: Build Native library (linux-x64)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04 # Needs to lock glibc version to 2.31 (Issue #30)
     timeout-minutes: 30
     defaults:
       run:
