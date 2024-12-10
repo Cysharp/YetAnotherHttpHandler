@@ -95,6 +95,16 @@ namespace Cysharp.Net.Http
         /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html#method.http2_max_frame_size">hyper: http2_max_frame_size</see>
         /// </remarks>
         public uint? Http2MaxFrameSize { get => _settings.Http2MaxFrameSize; set => _settings.Http2MaxFrameSize = value; }
+        
+        /// <summary>
+        /// Gets or sets timeout for TCP connection establishment
+        /// Pass <value>null</value> to never timeout.
+        /// Default is never timeout.
+        /// </summary>
+        /// <remarks>
+        /// <see href="https://docs.rs/hyper-util/latest/hyper_util/client/legacy/connect/struct.HttpConnector.html#method.set_connect_timeout">hyper: set_connect_timeout</see>
+        /// </remarks>
+        public TimeSpan? ConnectTimeout { get => _settings.ConnectTimeout; set => _settings.ConnectTimeout = value; }
 
         /// <summary>
         /// Gets or sets an interval for HTTP2 Ping frames should be sent to keep a connection alive.
@@ -204,6 +214,7 @@ namespace Cysharp.Net.Http
         public uint? Http2InitialConnectionWindowSize { get; set; }
         public bool? Http2AdaptiveWindow { get; set; }
         public uint? Http2MaxFrameSize { get; set; }
+        public TimeSpan? ConnectTimeout { get; set; }
         public TimeSpan? Http2KeepAliveInterval { get; set; }
         public TimeSpan? Http2KeepAliveTimeout { get; set; }
         public bool? Http2KeepAliveWhileIdle { get; set; }
@@ -227,6 +238,7 @@ namespace Cysharp.Net.Http
                 Http2InitialConnectionWindowSize = this.Http2InitialConnectionWindowSize,
                 Http2AdaptiveWindow = this.Http2AdaptiveWindow,
                 Http2MaxFrameSize = this.Http2MaxFrameSize,
+                ConnectTimeout = this.ConnectTimeout,
                 Http2KeepAliveInterval = this.Http2KeepAliveInterval,
                 Http2KeepAliveTimeout = this.Http2KeepAliveTimeout,
                 Http2KeepAliveWhileIdle = this.Http2KeepAliveWhileIdle,
