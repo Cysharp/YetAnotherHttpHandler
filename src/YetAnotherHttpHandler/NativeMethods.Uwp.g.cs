@@ -59,6 +59,12 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_client_config_skip_certificate_verification", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_skip_certificate_verification(YahaNativeContext* ctx, [MarshalAs(UnmanagedType.U1)] bool val);
 
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        public delegate bool yaha_client_config_set_server_certificate_verification_handler_handler_delegate(nint state, byte* server_name, nuint server_name_len, byte* certificate_der, nuint certificate_der_len, ulong now);
+
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_set_server_certificate_verification_handler", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_set_server_certificate_verification_handler(YahaNativeContext* ctx, yaha_client_config_set_server_certificate_verification_handler_handler_delegate handler, nint callback_state);
+
         [DllImport(__DllName, EntryPoint = "yaha_client_config_pool_idle_timeout", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_pool_idle_timeout(YahaNativeContext* ctx, ulong val_milliseconds);
 

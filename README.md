@@ -212,6 +212,7 @@ Once the handler sends a request, these settings become immutable and cannot be 
 |MaxIdlePerHost|Gets or sets the maximum idle connection per host allowed in the pool. Default is usize::MAX (no limit).|
 |Http2Only|Gets or sets a value that indicates whether to force the use of HTTP/2.|
 |SkipCertificateVerification|Gets or sets a value that indicates whether to skip certificate verification.|
+|OnVerifyServerCertificate|Gets or sets a custom handler that validates server certificates.|
 |RootCertificates|Gets or sets a custom root CA. By default, the built-in root CA (Mozilla's root certificates) is used. See also https://github.com/rustls/webpki-roots. |
 |ClientAuthCertificates|Gets or sets a custom client auth key.|
 |ClientAuthKey|Gets or sets a custom client auth certificates.|
@@ -280,6 +281,22 @@ using var handler = new YetAnotherHttpHandler() { RootCertificates = rootCerts }
 ### Ignore certificate validation errors
 We strongly not recommend this, but in some cases, you may want to skip certificate validation when connecting via HTTPS. In this scenario, you can ignore certificate errors by setting the `SkipCertificateVerification` property to `true`.
 
+### Handling server certificate verification
+You can customize the server certificate verification process by setting the `OnVerifyServerCertificate` property.
+
+The callback should return `true` or `false` based on the verification result. If the property is set, the root CA verification is not performed.
+
+```csharp
+using var httpHandler = new YetAnotherHttpHandler()
+{
+    OnVerifyServerCertificate = (serverName, certificate, now) =>
+    {
+        var cert = new X509Certificate2(certificate);
+        return serverName == "api.example.com" &&
+               cert.Subject == "CN=api.example.com";
+    }
+};
+```
 
 ## Development
 ### Build & Tests

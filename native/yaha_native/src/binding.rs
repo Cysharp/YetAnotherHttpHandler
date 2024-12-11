@@ -171,6 +171,17 @@ pub extern "C" fn yaha_client_config_skip_certificate_verification(
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.skip_certificate_verification = Some(val);
 }
+
+#[no_mangle]
+pub extern "C" fn yaha_client_config_set_server_certificate_verification_handler(
+    ctx: *mut YahaNativeContext,
+    handler: Option<extern "C" fn(state: NonZeroIsize, server_name: *const u8, server_name_len: usize, certificate_der: *const u8, certificate_der_len: usize, now: u64) -> bool>,
+    callback_state: NonZeroIsize
+) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    ctx.server_certificate_verification_handler = handler.map(|x| (x, callback_state));
+}
+
 #[no_mangle]
 pub extern "C" fn yaha_client_config_pool_idle_timeout(
     ctx: *mut YahaNativeContext,
@@ -327,7 +338,7 @@ pub extern "C" fn yaha_client_config_http2_initial_max_send_streams(
 #[no_mangle]
 pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.build_client(ctx.skip_certificate_verification.unwrap_or_default());
+    ctx.build_client();
 }
 
 #[no_mangle]

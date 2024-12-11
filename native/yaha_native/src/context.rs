@@ -26,12 +26,13 @@ use hyper_tls::HttpsConnector;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_util::sync::CancellationToken;
 
-use crate::primitives::{YahaHttpVersion, CompletionReason};
+use crate::{primitives::{CompletionReason, YahaHttpVersion}};
 
 type OnStatusCodeAndHeadersReceive =
     extern "C" fn(req_seq: i32, state: NonZeroIsize, status_code: i32, version: YahaHttpVersion);
 type OnReceive = extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8);
 type OnComplete = extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason, h2_error_code: u32);
+type OnServerCertificateVerificationHandler = extern "C" fn(callback_state: NonZeroIsize, server_name: *const u8, server_name_len: usize, certificate_der: *const u8, certificate_der_len: usize, now: u64) -> bool;
 
 pub struct YahaNativeRuntimeContext;
 pub struct YahaNativeRuntimeContextInternal {
@@ -54,6 +55,7 @@ pub struct YahaNativeContextInternal<'a> {
     pub runtime: tokio::runtime::Handle,
     pub client_builder: Option<client::legacy::Builder>,
     pub skip_certificate_verification: Option<bool>,
+    pub server_certificate_verification_handler: Option<(OnServerCertificateVerificationHandler, NonZeroIsize)>,
     pub root_certificates: Option<rustls::RootCertStore>,
     pub override_server_name: Option<String>,
     pub connect_timeout: Option<Duration>,
@@ -81,6 +83,7 @@ impl YahaNativeContextInternal<'_> {
             client: None,
             client_builder: Some(Client::builder(TokioExecutor::new())),
             skip_certificate_verification: None,
+            server_certificate_verification_handler: None,
             root_certificates: None,
             override_server_name: None,
             connect_timeout: None,
@@ -92,24 +95,32 @@ impl YahaNativeContextInternal<'_> {
         }
     }
 
-    pub fn build_client(&mut self, skip_verify_certificates: bool) {
+    pub fn build_client(&mut self) {
         let mut builder = self.client_builder.take().unwrap();
-        let https = self.new_connector(skip_verify_certificates);
+        let https = self.new_connector();
         self.client = Some(builder.timer(TokioTimer::new()).build(https));
     }
 
     #[cfg(feature = "rustls")]
-    fn new_connector(&mut self, skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
+    fn new_connector(&mut self) -> HttpsConnector<HttpConnector> {
         let tls_config_builder = rustls::ClientConfig::builder();
 
         // Configure certificate root store.
         let tls_config: rustls::ClientConfig;
-        if skip_verify_certificates {
+        if let Some(server_certificate_verification_handler) = self.server_certificate_verification_handler {
+            // Use custom certificate verification handler
             tls_config = tls_config_builder
                 .dangerous()
-                .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerification {}))
+                .with_custom_certificate_verifier(Arc::new(danger::CustomCerficateVerification { handler: server_certificate_verification_handler }))
+                .with_no_client_auth();
+        } else if self.skip_certificate_verification.unwrap_or_default() {
+            // Skip certificate verification
+            tls_config = tls_config_builder
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(danger::NoCertificateVerification{}))
                 .with_no_client_auth();
         } else {
+            // Configure to use built-in certification store and client authentication.
             let tls_config_builder_root: rustls::ConfigBuilder<
                 rustls::ClientConfig,
                 rustls::client::WantsClientCert,
@@ -165,7 +176,7 @@ impl YahaNativeContextInternal<'_> {
     }
 
     #[cfg(feature = "native")]
-    fn new_connector(&mut self, skip_verify_certificates: bool) -> HttpsConnector<HttpConnector> {
+    fn new_connector(&mut self, server_certificate_verification_handler: Option<OnServerCertificateVerificationHandler>) -> HttpsConnector<HttpConnector> {
         let https = HttpsConnector::new();
         https
     }
@@ -173,12 +184,21 @@ impl YahaNativeContextInternal<'_> {
 
 #[cfg(feature = "rustls")]
 mod danger {
+    use std::num::NonZeroIsize;
+
     use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified};
     use rustls::{DigitallySignedStruct, Error, SignatureScheme};
     use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 
+    use super::OnServerCertificateVerificationHandler;
+
     #[derive(Debug)]
     pub struct NoCertificateVerification {}
+
+    #[derive(Debug)]
+    pub struct CustomCerficateVerification {
+        pub handler: (OnServerCertificateVerificationHandler, NonZeroIsize)
+    }
 
     const ALL_SCHEMES: [SignatureScheme; 12] = [
         SignatureScheme::RSA_PKCS1_SHA1,
@@ -193,6 +213,49 @@ mod danger {
         SignatureScheme::RSA_PSS_SHA512,
         SignatureScheme::ED25519,
         SignatureScheme::ED448];
+
+    impl rustls::client::danger::ServerCertVerifier for CustomCerficateVerification {
+        fn verify_server_cert(
+            &self,
+            end_entity: &CertificateDer<'_>,
+            _intermediates: &[CertificateDer<'_>],
+            server_name: &ServerName<'_>,
+            _ocsp_response: &[u8],
+            now: UnixTime,
+        ) -> Result<ServerCertVerified, Error> {
+            let server_name = server_name.to_str();
+            let server_name = server_name.as_bytes();
+            let cetificate_der = end_entity.as_ref();
+
+            if (self.handler.0)(self.handler.1, server_name.as_ptr(), server_name.len(), cetificate_der.as_ptr(), cetificate_der.len(), now.as_secs()) {
+                Ok(ServerCertVerified::assertion())
+            } else {
+                Err(Error::InvalidCertificate(rustls::CertificateError::ApplicationVerificationFailure))
+            }
+        }
+
+        fn verify_tls12_signature(
+            &self,
+            _message: &[u8],
+            _cert: &CertificateDer<'_>,
+            _dss: &DigitallySignedStruct,
+        ) -> Result<HandshakeSignatureValid, Error> {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+
+        fn verify_tls13_signature(
+            &self,
+            _message: &[u8],
+            _cert: &CertificateDer<'_>,
+            _dss: &DigitallySignedStruct,
+        ) -> Result<HandshakeSignatureValid, Error> {
+            Ok(HandshakeSignatureValid::assertion())
+        }
+
+        fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+            Vec::from(ALL_SCHEMES)
+        }
+    }
 
     impl rustls::client::danger::ServerCertVerifier for NoCertificateVerification {
         fn verify_server_cert(
