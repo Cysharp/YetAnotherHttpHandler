@@ -45,6 +45,11 @@ namespace Cysharp.Net.Http
         public bool? SkipCertificateVerification { get => _settings.SkipCertificateVerification; set => _settings.SkipCertificateVerification = value; }
 
         /// <summary>
+        /// Gets or sets a custom handler that validates server certificates.
+        /// </summary>
+        public ServerCertificateVerificationHandler? OnVerifyServerCertificate { get => _settings.OnVerifyServerCertificate; set => _settings.OnVerifyServerCertificate = value; }
+
+        /// <summary>
         /// Gets or sets a custom root CA. By default, the built-in root CA (Mozilla's root certificates) is used. See also <seealso href="https://github.com/rustls/webpki-roots" />.
         /// </summary>
         public string? RootCertificates { get => _settings.RootCertificates; set => _settings.RootCertificates = value; }
@@ -200,12 +205,22 @@ namespace Cysharp.Net.Http
         }
     }
 
+    /// <summary>
+    /// Represents a method that validates server certificates.
+    /// </summary>
+    /// <param name="serverName">The server host name.</param>
+    /// <param name="certificate">The server certificate in DER format.</param>
+    /// <param name="now">The current time.</param>
+    /// <returns></returns>
+    public delegate bool ServerCertificateVerificationHandler(string serverName, ReadOnlySpan<byte> certificate, DateTimeOffset now);
+
     internal class NativeClientSettings
     {
         public TimeSpan? PoolIdleTimeout { get; set; }
         public ulong? MaxIdlePerHost { get; set; }
         public bool? Http2Only { get; set; }
         public bool? SkipCertificateVerification { get; set; }
+        public ServerCertificateVerificationHandler? OnVerifyServerCertificate { get; set; }
         public string? RootCertificates { get; set; }
         public string? OverrideServerName { get; set; }
         public string? ClientAuthCertificates { get; set; }
@@ -230,6 +245,7 @@ namespace Cysharp.Net.Http
                 MaxIdlePerHost = this.MaxIdlePerHost,
                 Http2Only = this.Http2Only,
                 SkipCertificateVerification = this.SkipCertificateVerification,
+                OnVerifyServerCertificate = this.OnVerifyServerCertificate,
                 RootCertificates = this.RootCertificates,
                 OverrideServerName = this.OverrideServerName,
                 ClientAuthCertificates = this.ClientAuthCertificates,
