@@ -176,10 +176,10 @@ pub extern "C" fn yaha_client_config_skip_certificate_verification(
 pub extern "C" fn yaha_client_config_set_server_certificate_verification_handler(
     ctx: *mut YahaNativeContext,
     handler: Option<extern "C" fn(state: NonZeroIsize, server_name: *const u8, server_name_len: usize, certificate_der: *const u8, certificate_der_len: usize, now: u64) -> bool>,
-    state: NonZeroIsize
+    callback_state: NonZeroIsize
 ) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
-    ctx.server_certificate_verification_handler = handler.map(|x| (x, state));
+    ctx.server_certificate_verification_handler = handler.map(|x| (x, callback_state));
 }
 
 #[no_mangle]

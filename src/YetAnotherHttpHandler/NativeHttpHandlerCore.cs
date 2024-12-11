@@ -26,7 +26,7 @@ namespace Cysharp.Net.Http
 
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
-        private GCHandle? _onVerifyServerCertificateHandle;
+        private GCHandle? _onVerifyServerCertificateHandle; // The handle must be released in Dispose if it is allocated.
         private bool _disposed = false;
 
         // NOTE: We need to keep the callback delegates in advance.
@@ -81,7 +81,11 @@ namespace Cysharp.Net.Http
             if (settings.OnVerifyServerCertificate is { } onVerifyServerCertificate)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.OnVerifyServerCertificate)}' = {onVerifyServerCertificate}");
+
+                // NOTE: We need to keep the handle to call in the static callback method.
+                //       The handle must be released in Dispose if it is allocated.
                 _onVerifyServerCertificateHandle = GCHandle.Alloc(onVerifyServerCertificate);
+
                 NativeMethods.yaha_client_config_set_server_certificate_verification_handler(ctx, OnServerCertificateVerificationCallback, GCHandle.ToIntPtr(_onVerifyServerCertificateHandle.Value));
             }
             if (settings.RootCertificates is { } rootCertificates)
@@ -405,13 +409,13 @@ namespace Cysharp.Net.Http
         }
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_client_config_set_server_certificate_verification_handler_handler_delegate))]
-        private static unsafe bool OnServerCertificateVerification(IntPtr state, byte* serverNamePtr, UIntPtr /*nuint*/ serverNameLength, byte* certificateDerPtr, UIntPtr /*nuint*/ certificateDerLength, ulong now)
+        private static unsafe bool OnServerCertificateVerification(IntPtr callbackState, byte* serverNamePtr, UIntPtr /*nuint*/ serverNameLength, byte* certificateDerPtr, UIntPtr /*nuint*/ certificateDerLength, ulong now)
         {
             var serverName = UnsafeUtilities.GetStringFromUtf8Bytes(new ReadOnlySpan<byte>(serverNamePtr, (int)serverNameLength));
             var certificateDer = new ReadOnlySpan<byte>(certificateDerPtr, (int)certificateDerLength);
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"OnServerCertificateVerification: ServerName={serverName}; CertificateDer.Length={certificateDer.Length}; Now={now}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"OnServerCertificateVerification: State=0x{callbackState:X}; ServerName={serverName}; CertificateDer.Length={certificateDer.Length}; Now={now}");
 
-            var onServerCertificateVerification = (ServerCertificateVerificationHandler)GCHandle.FromIntPtr(state).Target;
+            var onServerCertificateVerification = (ServerCertificateVerificationHandler)GCHandle.FromIntPtr(callbackState).Target;
             Debug.Assert(onServerCertificateVerification != null);
             if (onServerCertificateVerification == null)
             {
@@ -531,6 +535,8 @@ namespace Cysharp.Net.Http
             }
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Dispose {nameof(NativeHttpHandlerCore)}; disposing={disposing}");
+
+            _onVerifyServerCertificateHandle?.Free();
 
             NativeRuntime.Instance.Release(); // We always need to release runtime.
 
