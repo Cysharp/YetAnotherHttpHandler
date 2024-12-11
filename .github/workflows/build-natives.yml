@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       build-config:
+        description: 'Build configuration'
         required: true
         default: 'release'
         type: choice
@@ -10,10 +11,12 @@ on:
           - debug
           - release
       build-only-linux:
+        description: 'Build only for Linux'
         required: true
         default: false
         type: boolean
       update-unity-native:
+        description: 'Update pre-built libraries for Unity'
         required: true
         default: false
         type: boolean
