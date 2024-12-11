@@ -51,7 +51,9 @@ jobs:
           name: win-x64
           path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
           retention-days: 1
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+      - run: |
+            dotnet tools restore
+            dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-win-arm64:
     name: Build Native library (win-arm64)
@@ -73,7 +75,9 @@ jobs:
           name: win-arm64
           path: native/target/aarch64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
           retention-days: 1
-      #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+      #- run: |
+      #      dotnet tools restore
+      #      dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-win-arm64-uwp:
     name: Build Native library (win-arm64-uwp)
@@ -97,7 +101,9 @@ jobs:
           name: win-arm64-uwp
           path: native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
           retention-days: 1
-      #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+      #- run: |
+      #      dotnet tools restore
+      #      dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-linux-x64:
     name: Build Native library (linux-x64)
@@ -115,7 +121,9 @@ jobs:
           name: linux-x64
           path: native/target/x86_64-unknown-linux-gnu/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.so
           retention-days: 1
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+      - run: |
+            dotnet tools restore
+            dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-osx-x64:
     name: Build Native library (osx-x64)
@@ -135,7 +143,9 @@ jobs:
           name: osx-x64
           path: native/target/x86_64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
           retention-days: 1
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+      - run: |
+            dotnet tools restore
+            dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-osx-arm64:
     name: Build Native library (osx-arm64)
@@ -154,7 +164,9 @@ jobs:
           name: osx-arm64
           path: native/target/aarch64-apple-darwin/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.dylib
           retention-days: 1
-      - run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
+      - run: |
+            dotnet tools restore
+            dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
   build-ios-x64:
     name: Build Native library (ios-x64)
