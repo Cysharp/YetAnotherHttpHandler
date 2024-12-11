@@ -23,6 +23,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PerformanceCheck", "perf\Pe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YetAnotherHttpHandler.StandaloneTestServer", "test\YetAnotherHttpHandler.StandaloneTestServer\YetAnotherHttpHandler.StandaloneTestServer.csproj", "{BD7A619A-91BB-48A9-AA79-A9724DB320DD}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub Actions", "GitHub Actions", "{1E0B84D3-2B44-4948-80B8-4D2E2E6D51A3}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\build-natives.yml = .github\workflows\build-natives.yml
+		.github\workflows\build-push-and-pr.yml = .github\workflows\build-push-and-pr.yml
+		.github\workflows\build-release.yml = .github\workflows\build-release.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -53,6 +60,7 @@ Global
 		{22CFEF14-D36A-4E21-B51F-F31053C0E870} = {EDDCC9A6-BB1C-4AB9-A0C1-9AD888858442}
 		{BD12E8F7-E190-4B76-AFF5-62376CF0BD57} = {49D0877D-6B51-4A83-8B93-9DC19BAEABB4}
 		{BD7A619A-91BB-48A9-AA79-A9724DB320DD} = {EDDCC9A6-BB1C-4AB9-A0C1-9AD888858442}
+		{1E0B84D3-2B44-4948-80B8-4D2E2E6D51A3} = {9D970D42-0D6A-4483-886F-3003AB62E04C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {0F200E0E-4EC0-4C1A-BF65-BA52D3291577}
