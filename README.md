@@ -284,6 +284,8 @@ We strongly not recommend this, but in some cases, you may want to skip certific
 ### Handling server certificate verification
 You can customize the server certificate verification process by setting the `OnVerifyServerCertificate` property.
 
+The callback should return `true` or `false` based on the verification result. If the property is set, the root CA verification is not performed.
+
 ```csharp
 using var httpHandler = new YetAnotherHttpHandler()
 {
