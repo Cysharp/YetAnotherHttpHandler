@@ -77,7 +77,7 @@ This library depends on the following additional libraries:
 - [System.IO.Pipelines](https://www.nuget.org/packages/System.IO.Pipelines) (netstandard2.1)
 - [System.Runtime.CompilerServices.Unsafe](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe) (netstandard2.1)
 
-#### Method 1: Using NuGetForUnity
+#### Method 1: Using NuGetForUnity + GitHub
 
 1. Install [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity) to your Unity project
 2. Install the following NuGet packages via NuGetForUnity:
@@ -89,7 +89,7 @@ https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHand
 ```
 
 > [!NOTE]
-> Please replace `{Version}` with the version number you want to install (e.g. `1.2.0`).
+> Please replace `{Version}` with the version number you want to install (e.g. `1.8.0`). See [Releases](https://github.com/Cysharp/YetAnotherHttpHandler/releases) page.
 
 #### Method 2: Using UnityNuGet scope registry
 
@@ -112,7 +112,7 @@ https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHand
 ```
 
 > [!NOTE]
-> Please replace `{Version}` with the version number you want to install (e.g. `1.2.0`).
+> Please replace `{Version}` with the version number you want to install (e.g. `1.8.0`). See [Releases](https://github.com/Cysharp/YetAnotherHttpHandler/releases) page.
 
 #### Method 3: Install from GitHub / Git repository
 
@@ -126,7 +126,7 @@ https://github.com/Cysharp/YetAnotherHttpHandler.git?path=src/YetAnotherHttpHand
 ```
 
 > [!NOTE]
-> Please replace `{Version}` with the version number you want to install (e.g. `1.2.0`).
+> Please replace `{Version}` with the version number you want to install (e.g. `1.8.0`). See [Releases](https://github.com/Cysharp/YetAnotherHttpHandler/releases) page.
 
 ## Usage
 
@@ -176,14 +176,15 @@ To use grpc-dotnet (Grpc.Net.Client), add the following additional library to `m
 > [!NOTE]
 > Replace `{version}` with the latest version available in NuGet: https://www.nuget.org/packages/Grpc.Net.Client#versions-body-tab
 
-#### Method 2: Install pre-built package or install the libraries manually.
+#### Method 3: Install pre-built package or install the libraries manually.
 
 Please download and install [Grpc.Net.Client.Dependencies.unitypackage
  from the dependency redistribution on the release page](https://github.com/Cysharp/YetAnotherHttpHandler/releases/tag/redist-20230728-01), or obtain the library from NuGet.
 
-Create an instance of `YetAnotherHttpHandler` and pass it to `GrpcChannelOptions.HttpHandler` property.
 
 #### Using GrpcChannel with YetAnotherHttpHandler
+Create an instance of `YetAnotherHttpHandler` and pass it to `GrpcChannelOptions.HttpHandler` property.
+
 ```csharp
 using Cysharp.Net.Http;
 
@@ -214,12 +215,14 @@ Once the handler sends a request, these settings become immutable and cannot be 
 |SkipCertificateVerification|Gets or sets a value that indicates whether to skip certificate verification.|
 |OnVerifyServerCertificate|Gets or sets a custom handler that validates server certificates.|
 |RootCertificates|Gets or sets a custom root CA. By default, the built-in root CA (Mozilla's root certificates) is used. See also https://github.com/rustls/webpki-roots. |
+|OverrideServerName|Gets or sets a value that specifies subject alternative name (SAN) of the certificate.|
 |ClientAuthCertificates|Gets or sets a custom client auth key.|
 |ClientAuthKey|Gets or sets a custom client auth certificates.|
 |Http2InitialStreamWindowSize|Gets or sets the SETTINGS_INITIAL_WINDOW_SIZE option for HTTP2 stream-level flow control.|
 |Http2InitialConnectionWindowSize|Gets or sets the max connection-level flow control for HTTP2|
 |Http2AdaptiveWindow|Gets or sets whether to use an adaptive flow control. Enabling this will override the limits set in http2_initial_stream_window_size and http2_initial_connection_window_size.|
 |Http2MaxFrameSize|Gets or sets the maximum frame size to use for HTTP2.|
+|ConnectTimeout|Gets or sets timeout for TCP connection establishment. Pass null to never timeout. Default is never timeout.|
 |Http2KeepAliveInterval|Gets or sets an interval for HTTP2 Ping frames should be sent to keep a connection alive. Pass <value>null</value> to disable HTTP2 keep-alive. Default is currently disabled.|
 |Http2KeepAliveTimeout|Gets or sets a timeout for receiving an acknowledgement of the keep-alive ping. If the ping is not acknowledged within the timeout, the connection will be closed. Does nothing if http2_keep_alive_interval is disabled. Default is 20 seconds.|
 |Http2KeepAliveWhileIdle|Gets or sets whether HTTP2 keep-alive should apply while the connection is idle. If disabled, keep-alive pings are only sent while there are open request/responses streams. If enabled, pings are also sent when no streams are active. Does nothing if http2_keep_alive_interval is disabled. Default is false.|
