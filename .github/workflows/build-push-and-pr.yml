@@ -4,14 +4,14 @@ on:
     branches:
       - main
     paths-ignore:
-      - '.github/**'
-      - '**.md'
+      - '**/*.md'
+      - 'THIRD-PARTY-NOTICES'
   pull_request:
     branches:
       - main
     paths-ignore:
-      - '.github/**'
-      - '**.md'
+      - '**/*.md'
+      - 'THIRD-PARTY-NOTICES'
 
 env:
   _UNITY_VERSION: 2021.3.1f1
