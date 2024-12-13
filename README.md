@@ -229,6 +229,7 @@ Once the handler sends a request, these settings become immutable and cannot be 
 |Http2MaxConcurrentResetStreams|Gets or sets the maximum number of HTTP2 concurrent locally reset streams. See the documentation of h2::client::Builder::max_concurrent_reset_streams for more details. The default value is determined by the h2 crate.|
 |Http2MaxSendBufferSize|Gets or sets the maximum write buffer size for each HTTP/2 stream. Default is currently 1MB, but may change.|
 |Http2InitialMaxSendStreams|Gets or sets the initial maximum of locally initiated (send) streams. This value will be overwritten by the value included in the initial SETTINGS frame received from the peer as part of a connection preface.|
+|UnixDomainSocketPath|Gets or sets the path to a Unix Domain Socket to be used as HTTP communication channel instead of the default TCP.|
 
 Most of them expose [hyper client settings](https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html), so please check those as well.
 
@@ -300,6 +301,22 @@ using var httpHandler = new YetAnotherHttpHandler()
     }
 };
 ```
+
+### Using Unix Domain Sockets as HTTP transport layer
+
+Unix Domain Sockets can be used as the HTTP transport layer for local usecases (e.g. IPC based on gRPC), instead of network-based TCP.
+
+Set the `UnixDomainSocketPath` property to enable UDS-based communication to a server listening at the given path:
+
+```csharp
+using var handler = new YetAnotherHttpHandler() { Http2Only = true, UnixDomainSocketPath = "/tmp/example.sock" };
+using var channel = GrpcChannel.ForAddress("http://localhost", new GrpcChannelOptions() { HttpHandler = handler });
+```
+
+Note:
+- HTTPS is not supported over UDS. All HTTPS related configuration properties are ignored if UDS is enabled.
+- The grpc-dotnet library doesn't handle non-HTTP schemes (like "unix://"), so keep passing an HTTP URI to `GrpcChannel`, e.g. http://localhost.
+  The actual HTTP requests will be redirected to `UnixDomainSocketPath` by YetAnotherHttpHandler internally.
 
 ## Development
 ### Build & Tests

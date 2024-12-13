@@ -184,6 +184,16 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.Http2InitialMaxSendStreams)}' = {http2InitialMaxSendStreams}");
                 NativeMethods.yaha_client_config_http2_initial_max_send_streams(ctx, (nuint)http2InitialMaxSendStreams);
             }
+            if (settings.UnixDomainSocketPath is { } unixDomainSocketPath)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.UnixDomainSocketPath)}' = {unixDomainSocketPath}");
+                var strBytes = Encoding.UTF8.GetBytes(unixDomainSocketPath);
+                fixed (byte* buffer = strBytes)
+                {
+                    var sb = new StringBuffer(buffer, strBytes.Length);
+                    NativeMethods.yaha_client_config_unix_domain_socket_path(ctx, &sb);
+                }
+            }
 
             NativeMethods.yaha_build_client(ctx);
 

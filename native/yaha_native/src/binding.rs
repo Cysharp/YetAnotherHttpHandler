@@ -336,6 +336,18 @@ pub extern "C" fn yaha_client_config_http2_initial_max_send_streams(
 }
 
 #[no_mangle]
+pub extern "C" fn yaha_client_config_unix_domain_socket_path(
+    ctx: *mut YahaNativeContext,
+    uds_path: *const StringBuffer,
+) {
+    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+
+    let uds_socket_path = unsafe { (*uds_path).to_str() };
+    ctx.uds_socket_path.get_or_insert(uds_socket_path.into());
+}
+
+
+#[no_mangle]
 pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
     ctx.build_client();
@@ -497,8 +509,7 @@ pub extern "C" fn yaha_request_begin(
                 (req_ctx.seq, builder.body(body).unwrap())
             };
 
-            //
-            if ctx.client.as_ref().is_none() {
+            if ctx.tcp_client.is_none() && ctx.uds_client.is_none() {
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
                 });
@@ -512,7 +523,7 @@ pub extern "C" fn yaha_request_begin(
                     (ctx.on_complete)(seq, state, CompletionReason::Aborted, 0);
                     return;
                 }
-                res = ctx.client.as_ref().unwrap().request(req) => {
+                res = ctx.request(req) => {
                     if let Err(err) = res {
                         complete_with_error(ctx, seq, state, err);
                         return;

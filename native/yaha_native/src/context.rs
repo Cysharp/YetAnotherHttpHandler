@@ -2,18 +2,19 @@ use std::{
     num::NonZeroIsize,
     sync::{Arc, Mutex},
     time::Duration,
+    path::PathBuf,
 };
 use futures_channel::mpsc::Sender;
 use http_body_util::combinators::BoxBody;
 use tokio::runtime::{Handle, Runtime};
 
 use hyper::{
-    body::Bytes,
-    StatusCode,
+    body::Bytes, 
+    Request, StatusCode
 };
 
 use hyper_util::{
-    client::{self, legacy::{connect::HttpConnector, Client}},
+    client::{self, legacy::{connect::HttpConnector, Client, ResponseFuture}},
     rt::{TokioExecutor, TokioTimer},
 };
 
@@ -23,6 +24,7 @@ use hyper_rustls::ConfigBuilderExt;
 use hyper_rustls::HttpsConnector;
 #[cfg(feature = "native")]
 use hyper_tls::HttpsConnector;
+use hyperlocal::UnixConnector;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_util::sync::CancellationToken;
 
@@ -61,10 +63,12 @@ pub struct YahaNativeContextInternal<'a> {
     pub connect_timeout: Option<Duration>,
     pub client_auth_certificates: Option<Vec<CertificateDer<'a>>>,
     pub client_auth_key: Option<PrivateKeyDer<'a>>,
-    pub client: Option<Client<HttpsConnector<HttpConnector>, BoxBody<Bytes, hyper::Error>>>,
+    pub tcp_client: Option<Client<HttpsConnector<HttpConnector>, BoxBody<Bytes, hyper::Error>>>,
     pub on_status_code_and_headers_receive: OnStatusCodeAndHeadersReceive,
     pub on_receive: OnReceive,
     pub on_complete: OnComplete,
+    pub uds_client: Option<Client<UnixConnector, BoxBody<Bytes, hyper::Error>>>,
+    pub uds_socket_path: Option<PathBuf>,
 }
 
 impl YahaNativeContextInternal<'_> {
@@ -80,7 +84,8 @@ impl YahaNativeContextInternal<'_> {
     ) -> Self {
         YahaNativeContextInternal {
             runtime: runtime_handle,
-            client: None,
+            tcp_client: None,
+            uds_client: None,
             client_builder: Some(Client::builder(TokioExecutor::new())),
             skip_certificate_verification: None,
             server_certificate_verification_handler: None,
@@ -92,13 +97,20 @@ impl YahaNativeContextInternal<'_> {
             on_status_code_and_headers_receive,
             on_receive,
             on_complete,
+            uds_socket_path: None,
         }
     }
 
     pub fn build_client(&mut self) {
         let mut builder = self.client_builder.take().unwrap();
-        let https = self.new_connector();
-        self.client = Some(builder.timer(TokioTimer::new()).build(https));
+        builder.timer(TokioTimer::new());
+
+        if self.uds_socket_path.is_some() {
+            self.uds_client = Some(builder.build(UnixConnector));
+        } else {
+            let https = self.new_connector();
+            self.tcp_client = Some(builder.build(https));
+        }
     }
 
     #[cfg(feature = "rustls")]
@@ -179,6 +191,24 @@ impl YahaNativeContextInternal<'_> {
     fn new_connector(&mut self, server_certificate_verification_handler: Option<OnServerCertificateVerificationHandler>) -> HttpsConnector<HttpConnector> {
         let https = HttpsConnector::new();
         https
+    }
+
+    pub fn request(&self, mut req: Request<BoxBody<Bytes, hyper::Error>>) -> ResponseFuture {
+        // Precondition (`uds_client` or `tcp_client` is set) ensured by `Self::build_client` and `yaha_request_begin`
+        if let Some(uds_socket_path) = &self.uds_socket_path {
+            // Transform HTTP URIs to the format expected by hyperlocal
+            let path_and_query = req
+                .uri()
+                .path_and_query()
+                .map(|pq| pq.as_str())
+                .unwrap_or("/");
+            let uds_uri = hyperlocal::Uri::new(uds_socket_path, path_and_query);
+            *req.uri_mut() = uds_uri.into();
+
+            self.uds_client.as_ref().unwrap().request(req)
+        } else {
+            self.tcp_client.as_ref().unwrap().request(req)
+        }
     }
 }
 

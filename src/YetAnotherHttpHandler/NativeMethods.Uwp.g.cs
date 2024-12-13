@@ -107,6 +107,9 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_client_config_http2_initial_max_send_streams", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_client_config_http2_initial_max_send_streams(YahaNativeContext* ctx, nuint initial);
 
+        [DllImport(__DllName, EntryPoint = "yaha_client_config_unix_domain_socket_path", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_client_config_unix_domain_socket_path(YahaNativeContext* ctx, StringBuffer* uds_path);
+
         [DllImport(__DllName, EntryPoint = "yaha_build_client", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_build_client(YahaNativeContext* ctx);
 
