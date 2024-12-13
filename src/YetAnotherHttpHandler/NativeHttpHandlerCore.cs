@@ -21,7 +21,6 @@ namespace Cysharp.Net.Http
 
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
-        private readonly NativeClientSettings _settings;
         private GCHandle? _onVerifyServerCertificateHandle; // The handle must be released in Dispose if it is allocated.
         private bool _disposed = false;
 
@@ -34,8 +33,6 @@ namespace Cysharp.Net.Http
 
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
-            _settings = settings;
-
             var runtimeHandle = NativeRuntime.Instance.Acquire(); // NOTE: We need to call Release on finalizer.
             var instanceId = Interlocked.Increment(ref _instanceId);
 
@@ -418,7 +415,7 @@ namespace Cysharp.Net.Http
             var certificateDer = new ReadOnlySpan<byte>(certificateDerPtr, (int)certificateDerLength);
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"OnServerCertificateVerification: State=0x{callbackState:X}; ServerName={serverName}; CertificateDer.Length={certificateDer.Length}; Now={now}");
 
-            var onServerCertificateVerification = (ServerCertificateVerificationHandler)GCHandle.FromIntPtr(callbackState).Target;
+            var onServerCertificateVerification = (ServerCertificateVerificationHandler?)GCHandle.FromIntPtr(callbackState).Target;
             Debug.Assert(onServerCertificateVerification != null);
             if (onServerCertificateVerification == null)
             {
