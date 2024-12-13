@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Net.Http.Shims;
+using System.Runtime;
 #if UNITY_2019_1_OR_NEWER
 using AOT;
 #endif
@@ -26,6 +27,7 @@ namespace Cysharp.Net.Http
 
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
+        private readonly NativeClientSettings _settings;
         private GCHandle? _onVerifyServerCertificateHandle; // The handle must be released in Dispose if it is allocated.
         private bool _disposed = false;
 
@@ -38,6 +40,8 @@ namespace Cysharp.Net.Http
 
         public unsafe NativeHttpHandlerCore(NativeClientSettings settings)
         {
+            _settings = settings;
+
             var runtimeHandle = NativeRuntime.Instance.Acquire(); // NOTE: We need to call Release on finalizer.
             var instanceId = Interlocked.Increment(ref _instanceId);
 
@@ -197,7 +201,7 @@ namespace Cysharp.Net.Http
 
         public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}; Method={request.Method}; Version={request.Version}");
 
             var requestContext = Send(request, cancellationToken);
 
@@ -300,14 +304,19 @@ namespace Cysharp.Net.Http
             }
 
             // Set HTTP version
-            var version = request.Version switch
-            {
-                var v when v == HttpVersion.Version10 => YahaHttpVersion.Http10,
-                var v when v == HttpVersion.Version11 => YahaHttpVersion.Http11,
-                var v when v == HttpVersionShim.Version20 => YahaHttpVersion.Http2,
-                _ => throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'"),
-            };
-            NativeMethods.yaha_request_set_version(ctx, reqCtx, version);
+            // NOTE: Following reasons are why we should ignore HttpRequestMessage.Version.
+            //       - If the request version is specified, Hyper expects it to match the version provided by the server, so specifying HttpVersion.Version20 will cause an error even when connecting to an HTTP/1 server over HTTPS.
+            //       - The official .NET default behavior allows downgrading the HTTP request version.
+            //       - If http2_only is not specified or false in Hyper, the version is determined by ALPN negotiation in TLS, so there is no need to set the version of the request.
+            //       - If the server supports HTTP/2, HTTP/2 is selected by ALPN or h2c is used with http2_only, so there is no need to specify the request version.
+            //var version = request.Version switch
+            //{
+            //    var v when v == HttpVersion.Version10 => YahaHttpVersion.Http10,
+            //    var v when v == HttpVersion.Version11 => YahaHttpVersion.Http11,
+            //    var v when v == HttpVersionShim.Version20 => YahaHttpVersion.Http2,
+            //    _ => throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'"),
+            //};
+            //NativeMethods.yaha_request_set_version(ctx, reqCtx, version);
 
             // Prepare body channel
             NativeMethods.yaha_request_set_has_body(ctx, reqCtx, request.Content != null);
