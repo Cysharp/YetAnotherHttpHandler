@@ -1,6 +1,4 @@
-using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
