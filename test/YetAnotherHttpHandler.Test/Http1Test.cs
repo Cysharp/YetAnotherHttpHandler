@@ -41,7 +41,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         Assert.Contains("'HTTP_1_1_REQUIRED' (0xd)", ex.Message);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Request_Version_20_Http1OnlyServer_Secure()
     {
         // Arrange

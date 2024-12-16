@@ -14,7 +14,6 @@ using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
-[OSSkipCondition(OperatingSystems.MacOSX)]
 public class StressTest : UseTestServerTestBase
 {
     protected override TimeSpan UnexpectedTimeout => TimeSpan.FromMinutes(3);
@@ -55,7 +54,7 @@ public class StressTest : UseTestServerTestBase
     protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
         => LaunchServerAsyncCore<T>(configure);
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Duplex_Concurrency()
     {
         // Arrange
@@ -112,7 +111,7 @@ public class StressTest : UseTestServerTestBase
         }
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Duplex_Concurrency_CompleteFromServerWhileSendingData()
     {
         // Arrange
@@ -173,7 +172,7 @@ public class StressTest : UseTestServerTestBase
         }
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Duplex_Concurrency_AbortFromServerWhileSendingData()
     {
         // Arrange
@@ -241,7 +240,7 @@ public class StressTest : UseTestServerTestBase
         }
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Duplex_Large_Data()
     {
         // Arrange
