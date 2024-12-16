@@ -1,6 +1,4 @@
-using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -8,7 +6,6 @@ using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
-[OSSkipCondition(OperatingSystems.MacOSX)] // .NET 7 or earlier does not support ALPN on macOS.
 public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testOutputHelper)
 {
     protected override YetAnotherHttpHandler CreateHandler()
@@ -39,7 +36,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         });
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task SelfSignedCertificate_NotTrusted()
     {
         // Arrange
@@ -55,7 +52,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         Assert.IsType<HttpRequestException>(ex);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task SelfSignedCertificate_NotTrusted_SkipValidation()
     {
         // Arrange
@@ -72,7 +69,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         Assert.Equal("__OK__", result);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task SelfSignedCertificate_Trusted_CustomRootCA()
     {
         // Arrange
@@ -94,7 +91,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         Assert.Equal("__OK__", result);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task CustomCertificateVerificationHandler_Success()
     {
         // Arrange
@@ -118,7 +115,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         Assert.Equal("__OK__", result);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task CustomCertificateVerificationHandler_Failure()
     {
         // Arrange
@@ -141,7 +138,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         Assert.IsType<HttpRequestException>(ex);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task CustomCertificateVerificationHandler_Certificate()
     {
         // Arrange

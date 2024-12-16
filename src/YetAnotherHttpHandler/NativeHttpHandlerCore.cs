@@ -1,14 +1,9 @@
 using System;
-using System.Buffers;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Net;
 using System.Text;
 using System.IO.Pipelines;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -197,7 +192,7 @@ namespace Cysharp.Net.Http
 
         public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}");
+            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"HttpMessageHandler.SendAsync: {request.RequestUri}; Method={request.Method}; Version={request.Version}");
 
             var requestContext = Send(request, cancellationToken);
 
@@ -300,14 +295,19 @@ namespace Cysharp.Net.Http
             }
 
             // Set HTTP version
-            var version = request.Version switch
-            {
-                var v when v == HttpVersion.Version10 => YahaHttpVersion.Http10,
-                var v when v == HttpVersion.Version11 => YahaHttpVersion.Http11,
-                var v when v == HttpVersionShim.Version20 => YahaHttpVersion.Http2,
-                _ => throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'"),
-            };
-            NativeMethods.yaha_request_set_version(ctx, reqCtx, version);
+            // NOTE: Following reasons are why we should ignore HttpRequestMessage.Version.
+            //       - If the request version is specified, Hyper expects it to match the version provided by the server, so specifying HttpVersion.Version20 will cause an error even when connecting to an HTTP/1 server over HTTPS.
+            //       - The official .NET default behavior allows downgrading the HTTP request version.
+            //       - If http2_only is not specified or false in Hyper, the version is determined by ALPN negotiation in TLS, so there is no need to set the version of the request.
+            //       - If the server supports HTTP/2, HTTP/2 is selected by ALPN or h2c is used with http2_only, so there is no need to specify the request version.
+            //var version = request.Version switch
+            //{
+            //    var v when v == HttpVersion.Version10 => YahaHttpVersion.Http10,
+            //    var v when v == HttpVersion.Version11 => YahaHttpVersion.Http11,
+            //    var v when v == HttpVersionShim.Version20 => YahaHttpVersion.Http2,
+            //    _ => throw new NotSupportedException($"Unsupported HTTP version '{request.Version}'"),
+            //};
+            //NativeMethods.yaha_request_set_version(ctx, reqCtx, version);
 
             // Prepare body channel
             NativeMethods.yaha_request_set_has_body(ctx, reqCtx, request.Content != null);
@@ -415,7 +415,7 @@ namespace Cysharp.Net.Http
             var certificateDer = new ReadOnlySpan<byte>(certificateDerPtr, (int)certificateDerLength);
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"OnServerCertificateVerification: State=0x{callbackState:X}; ServerName={serverName}; CertificateDer.Length={certificateDer.Length}; Now={now}");
 
-            var onServerCertificateVerification = (ServerCertificateVerificationHandler)GCHandle.FromIntPtr(callbackState).Target;
+            var onServerCertificateVerification = (ServerCertificateVerificationHandler?)GCHandle.FromIntPtr(callbackState).Target;
             Debug.Assert(onServerCertificateVerification != null);
             if (onServerCertificateVerification == null)
             {

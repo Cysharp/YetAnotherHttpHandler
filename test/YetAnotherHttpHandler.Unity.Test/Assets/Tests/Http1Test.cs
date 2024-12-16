@@ -42,6 +42,28 @@ public class Http1Test : YahaUnityTestBase
     }
 
     [Fact]
+    public async Task Request_Version_Downgrade()
+    {
+        // Arrange
+        using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
+        var httpClient = new HttpClient(httpHandler);
+        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
+        {
+            Version = HttpVersion.Version20,
+        };
+
+        // Act
+        var response = await httpClient.SendAsync(request);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.Equal(HttpVersion.Version11, response.Version);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("__OK__", responseBody);
+    }
+
+    [Fact]
     public async Task Get_Ok()
     {
         // Arrange
