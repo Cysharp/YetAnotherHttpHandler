@@ -13,6 +13,7 @@ public abstract class UseTestServerTestBase : TimeoutTestBase, IDisposable
     protected UseTestServerTestBase(ITestOutputHelper testOutputHelper)
     {
         TestOutputHelper = testOutputHelper ?? throw new ArgumentNullException(nameof(testOutputHelper));
+        testOutputHelper.WriteLine($"[{DateTime.Now}][{nameof(TimeoutTestBase)}] UnexpectedTimeout = {UnexpectedTimeout} ({UnexpectedTimeoutOn})");
         _tokenRegistration = TimeoutToken.Register(() =>
         {
             testOutputHelper.WriteLine($"[{DateTime.Now}][{nameof(TimeoutTestBase)}] Timeout reached");

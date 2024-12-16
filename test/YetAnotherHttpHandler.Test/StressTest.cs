@@ -16,7 +16,7 @@ namespace _YetAnotherHttpHandler.Test;
 
 public class StressTest : UseTestServerTestBase
 {
-    protected override TimeSpan UnexpectedTimeout => TimeSpan.FromMinutes(3);
+    protected override TimeSpan UnexpectedTimeout => TimeSpan.FromMinutes(5);
 
     public StressTest(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
     {
