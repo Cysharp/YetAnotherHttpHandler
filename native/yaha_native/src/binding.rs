@@ -335,6 +335,7 @@ pub extern "C" fn yaha_client_config_http2_initial_max_send_streams(
         .http2_initial_max_send_streams(initial);
 }
 
+#[cfg(unix)]
 #[no_mangle]
 pub extern "C" fn yaha_client_config_unix_domain_socket_path(
     ctx: *mut YahaNativeContext,
@@ -509,7 +510,12 @@ pub extern "C" fn yaha_request_begin(
                 (req_ctx.seq, builder.body(body).unwrap())
             };
 
-            if ctx.tcp_client.is_none() && ctx.uds_client.is_none() {
+            #[cfg(unix)]
+            let client_is_none = ctx.tcp_client.is_none() && ctx.uds_client.is_none();
+            #[cfg(not(unix))]
+            let client_is_none = ctx.tcp_client.is_none();
+
+            if client_is_none {
                 LAST_ERROR.with(|v| {
                     *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
                 });
