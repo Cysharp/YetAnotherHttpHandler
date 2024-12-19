@@ -318,6 +318,7 @@ Note:
 - HTTPS is not supported over UDS. All HTTPS related configuration properties are ignored if UDS is enabled.
 - The grpc-dotnet library doesn't handle non-HTTP schemes (like "unix://"), so keep passing an HTTP URI to `GrpcChannel`, e.g. http://localhost.
   The actual HTTP requests will be redirected to `UnixDomainSocketPath` by YetAnotherHttpHandler internally.
+- When using Kestrel on the server, you need to set the `KestrelServerOptions.AllowAlternateSchemes` option to `true`.
 
 ## Development
 ### Build & Tests
