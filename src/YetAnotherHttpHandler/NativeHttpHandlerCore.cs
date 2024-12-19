@@ -187,6 +187,10 @@ namespace Cysharp.Net.Http
             if (settings.UnixDomainSocketPath is { } unixDomainSocketPath)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.UnixDomainSocketPath)}' = {unixDomainSocketPath}");
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    throw new PlatformNotSupportedException("Unix domain socket is not supported on Windows.");
+                }
                 var strBytes = Encoding.UTF8.GetBytes(unixDomainSocketPath);
                 fixed (byte* buffer = strBytes)
                 {
