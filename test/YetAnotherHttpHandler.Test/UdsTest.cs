@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using _YetAnotherHttpHandler.Test.Helpers.Testing;
 using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -7,6 +8,7 @@ using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
+[OSSkipCondition(OperatingSystems.Windows)]
 public class UdsTest(ITestOutputHelper testOutputHelper) : Http2TestBase(testOutputHelper)
 {
     private readonly string _udsPath = Path.Combine(Path.GetTempPath(), $"yaha-uds-test-{Guid.NewGuid()}");
