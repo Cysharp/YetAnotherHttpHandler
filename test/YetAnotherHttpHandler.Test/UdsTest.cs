@@ -41,3 +41,24 @@ public class UdsTest(ITestOutputHelper testOutputHelper) : Http2TestBase(testOut
         });
     }
 }
+
+[OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
+public class UdsNotSupportedTest
+{
+    [ConditionalFact]
+    public async Task Throw()
+    {
+        // Arrange
+        var handler = new YetAnotherHttpHandler()
+        {
+            UnixDomainSocketPath = "/path/to/socket",
+        };
+        var httpClient = new HttpClient(handler);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<PlatformNotSupportedException>(async () =>
+        {
+            await httpClient.GetAsync("http://localhost/");
+        });
+    }
+}
