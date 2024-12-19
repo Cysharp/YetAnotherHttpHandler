@@ -169,6 +169,11 @@ namespace Cysharp.Net.Http
         /// </remarks>
         public ulong? Http2InitialMaxSendStreams { get => _settings.Http2InitialMaxSendStreams; set => _settings.Http2InitialMaxSendStreams = value; }
 
+        /// <summary>
+        /// Gets or sets the path to a Unix Domain Socket to be used as HTTP communication channel instead of the default TCP.
+        /// </summary>
+        public string? UnixDomainSocketPath { get => _settings.UnixDomainSocketPath; set => _settings.UnixDomainSocketPath = value; }
+
         private NativeHttpHandlerCore SetupHandler()
         {
             var settings = _settings.Clone();
@@ -236,6 +241,7 @@ namespace Cysharp.Net.Http
         public ulong? Http2MaxConcurrentResetStreams { get; set; }
         public ulong? Http2MaxSendBufferSize { get; set; }
         public ulong? Http2InitialMaxSendStreams { get; set; }
+        public string? UnixDomainSocketPath { get; set; }
 
         public NativeClientSettings Clone()
         {
@@ -261,6 +267,7 @@ namespace Cysharp.Net.Http
                 Http2MaxConcurrentResetStreams = this.Http2MaxConcurrentResetStreams,
                 Http2MaxSendBufferSize = this.Http2MaxSendBufferSize,
                 Http2InitialMaxSendStreams = this.Http2InitialMaxSendStreams,
+                UnixDomainSocketPath = this.UnixDomainSocketPath,
             };
         }
     }

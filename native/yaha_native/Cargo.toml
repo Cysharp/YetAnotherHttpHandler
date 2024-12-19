@@ -42,6 +42,8 @@ tokio-stream = "0.1.15"
 futures-channel = "0.3.30"
 futures-util = "0.3.30"
 
+[target.'cfg(unix)'.dependencies]
+hyperlocal = "0.9.1"
 
 [features]
 default = [ "rustls" ]
