@@ -53,6 +53,7 @@ Architecture/Platform | Windows | macOS | Linux | Android | iOS
 	- TLS 1.2/1.3 with ALPN
 		- TLS support is powered by Rustls + webpki
 		- Client certificate
+    - Unix Domain Socket (macOS, Linux)
 
 ### Not supported yet
 - HTTP proxy support
@@ -335,6 +336,10 @@ When creating a package, The following artifacts directory is used.
 
 - native/artifacts/{.NET RID}/{lib}yaha_native.{dll,so}
 
+```bash
+# Generate THIRD-PARTY-NOTICES using cargo-about
+cargo about generate about.hbs > ../THIRD-PARTY-NOTICES
+```
 
 ## License
 MIT License
