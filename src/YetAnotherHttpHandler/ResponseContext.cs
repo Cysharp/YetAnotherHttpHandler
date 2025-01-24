@@ -13,7 +13,7 @@ namespace Cysharp.Net.Http
     internal class ResponseContext
     {
         private readonly RequestContext _requestContext;
-        private readonly Pipe _pipe = new Pipe(System.IO.Pipelines.PipeOptions.Default);
+        private readonly Pipe _pipe;
         private readonly TaskCompletionSource<HttpResponseMessage> _responseTask;
         private readonly HttpResponseMessage _message;
         private readonly CancellationToken _cancellationToken;
@@ -21,8 +21,9 @@ namespace Cysharp.Net.Http
         private readonly object _writeLock = new object();
         private bool _completed = false;
 
-        internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, CancellationToken cancellationToken)
+        internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, PipeOptions? pipeOptions, CancellationToken cancellationToken)
         {
+            _pipe = new Pipe(pipeOptions ?? PipeOptions.Default);
             _requestContext = requestContext;
             _responseTask = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             _cancellationToken = cancellationToken;

@@ -23,6 +23,7 @@ namespace Cysharp.Net.Http
         private readonly YahaContextSafeHandle _handle;
         private GCHandle? _onVerifyServerCertificateHandle; // The handle must be released in Dispose if it is allocated.
         private bool _disposed = false;
+        private PipeOptions? _responsePipeOptions;
 
         // NOTE: We need to keep the callback delegates in advance.
         //       The delegates are kept on the Rust side, so it will crash if they are garbage collected.
@@ -199,6 +200,12 @@ namespace Cysharp.Net.Http
                 }
             }
 
+            if (settings.ResponsePipeOptions is { } responsePipeOptions)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.ResponsePipeOptions)}' = {responsePipeOptions}");
+                _responsePipeOptions = responsePipeOptions;
+            }
+
             NativeMethods.yaha_build_client(ctx);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"{nameof(NativeHttpHandlerCore)} created");
@@ -327,7 +334,7 @@ namespace Cysharp.Net.Http
             NativeMethods.yaha_request_set_has_body(ctx, reqCtx, request.Content != null);
 
             // Prepare a request context
-            var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, cancellationToken);
+            var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, _responsePipeOptions, cancellationToken);
             requestContextManaged.Allocate();
             if (cancellationToken.IsCancellationRequested)
             {

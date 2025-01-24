@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO.Pipelines;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -174,6 +175,11 @@ namespace Cysharp.Net.Http
         /// </summary>
         public string? UnixDomainSocketPath { get => _settings.UnixDomainSocketPath; set => _settings.UnixDomainSocketPath = value; }
 
+        /// <summary>
+        /// Gets or sets the options for the pipe used to receive the response body.
+        /// </summary>
+        public PipeOptions? ResponsePipeOptions { get => _settings.ResponsePipeOptions; set => _settings.ResponsePipeOptions = value; }
+
         private NativeHttpHandlerCore SetupHandler()
         {
             var settings = _settings.Clone();
@@ -242,6 +248,7 @@ namespace Cysharp.Net.Http
         public ulong? Http2MaxSendBufferSize { get; set; }
         public ulong? Http2InitialMaxSendStreams { get; set; }
         public string? UnixDomainSocketPath { get; set; }
+        public PipeOptions? ResponsePipeOptions { get; set; }
 
         public NativeClientSettings Clone()
         {
@@ -268,6 +275,7 @@ namespace Cysharp.Net.Http
                 Http2MaxSendBufferSize = this.Http2MaxSendBufferSize,
                 Http2InitialMaxSendStreams = this.Http2InitialMaxSendStreams,
                 UnixDomainSocketPath = this.UnixDomainSocketPath,
+                ResponsePipeOptions = this.ResponsePipeOptions,
             };
         }
     }

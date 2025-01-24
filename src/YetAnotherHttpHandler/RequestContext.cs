@@ -33,11 +33,11 @@ namespace Cysharp.Net.Http
         public PipeWriter Writer => _pipe.Writer;
         public IntPtr Handle => GCHandle.ToIntPtr(_handle);
 
-        internal RequestContext(YahaContextSafeHandle ctx, YahaRequestContextSafeHandle requestContext, HttpRequestMessage requestMessage, int requestSequence, CancellationToken cancellationToken)
+        internal RequestContext(YahaContextSafeHandle ctx, YahaRequestContextSafeHandle requestContext, HttpRequestMessage requestMessage, int requestSequence, PipeOptions? responsePipeOptions,  CancellationToken cancellationToken)
         {
             _ctxHandle = ctx;
             _requestContextHandle = requestContext;
-            _response = new ResponseContext(requestMessage, this, cancellationToken);
+            _response = new ResponseContext(requestMessage, this, responsePipeOptions, cancellationToken);
             _readRequestTask = default;
             _requestSequence = requestSequence;
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
