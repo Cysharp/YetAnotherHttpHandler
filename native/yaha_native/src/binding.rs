@@ -9,7 +9,7 @@ use hyper::{
     Request, StatusCode, Uri, Version,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use tokio::select;
+use tokio::{select, sync::oneshot};
 use tokio_util::sync::CancellationToken;
 
 use crate::interop::{ByteBuffer, StringBuffer};
@@ -65,7 +65,7 @@ pub extern "C" fn yaha_init_context(
         status_code: i32,
         version: YahaHttpVersion,
     ),
-    on_receive: extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8),
+    on_receive: extern "C" fn(req_seq: i32, state: NonZeroIsize, length: usize, buf: *const u8, task_handle: usize),
     on_complete: extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason, h2_error_code: u32),
 ) -> *mut YahaNativeContext {
     let runtime_ctx = YahaNativeRuntimeContextInternal::from_raw_context(runtime_ctx);
@@ -86,7 +86,7 @@ pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
     ctx.on_status_code_and_headers_receive = _sentinel_on_status_code_and_headers_receive;
 }
 extern "C" fn _sentinel_on_complete(_: i32, _: NonZeroIsize, _: CompletionReason, _: u32) { panic!("The context has already disposed: on_complete"); }
-extern "C" fn _sentinel_on_receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8) { panic!("The context has already disposed: on_receive"); }
+extern "C" fn _sentinel_on_receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8, _: usize) { panic!("The context has already disposed: on_receive"); }
 extern "C" fn _sentinel_on_status_code_and_headers_receive(_: i32, _: NonZeroIsize, _: i32, _: YahaHttpVersion) { panic!("The context has already disposed: on_status_code_and_headers_receive"); }
 
 #[no_mangle]
@@ -347,7 +347,6 @@ pub extern "C" fn yaha_client_config_unix_domain_socket_path(
     ctx.uds_socket_path.get_or_insert(uds_socket_path.into());
 }
 
-
 #[no_mangle]
 pub extern "C" fn yaha_build_client(ctx: *mut YahaNativeContext) {
     let ctx = YahaNativeContextInternal::from_raw_context(ctx);
@@ -582,7 +581,11 @@ pub extern "C" fn yaha_request_begin(
                                     Ok(frame) => {
                                         if frame.is_data() {
                                             let data = frame.into_data().unwrap();
-                                            (ctx.on_receive)(seq, state, data.len(), data.as_ptr());
+                                            let (tx, rx) = oneshot::channel::<()>();
+                                            let tx = Box::into_raw(Box::new(tx)) as usize;
+                                        
+                                            (ctx.on_receive)(seq, state, data.len(), data.as_ptr(), tx);
+                                            rx.await.unwrap();
                                         } else if frame.is_trailers() {
 
                                             trailer_received = true;
@@ -814,4 +817,10 @@ pub extern "C" fn yaha_request_destroy(
 ) -> bool {
     let req_ctx = crate::context::to_internal_arc(req_ctx);
     true
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_complete_task(task_handle: usize) {
+    let tx = unsafe { Box::from_raw(task_handle as *mut oneshot::Sender<()>) };
+    tx.send(()).unwrap();
 }

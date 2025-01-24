@@ -450,13 +450,18 @@ namespace Cysharp.Net.Http
         }
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
-        private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf)
+        private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf, nuint taskHandle)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response data received: Length={length}");
 
             var bufSpan = new Span<byte>(buf, (int)length);
             var requestContext = RequestContext.FromHandle(state);
             requestContext.Response.Write(bufSpan);
+            requestContext.Response.FlushAsync().ConfigureAwait(false).GetAwaiter().UnsafeOnCompleted(() =>
+            {
+                // complete the task even if the flush failed
+                NativeMethods.yaha_complete_task((nuint)(nint)taskHandle);
+            });
         }
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]

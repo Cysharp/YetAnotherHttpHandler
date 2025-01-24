@@ -53,12 +53,12 @@ namespace Cysharp.Net.Http
                 var buffer = _pipe.Writer.GetSpan(data.Length);
                 data.CopyTo(buffer);
                 _pipe.Writer.Advance(data.Length);
-                var t = _pipe.Writer.FlushAsync();
-                if (!t.IsCompleted)
-                {
-                    t.AsTask().GetAwaiter().GetResult();
-                }
             }
+        }
+
+        public ValueTask<FlushResult> FlushAsync()
+        {
+            return _pipe.Writer.FlushAsync(default);
         }
 
         public void SetHeader(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
