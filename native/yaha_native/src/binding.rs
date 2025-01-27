@@ -581,11 +581,30 @@ pub extern "C" fn yaha_request_begin(
                                     Ok(frame) => {
                                         if frame.is_data() {
                                             let data = frame.into_data().unwrap();
-                                            let (tx, rx) = oneshot::channel::<()>();
+                                            let (tx, rx) = oneshot::channel::<Result<(), String>>();
                                             let tx = Box::into_raw(Box::new(tx)) as usize;
-                                        
+
                                             (ctx.on_receive)(seq, state, data.len(), data.as_ptr(), tx);
-                                            rx.await.unwrap();
+                                            match rx.await {
+                                                Ok(result) => {
+                                                    if let Err(err) = result {
+                                                        // the sender reports an error
+                                                        LAST_ERROR.with(|v| {
+                                                            *v.borrow_mut() = Some(err);
+                                                        });
+                                                        (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
+                                                        return;
+                                                    }
+                                                },
+                                                Err(e) => {
+                                                    // the sender is dropped without sending
+                                                    LAST_ERROR.with(|v| {
+                                                        *v.borrow_mut() = Some("on_receive() has not completed correctly.".to_string());
+                                                    });
+                                                    (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
+                                                    return;
+                                                }
+                                            }
                                         } else if frame.is_trailers() {
 
                                             trailer_received = true;
@@ -820,7 +839,12 @@ pub extern "C" fn yaha_request_destroy(
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_complete_task(task_handle: usize) {
-    let tx = unsafe { Box::from_raw(task_handle as *mut oneshot::Sender<()>) };
-    tx.send(()).unwrap();
+pub extern "C" fn yaha_complete_task(task_handle: usize, error: *const StringBuffer) {
+    let tx = unsafe { Box::from_raw(task_handle as *mut oneshot::Sender<Result<(), String>>) };
+    if error.is_null() {
+        tx.send(Ok(())).unwrap();
+    } else {
+        let error = unsafe { (*error).to_str().to_string() };
+        tx.send(Err(error)).unwrap();
+    }
 }

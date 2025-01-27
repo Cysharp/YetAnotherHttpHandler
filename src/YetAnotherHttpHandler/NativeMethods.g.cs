@@ -178,7 +178,7 @@ namespace Cysharp.Net.Http
         public static extern bool yaha_request_destroy(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
 
         [DllImport(__DllName, EntryPoint = "yaha_complete_task", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void yaha_complete_task(nuint task_handle);
+        public static extern void yaha_complete_task(nuint task_handle, StringBuffer* error);
 
 
     }

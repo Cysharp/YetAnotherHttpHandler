@@ -20,6 +20,7 @@ namespace Cysharp.Net.Http
         private readonly CancellationTokenRegistration _tokenRegistration;
         private readonly object _writeLock = new object();
         private bool _completed = false;
+        private Task<FlushResult>? _latestFlushTask;
 
         internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, PipeOptions? pipeOptions, CancellationToken cancellationToken)
         {
@@ -43,23 +44,28 @@ namespace Cysharp.Net.Http
 #endif
         }
 
-        public void Write(ReadOnlySpan<byte> data)
+        public ValueTask<FlushResult> WriteAsync(ReadOnlySpan<byte> data)
         {
-            // NOTE: Currently, this method is called from the rust-side thread (tokio-worker-thread),
-            //        so care must be taken because throwing a managed exception will cause a crash.
             lock (_writeLock)
             {
-                if (_completed) return;
+                if (_completed) return default;
+
+                WaitForLatestFlush();
 
                 var buffer = _pipe.Writer.GetSpan(data.Length);
                 data.CopyTo(buffer);
                 _pipe.Writer.Advance(data.Length);
-            }
-        }
 
-        public ValueTask<FlushResult> FlushAsync()
-        {
-            return _pipe.Writer.FlushAsync(default);
+                var flush = _pipe.Writer.FlushAsync(_cancellationToken);
+                if (flush.IsCompleted)
+                {
+                    _latestFlushTask = null;
+                    return flush;
+                }
+
+                _latestFlushTask = flush.AsTask();
+                return new ValueTask<FlushResult>(_latestFlushTask);
+            }
         }
 
         public void SetHeader(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
@@ -106,6 +112,7 @@ namespace Cysharp.Net.Http
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed. (_completed={_completed})");
             lock (_writeLock)
             {
+                WaitForLatestFlush();
                 _pipe.Writer.Complete();
                 _completed = true;
             }
@@ -140,6 +147,7 @@ namespace Cysharp.Net.Http
                 }
 #endif
                 _responseTask.TrySetException(ex);
+                WaitForLatestFlush();
                 _pipe.Writer.Complete(ex);
                 _completed = true;
             }
@@ -153,6 +161,7 @@ namespace Cysharp.Net.Http
             {
                 _requestContext.TryAbort();
                 _responseTask.TrySetCanceled(_cancellationToken);
+                WaitForLatestFlush();
                 _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
                 _completed = true;
             }
@@ -175,6 +184,23 @@ namespace Cysharp.Net.Http
             catch (Exception e)
             {
                 throw new HttpRequestException(e.Message, e);
+            }
+        }
+
+        private void WaitForLatestFlush()
+        {
+            // PipeWriter is not thread-safe, so we need to wait for the latest flush task to complete before writing to the pipe.
+
+            if (_latestFlushTask is { IsCompleted: false } latestFlushTask)
+            {
+                try
+                {
+                    latestFlushTask.Wait();
+                }
+                catch (Exception)
+                {
+                    // It is safe to ignore an exception thrown by the latest flush task because it will be caught by NativeHttpHandlerCore.OnReceive().
+                }
             }
         }
 
