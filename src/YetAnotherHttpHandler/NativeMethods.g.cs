@@ -38,7 +38,7 @@ namespace Cysharp.Net.Http
         public delegate void yaha_init_context_on_status_code_and_headers_receive_delegate(int req_seq, nint state, int status_code, YahaHttpVersion version);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        public delegate void yaha_init_context_on_receive_delegate(int req_seq, nint state, nuint length, byte* buf);
+        public delegate void yaha_init_context_on_receive_delegate(int req_seq, nint state, nuint length, byte* buf, nuint task_handle);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void yaha_init_context_on_complete_delegate(int req_seq, nint state, CompletionReason reason, uint h2_error_code);
@@ -176,6 +176,9 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_request_destroy", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool yaha_request_destroy(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
+
+        [DllImport(__DllName, EntryPoint = "yaha_complete_task", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_complete_task(nuint task_handle, StringBuffer* error);
 
 
     }

@@ -23,6 +23,7 @@ namespace Cysharp.Net.Http
         private readonly YahaContextSafeHandle _handle;
         private GCHandle? _onVerifyServerCertificateHandle; // The handle must be released in Dispose if it is allocated.
         private bool _disposed = false;
+        private PipeOptions? _responsePipeOptions;
 
         // NOTE: We need to keep the callback delegates in advance.
         //       The delegates are kept on the Rust side, so it will crash if they are garbage collected.
@@ -199,6 +200,12 @@ namespace Cysharp.Net.Http
                 }
             }
 
+            if (settings.ResponsePipeOptions is { } responsePipeOptions)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.ResponsePipeOptions)}' = {responsePipeOptions}");
+                _responsePipeOptions = responsePipeOptions;
+            }
+
             NativeMethods.yaha_build_client(ctx);
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"{nameof(NativeHttpHandlerCore)} created");
@@ -327,7 +334,7 @@ namespace Cysharp.Net.Http
             NativeMethods.yaha_request_set_has_body(ctx, reqCtx, request.Content != null);
 
             // Prepare a request context
-            var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, cancellationToken);
+            var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, _responsePipeOptions, cancellationToken);
             requestContextManaged.Allocate();
             if (cancellationToken.IsCancellationRequested)
             {
@@ -450,13 +457,63 @@ namespace Cysharp.Net.Http
         }
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
-        private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf)
+        private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf, nuint taskHandle)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response data received: Length={length}");
+            try
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response data received: Length={length}");
 
-            var bufSpan = new Span<byte>(buf, (int)length);
-            var requestContext = RequestContext.FromHandle(state);
-            requestContext.Response.Write(bufSpan);
+                var bufSpan = new Span<byte>(buf, (int)length);
+                var requestContext = RequestContext.FromHandle(state);
+                var write = requestContext.Response.WriteAsync(bufSpan);
+
+                if (write.IsCompleted)
+                {
+                    write.GetAwaiter().GetResult();
+                    CompleteTask(taskHandle);
+                }
+                else
+                {
+                    // backpressure is occurred
+                    var awaiter = write.GetAwaiter();
+                    awaiter.UnsafeOnCompleted(() =>
+                    {
+                        try
+                        {
+                            awaiter.GetResult();
+                        }
+                        catch (Exception ex)
+                        {
+                            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Error($"[ReqSeq:{reqSeq}:State:0x{state:X}] Failed to flush response data: {ex}");
+                            CompleteTask(taskHandle, ex.ToString());
+                            return;
+                        }
+
+                        CompleteTask(taskHandle);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Error($"[ReqSeq:{reqSeq}:State:0x{state:X}] Failed to flush response data: {ex}");
+                CompleteTask(taskHandle, ex.ToString());
+            }
+        }
+
+        private static unsafe void CompleteTask(nuint taskHandle, string? error = null)
+        {
+            if (error is null)
+            {
+                NativeMethods.yaha_complete_task(taskHandle, (StringBuffer*)0);
+                return;
+            }
+
+            using var messageUtf8 = new TempUtf8String(error);
+            fixed (byte* messagePtr = messageUtf8.Span)
+            {
+                var sb = new StringBuffer(messagePtr, messageUtf8.Span.Length);
+                NativeMethods.yaha_complete_task((nuint)(nint)taskHandle, &sb);
+            }
         }
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
