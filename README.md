@@ -231,6 +231,7 @@ Once the handler sends a request, these settings become immutable and cannot be 
 |Http2MaxSendBufferSize|Gets or sets the maximum write buffer size for each HTTP/2 stream. Default is currently 1MB, but may change.|
 |Http2InitialMaxSendStreams|Gets or sets the initial maximum of locally initiated (send) streams. This value will be overwritten by the value included in the initial SETTINGS frame received from the peer as part of a connection preface.|
 |UnixDomainSocketPath|Gets or sets the path to a Unix Domain Socket to be used as HTTP communication channel instead of the default TCP.|
+|ResponsePipeOptions|Gets or sets the options for the pipe used to receive the response body.|
 
 Most of them expose [hyper client settings](https://docs.rs/hyper-util/latest/hyper_util/client/legacy/struct.Builder.html), so please check those as well.
 
