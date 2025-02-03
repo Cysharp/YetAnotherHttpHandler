@@ -177,6 +177,12 @@ class TestServerForHttp1AndHttp2 : ITestServerBuilder
             }
             return Results.Empty;
         });
+        app.MapGet("/random", (int size) =>
+        {
+            var buffer = new byte[size];
+            Random.Shared.NextBytes(buffer);
+            return Results.Bytes(buffer, "application/octet-stream");
+        });
 
         // HTTP/2
         app.MapGet("/error-reset", (HttpContext httpContext) =>
