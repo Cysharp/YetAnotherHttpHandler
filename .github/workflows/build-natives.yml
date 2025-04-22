@@ -122,6 +122,8 @@ jobs:
       run:
         working-directory: native
     steps:
+      # .NET dependencies
+      # https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet8&pivots=os-linux-ubuntu-2004#dependencies-3
       - run: |
           apt-get update
           apt-get install -y \
@@ -132,8 +134,6 @@ jobs:
             autoconf \
             build-essential \
             ca-certificates \
-            # .NET dependencies \
-            # https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet8&pivots=os-linux-ubuntu-2004#dependencies-3 \
             libc6 \
             libgcc-s1 \
             libgssapi-krb5-2 \
