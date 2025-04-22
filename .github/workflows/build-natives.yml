@@ -143,6 +143,8 @@ jobs:
             tzdata \
             zlib1g
         working-directory: /
+        env:
+          DEBIAN_FRONTEND: noninteractive
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - uses: actions-rust-lang/setup-rust-toolchain@v1
