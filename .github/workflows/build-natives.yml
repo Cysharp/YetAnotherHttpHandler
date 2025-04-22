@@ -113,14 +113,39 @@ jobs:
 
   build-linux-x64:
     name: Build Native library (linux-x64)
-    runs-on: ubuntu-20.04 # Needs to lock glibc version to 2.31 (Issue #30)
+    runs-on: ubuntu-24.04
+    container:
+      # Needs to lock glibc version to 2.31 (Issue #30)
+      image: ubuntu:20.04 # Use Ubuntu 20.04 based image
     timeout-minutes: 30
     defaults:
       run:
         working-directory: native
     steps:
+      - run: |
+          apt-get update
+          apt-get install -y \
+            unzip \
+            curl \
+            wget \
+            git \
+            autoconf \
+            build-essential \
+            ca-certificates \
+            # .NET dependencies \
+            # https://learn.microsoft.com/en-us/dotnet/core/install/linux-ubuntu-install?tabs=dotnet8&pivots=os-linux-ubuntu-2004#dependencies-3 \
+            libc6 \
+            libgcc-s1 \
+            libgssapi-krb5-2 \
+            libicu66 \
+            libssl1.1 \
+            libstdc++6 \
+            tzdata \
+            zlib1g
+        working-directory: /
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
