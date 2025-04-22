@@ -48,6 +48,12 @@ namespace Cysharp.Net.Http
                 _handle.DangerousAddRef(ref addRefContextHandle);
                 Initialize(_handle.DangerousGet(), settings);
             }
+            catch
+            {
+                // NOTE: If the initialization fails, we need to release the runtime.
+                NativeRuntime.Instance.Release();
+                throw;
+            }
             finally
             {
                 if (addRefContextHandle)

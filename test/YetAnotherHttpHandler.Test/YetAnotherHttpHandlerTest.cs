@@ -35,6 +35,9 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
         GC.Collect();
         GC.Collect();
 
+        // Pre-condition
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+
         var runtimeHandle = NativeRuntime.Instance.Acquire();
 
         // To prevent references remaining from local variables, make it a local function.
@@ -90,4 +93,32 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
         Assert.True(runtimeHandle.IsClosed);
     }
 
+    // NOTE: Currently, this test can only be run on Windows.
+    [Fact]
+    [OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
+    public async Task InitializationFailure()
+    {
+        GC.Collect();
+        GC.Collect();
+        GC.Collect();
+        GC.Collect();
+
+        // Pre-condition
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+
+        try
+        {
+            using var handler = new YetAnotherHttpHandler();
+            using var httpClient = new HttpClient(handler);
+            // Throw an exception on initialization.
+            await Assert.ThrowsAsync<NotSupportedException>(async () => await httpClient.GetStringAsync("http://localhost:1"));
+        }
+        catch
+        {
+            // Ignore
+        }
+
+        // Handler and HttpClient are disposed here. Reference count of NativeRuntime should be 0.
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+    }
 }

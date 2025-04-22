@@ -49,11 +49,11 @@ public class UdsNotSupportedTest
     public async Task Throw()
     {
         // Arrange
-        var handler = new YetAnotherHttpHandler()
+        using var handler = new YetAnotherHttpHandler()
         {
             UnixDomainSocketPath = "/path/to/socket",
         };
-        var httpClient = new HttpClient(handler);
+        using var httpClient = new HttpClient(handler);
 
         // Act & Assert
         await Assert.ThrowsAsync<PlatformNotSupportedException>(async () =>
