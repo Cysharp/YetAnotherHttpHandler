@@ -147,6 +147,8 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
+        with:
+          dotnet-version: 8.0.x
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
