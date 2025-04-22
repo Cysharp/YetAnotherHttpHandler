@@ -26,6 +26,7 @@ namespace Cysharp.Net.Http
                     var runtime = NativeMethods.yaha_init_runtime();
                     _handle = new YahaRuntimeSafeHandle(runtime);
                 }
+
                 return _handle!;
             }
         }
