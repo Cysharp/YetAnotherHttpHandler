@@ -307,7 +307,7 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes.Span)
                 {
                     var buf = new StringBuffer(p, strBytes.Span.Length);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_method(ctx, reqCtx, &buf));
+                    ThrowHelper.ThrowIfFailed(ctx, reqCtx, NativeMethods.yaha_request_set_method(ctx, reqCtx, &buf));
                 }
             }
 
@@ -317,7 +317,7 @@ namespace Cysharp.Net.Http
                 fixed (byte* p = strBytes.Span)
                 {
                     var buf = new StringBuffer(p, strBytes.Span.Length);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_uri(ctx, reqCtx, &buf));
+                    ThrowHelper.ThrowIfFailed(ctx, reqCtx, NativeMethods.yaha_request_set_uri(ctx, reqCtx, &buf));
                 }
             }
 
@@ -354,7 +354,7 @@ namespace Cysharp.Net.Http
             try
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{requestSequence}:State:0x{requestContextManaged.Handle:X}] Begin HTTP request to the server.");
-                ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_begin(ctx, reqCtx, requestContextManaged.Handle));
+                ThrowHelper.ThrowIfFailed(ctx, reqCtx, NativeMethods.yaha_request_begin(ctx, reqCtx, requestContextManaged.Handle));
                 requestContextManaged.Start(hasBody: request.Content != null); // NOTE: ReadRequestLoop must be started after `request_begin`.
             }
             catch
@@ -378,7 +378,7 @@ namespace Cysharp.Net.Http
                 {
                     var bufKey = new StringBuffer(pKey, key.Span.Length);
                     var bufValue = new StringBuffer(pValue, value.Span.Length);
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_set_header(ctx, reqCtx, &bufKey, &bufValue));
+                    ThrowHelper.ThrowIfFailed(ctx, reqCtx, NativeMethods.yaha_request_set_header(ctx, reqCtx, &bufKey, &bufValue));
                 }
             }
         }
@@ -577,14 +577,36 @@ namespace Cysharp.Net.Http
                 }
                 else if (reason == CompletionReason.Error)
                 {
-                    var buf = NativeMethods.yaha_get_last_error();
+                    var addRefContext = false;
+                    var addRefRequestContext = false;
                     try
                     {
-                        requestContext.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()), h2ErrorCode);
+                        requestContext._ctxHandle.DangerousAddRef(ref addRefContext);
+                        requestContext._requestContextHandle.DangerousAddRef(ref addRefRequestContext);
+
+                        var ctx = requestContext._ctxHandle.DangerousGet();
+                        var reqCtx = requestContext._requestContextHandle.DangerousGet();
+
+                        var buf = NativeMethods.yaha_get_last_error(ctx, reqCtx);
+                        try
+                        {
+                            requestContext.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()), h2ErrorCode);
+                        }
+                        catch
+                        {
+                            NativeMethods.yaha_free_byte_buffer(buf);
+                        }
                     }
-                    catch
+                    finally
                     {
-                        NativeMethods.yaha_free_byte_buffer(buf);
+                        if (addRefContext)
+                        {
+                            requestContext._ctxHandle.DangerousRelease();
+                        }
+                        if (addRefRequestContext)
+                        {
+                            requestContext._requestContextHandle.DangerousRelease();
+                        }
                     }
                 }
                 else

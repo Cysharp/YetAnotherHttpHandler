@@ -1,5 +1,5 @@
 use std::{
-    cell::RefCell, error::Error, num::NonZeroIsize, ptr::null, sync::{Arc, Mutex}, time::Duration
+    error::Error, num::NonZeroIsize, ptr::null, sync::{Arc, Mutex}, time::Duration
 };
 
 use http_body_util::{combinators::BoxBody, BodyExt};
@@ -24,13 +24,16 @@ use crate::{
 };
 use futures_util::StreamExt;
 
-thread_local! {
-    static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
-}
 
 #[no_mangle]
-pub extern "C" fn yaha_get_last_error() -> *const ByteBuffer {
-    match LAST_ERROR.with(|p| p.borrow_mut().take()) {
+pub extern "C" fn yaha_get_last_error(
+    ctx: *const YahaNativeContext,
+    req_ctx: *const YahaNativeRequestContext
+) -> *const ByteBuffer {
+    let req_ctx = crate::context::to_internal(req_ctx);
+    let req_ctx = req_ctx.lock().unwrap();
+
+    match req_ctx.last_error.as_ref() {
         Some(e) => {
             let buf = ByteBuffer::from_vec(e.clone().into_bytes());
             Box::into_raw(Box::new(buf))
@@ -367,6 +370,7 @@ pub unsafe extern "C" fn yaha_request_new(
         has_body: false,
         completed: false,
         cancellation_token: CancellationToken::new(),
+        last_error: None,
 
         response_version: YahaHttpVersion::Http10,
         response_trailers: None,
@@ -419,9 +423,7 @@ pub unsafe extern "C" fn yaha_request_set_uri(
             true
         }
         Err(err) => {
-            LAST_ERROR.with(|v| {
-                *v.borrow_mut() = Some(err.to_string());
-            });
+            req_ctx.last_error = Some(err.to_string());
             false
         }
     }
@@ -515,9 +517,10 @@ pub extern "C" fn yaha_request_begin(
             let client_is_none = ctx.tcp_client.is_none();
 
             if client_is_none {
-                LAST_ERROR.with(|v| {
-                    *v.borrow_mut() = Some("The client has not been built. You need to build it before sending the request. ".to_string());
-                });
+                {
+                    let mut req_ctx = req_ctx.lock().unwrap();
+                    req_ctx.last_error = Some("The client has not been built. You need to build it before sending the request.".to_string());
+                }
                 (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
                 return;
             }
@@ -530,7 +533,7 @@ pub extern "C" fn yaha_request_begin(
                 }
                 res = ctx.request(req) => {
                     if let Err(err) = res {
-                        complete_with_error(ctx, seq, state, err);
+                        complete_with_error(ctx, req_ctx, seq, state, err);
                         return;
                     } else {
                         res
@@ -589,18 +592,20 @@ pub extern "C" fn yaha_request_begin(
                                                 Ok(result) => {
                                                     if let Err(err) = result {
                                                         // the sender reports an error
-                                                        LAST_ERROR.with(|v| {
-                                                            *v.borrow_mut() = Some(err);
-                                                        });
+                                                        {
+                                                            let mut req_ctx = req_ctx.lock().unwrap();
+                                                            req_ctx.last_error = Some(err);
+                                                        }
                                                         (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
                                                         return;
                                                     }
                                                 },
                                                 Err(e) => {
                                                     // the sender is dropped without sending
-                                                    LAST_ERROR.with(|v| {
-                                                        *v.borrow_mut() = Some("on_receive() has not completed correctly.".to_string());
-                                                    });
+                                                    {
+                                                        let mut req_ctx = req_ctx.lock().unwrap();
+                                                        req_ctx.last_error = Some("on_receive() has not completed correctly.".to_string());
+                                                    }
                                                     (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
                                                     return;
                                                 }
@@ -631,9 +636,10 @@ pub extern "C" fn yaha_request_begin(
                                     }
                                     Err(err) => {
                                         //println!("body.data: on_complete_error");
-                                        LAST_ERROR.with(|v| {
-                                            *v.borrow_mut() = Some(err.to_string());
-                                        });
+                                        {
+                                            let mut req_ctx = req_ctx.lock().unwrap();
+                                            req_ctx.last_error = Some(err.to_string());
+                                        }
 
                                         // If the `hyper::Error` has `h2::Error` as inner error, the error has HTTP/2 error code.
                                         let reason = err.source()
@@ -674,24 +680,23 @@ pub extern "C" fn yaha_request_begin(
     true
 }
 
-fn complete_with_error(ctx: &mut YahaNativeContextInternal, seq: i32, state: NonZeroIsize, err: hyper_util::client::legacy::Error) {
+fn complete_with_error(ctx: &mut YahaNativeContextInternal, req_ctx: Arc<Mutex<YahaNativeRequestContextInternal>>, seq: i32, state: NonZeroIsize, err: hyper_util::client::legacy::Error) {
     let mut h2_error_code = None;
 
-    // If the error has the inner error, use its error message instead.
-    if let Some(error_inner) = err.source() {
-        LAST_ERROR.with(|v| {
-            *v.borrow_mut() = Some(format!("{}: {}", err.to_string(), error_inner.to_string()));
-        });
-        
-        // If the Error has `h2::Error` as inner error, the error has HTTP/2 error code.
-        h2_error_code = error_inner.source()
-            .and_then(|e| e.downcast_ref::<h2::Error>())
-            .and_then(|e| e.reason())
-            .map(|e| u32::from(e));
-    } else {
-        LAST_ERROR.with(|v| {
-            *v.borrow_mut() = Some(err.to_string());
-        });
+    {
+        let mut req_ctx = req_ctx.lock().unwrap();
+        // If the error has the inner error, use its error message instead.
+        if let Some(error_inner) = err.source() {
+            req_ctx.last_error = Some(format!("{}: {}", err.to_string(), error_inner.to_string()));
+
+            // If the Error has `h2::Error` as inner error, the error has HTTP/2 error code.
+            h2_error_code = error_inner.source()
+                .and_then(|e| e.downcast_ref::<h2::Error>())
+                .and_then(|e| e.reason())
+                .map(|e| u32::from(e));
+        } else {
+            req_ctx.last_error = Some(err.to_string());
+        }
     }
 
     (ctx.on_complete)(seq, state, CompletionReason::Error, h2_error_code.unwrap_or_default());
