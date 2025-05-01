@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{env, error::Error};
 
 fn main() -> Result<(), Box<dyn Error>> {
     csbindgen::Builder::default()
@@ -30,7 +30,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .generate_csharp_file("../../src/YetAnotherHttpHandler/NativeMethods.Uwp.g.cs")
         .unwrap();
 
-    if cfg!(target_os = "windows") {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    if target_os == "windows" {
         let res = winres::WindowsResource::new();
         res.compile().unwrap();
     }

@@ -5,7 +5,7 @@ use std::{
 };
 use futures_channel::mpsc::Sender;
 use http_body_util::combinators::BoxBody;
-use tokio::runtime::{Handle, Runtime};
+use tokio::runtime::{Builder, Handle, Runtime};
 
 use hyper::{
     body::Bytes, 
@@ -48,7 +48,10 @@ impl YahaNativeRuntimeContextInternal {
     }
     pub fn new() -> YahaNativeRuntimeContextInternal {
         YahaNativeRuntimeContextInternal {
-            runtime: Runtime::new().unwrap()
+            runtime: Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap(),
         }
     }
 }
@@ -349,6 +352,7 @@ pub struct YahaNativeRequestContextInternal {
     pub has_body: bool,
     pub completed: bool,
     pub cancellation_token: CancellationToken,
+    pub last_error: Option<String>,
 
     pub response_version: YahaHttpVersion,
     pub response_status: StatusCode,

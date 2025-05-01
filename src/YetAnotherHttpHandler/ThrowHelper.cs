@@ -27,14 +27,14 @@ namespace Cysharp.Net.Http
             => throw new OperationCanceledException();
 
 #if NETSTANDARD2_0
-        public static unsafe void ThrowIfFailed(bool result)
+        public static unsafe void ThrowIfFailed(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx, bool result)
 #else
-        public static unsafe void ThrowIfFailed([DoesNotReturnIf(false)]bool result)
+        public static unsafe void ThrowIfFailed(YahaNativeContext* ctx, YahaNativeRequestContext* reqCtx, [DoesNotReturnIf(false)]bool result)
 #endif
         {
             if (!result)
             {
-                var buf = NativeMethods.yaha_get_last_error();
+                var buf = NativeMethods.yaha_get_last_error(ctx, reqCtx);
                 if (buf != null)
                 {
                     try

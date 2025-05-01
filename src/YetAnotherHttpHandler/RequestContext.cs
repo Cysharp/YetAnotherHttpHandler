@@ -244,7 +244,7 @@ namespace Cysharp.Net.Http
                     var ctx = _ctxHandle.DangerousGet();
                     var requestContext = _requestContextHandle.DangerousGet();
 
-                    ThrowHelper.ThrowIfFailed(NativeMethods.yaha_request_complete_body(ctx, requestContext));
+                    ThrowHelper.ThrowIfFailed(ctx, requestContext, NativeMethods.yaha_request_complete_body(ctx, requestContext));
                 }
                 finally
                 {

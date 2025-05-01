@@ -23,7 +23,7 @@ namespace Cysharp.Net.Http
 
 
         [DllImport(__DllName, EntryPoint = "yaha_get_last_error", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern ByteBuffer* yaha_get_last_error();
+        public static extern ByteBuffer* yaha_get_last_error(YahaNativeContext* ctx, YahaNativeRequestContext* req_ctx);
 
         [DllImport(__DllName, EntryPoint = "yaha_free_byte_buffer", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_free_byte_buffer(ByteBuffer* s);
