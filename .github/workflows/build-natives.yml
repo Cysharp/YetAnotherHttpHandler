@@ -252,6 +252,11 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+      - name: Use latest Android NDK
+        run: |
+          echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
       - run: sudo apt update && sudo apt install gcc-multilib
       - run: rustup target add armv7-linux-androideabi
       - run: cargo install cargo-ndk
@@ -272,6 +277,11 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+      - name: Use latest Android NDK
+        run: |
+          echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
       - run: sudo apt update && sudo apt install gcc-multilib
       - run: rustup target add aarch64-linux-android
       - run: cargo install cargo-ndk
@@ -292,6 +302,11 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+      - name: Use latest Android NDK
+        run: |
+          echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
       - run: sudo apt update && sudo apt install gcc-multilib
       - run: rustup target add x86_64-linux-android
       - run: cargo install cargo-ndk
