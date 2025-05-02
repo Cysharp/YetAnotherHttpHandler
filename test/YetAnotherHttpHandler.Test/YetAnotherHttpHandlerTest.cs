@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Cysharp.Net.Http;
 using System.IO.Pipelines;
 using System.Net;
@@ -121,4 +122,52 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
         // Handler and HttpClient are disposed here. Reference count of NativeRuntime should be 0.
         Assert.Equal(0, NativeRuntime.Instance._refCount);
     }
+
+    // NOTE: Currently, this test can only be run on Windows.
+    [Fact]
+    [OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
+    public async Task SetWorkerThreads()
+    {
+        GC.Collect();
+        GC.Collect();
+        GC.Collect();
+        GC.Collect();
+
+        // Pre-condition
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+        {
+            var tokioThreads = ThreadEnumerator.GetThreadsWithNames(Process.GetCurrentProcess().Id).Count(x => x.ThreadName.Contains("tokio-runtime-worker"));
+            Assert.Equal(0, tokioThreads);
+        }
+
+        // Set the number of worker threads to (Number of cores * 2).
+        var workerThreads = Environment.ProcessorCount * 2;
+        YetAnotherHttpHandler.SetWorkerThreads(workerThreads);
+
+        using (var handler = new YetAnotherHttpHandler())
+        using (var httpClient = new HttpClient(handler))
+        {
+            try
+            {
+                // Send a request to initialize the runtime.
+                await httpClient.GetStringAsync("http://127.0.0.1");
+            }
+            catch
+            {
+                // Ignore
+            }
+            finally
+            {
+                // Revert the number of worker threads to default.
+                YetAnotherHttpHandler.SetWorkerThreads(null);
+            }
+
+            var tokioThreads = ThreadEnumerator.GetThreadsWithNames(Process.GetCurrentProcess().Id).Count(x => x.ThreadName.Contains("tokio-runtime-worker"));
+            Assert.True(workerThreads == tokioThreads);
+        }
+
+        // Handler and HttpClient are disposed here. Reference count of NativeRuntime should be 0.
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+    }
+
 }
