@@ -32,9 +32,7 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
     public async Task DisposeHandler_During_SendBuffer_Is_Full()
     {
         GC.Collect();
-        GC.Collect();
-        GC.Collect();
-        GC.Collect();
+        GC.WaitForPendingFinalizers();
 
         // Pre-condition
         Assert.Equal(0, NativeRuntime.Instance._refCount);
@@ -84,9 +82,7 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
         // Run Finalizer.
         await Task.Delay(100);
         GC.Collect();
-        GC.Collect();
-        GC.Collect();
-        GC.Collect();
+        GC.WaitForPendingFinalizers();
         await Task.Delay(100);
 
         // Assert
@@ -95,43 +91,32 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
     }
 
     // NOTE: Currently, this test can only be run on Windows.
-    [Fact]
+    [ConditionalFact]
     [OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
     public async Task InitializationFailure()
     {
         GC.Collect();
-        GC.Collect();
-        GC.Collect();
-        GC.Collect();
+        GC.WaitForPendingFinalizers();
 
         // Pre-condition
         Assert.Equal(0, NativeRuntime.Instance._refCount);
 
-        try
-        {
-            using var handler = new YetAnotherHttpHandler();
-            using var httpClient = new HttpClient(handler);
-            // Throw an exception on initialization.
-            await Assert.ThrowsAsync<NotSupportedException>(async () => await httpClient.GetStringAsync("http://localhost:1"));
-        }
-        catch
-        {
-            // Ignore
-        }
+        using var handler = new YetAnotherHttpHandler() { UnixDomainSocketPath = "/path/to/socket" };
+        using var httpClient = new HttpClient(handler);
+        // Throw an exception on initialization.
+        await Assert.ThrowsAsync<PlatformNotSupportedException>(async () => await httpClient.GetStringAsync("http://localhost:1"));
 
         // Handler and HttpClient are disposed here. Reference count of NativeRuntime should be 0.
         Assert.Equal(0, NativeRuntime.Instance._refCount);
     }
 
     // NOTE: Currently, this test can only be run on Windows.
-    [Fact]
+    [ConditionalFact]
     [OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
     public async Task SetWorkerThreads()
     {
         GC.Collect();
-        GC.Collect();
-        GC.Collect();
-        GC.Collect();
+        GC.WaitForPendingFinalizers();
 
         // Pre-condition
         Assert.Equal(0, NativeRuntime.Instance._refCount);
@@ -163,7 +148,15 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
             }
 
             var tokioThreads = ThreadEnumerator.GetThreadsWithNames(Process.GetCurrentProcess().Id).Count(x => x.ThreadName.Contains("tokio-runtime-worker"));
-            Assert.True(workerThreads == tokioThreads);
+            Assert.Equal(workerThreads, tokioThreads);
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        {
+            var tokioThreads = ThreadEnumerator.GetThreadsWithNames(Process.GetCurrentProcess().Id).Count(x => x.ThreadName.Contains("tokio-runtime-worker"));
+            Assert.Equal(0, tokioThreads);
         }
 
         // Handler and HttpClient are disposed here. Reference count of NativeRuntime should be 0.
