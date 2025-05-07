@@ -5,6 +5,11 @@ charset = utf-8
 indent_style = space
 indent_size = 4
 
+# xUnit1051: Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken
+# https://xunit.net/xunit.analyzers/rules/xUnit1051
+dotnet_diagnostic.xUnit1051.severity = none
+
+
 [*.{csproj,props}]
 charset = utf-8
 indent_style = space

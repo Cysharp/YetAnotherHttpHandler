@@ -6,7 +6,6 @@ using Cysharp.Net.Http;
 using Grpc.Core;
 using Grpc.Net.Client;
 using TestWebApp;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -18,7 +17,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
         => LaunchServerAsyncCore<T>(configure);
 
-    [ConditionalFact]
+    [Fact]
     public async Task Get_Ok()
     {
         // Arrange
@@ -40,7 +39,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Get_NotOk()
     {
         // Arrange
@@ -62,7 +61,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Post_Body()
     {
         // Arrange
@@ -88,7 +87,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal("application/octet-stream", response.Headers.TryGetValues("x-request-content-type", out var values) ? string.Join(',', values) : null);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Post_NotDuplex_Receive_ResponseHeaders_Before_ResponseBody()
     {
         // Arrange
@@ -118,7 +117,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     // NOTE: SocketHttpHandler waits for the completion of sending the request body before the response headers.
     //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/SocketsHttpHandler/Http2Connection.cs#L1980-L1988
     //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/HttpContent.cs#L343-L349
-    //[ConditionalFact]
+    //[Fact]
     //public async Task Post_NotDuplex_DoNot_Receive_ResponseHeaders_Before_RequestBodyCompleted()
     //{
     //    // Arrange
@@ -142,7 +141,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     //    Assert.Equal(timeout.Token, ex.CancellationToken);
     //}
 
-    [ConditionalFact]
+    [Fact]
     public async Task Post_NotDuplex_Body_StreamingBody()
     {
         // Arrange
@@ -183,7 +182,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal((1024 * 1024 * 10).ToString(), responseBody);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Post_Duplex_Body_StreamingBody()
     {
         // Arrange
@@ -225,7 +224,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal((1024 * 1024 * 10).ToString(), responseBody);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Post_ResponseTrailers()
     {
         // Arrange
@@ -251,7 +250,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal("bar", response.TrailingHeaders.TryGetValues("x-trailer-2", out var values2) ? string.Join(',', values2) : null);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task AbortOnServer_Post_SendingBody()
     {
         // Arrange
@@ -273,7 +272,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.IsType<HttpRequestException>(ex);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Cancel_Post_SendingBody()
     {
         // Arrange
@@ -304,7 +303,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     }
 
 #if !UNITY_2021_1_OR_NEWER
-    [ConditionalFact]
+    [Fact]
     public async Task Cancel_Post_SendingBody_Duplex()
     {
         // Arrange
@@ -331,7 +330,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     }
 #endif
 
-    [ConditionalFact]
+    [Fact]
     public async Task DisposeHttpResponseMessage_Post_SendingBody_Duplex()
     {
         // Arrange
@@ -361,7 +360,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.IsAssignableFrom<IOException>(ex.InnerException);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Cancel_Get_BeforeReceivingResponseHeaders()
     {
         // Arrange
@@ -392,7 +391,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal("True", isCanceled);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Cancel_Post_BeforeRequest()
     {
         // Arrange
@@ -420,7 +419,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
 #endif
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Unary()
     {
         // Arrange
@@ -436,7 +435,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal("Hello Alice", response.Message);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Duplex()
     {
         // Arrange
@@ -473,7 +472,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     }
 
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Duplex_Concurrency()
     {
         // Arrange
@@ -526,7 +525,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         }
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_ShutdownAndDispose()
     {
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
@@ -572,7 +571,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         }
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Error_Status_ErrorCode()
     {
         // Arrange
@@ -589,7 +588,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Error_Status_Unavailable_By_IOException()
     {
         // Arrange
@@ -605,7 +604,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal(StatusCode.Unavailable, ((RpcException)ex).StatusCode);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Error_TimedOut_With_HttpClientTimeout()
     {
         // Arrange
@@ -627,7 +626,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
 #endif
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Error_TimedOut_With_Deadline()
     {
         // Arrange
@@ -644,7 +643,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal(StatusCode.DeadlineExceeded, ((RpcException)ex).StatusCode);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Grpc_Error_TimedOut_With_CancellationToken()
     {
         // Arrange
@@ -662,7 +661,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
     }
 
-    [ConditionalFact]
+    [Fact]
     public async Task Enable_Http2KeepAlive()
     {
         // Arrange

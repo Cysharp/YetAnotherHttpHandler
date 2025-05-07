@@ -1,5 +1,4 @@
 using Cysharp.Net.Http;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 

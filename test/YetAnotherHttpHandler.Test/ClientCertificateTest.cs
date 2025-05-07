@@ -3,7 +3,6 @@ using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 

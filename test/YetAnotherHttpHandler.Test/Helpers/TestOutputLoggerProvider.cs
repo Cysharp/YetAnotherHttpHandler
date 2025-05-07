@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test.Helpers;
 

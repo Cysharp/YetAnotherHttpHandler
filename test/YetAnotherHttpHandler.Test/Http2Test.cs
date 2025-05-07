@@ -2,7 +2,6 @@ using System.Security.Cryptography.X509Certificates;
 using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 

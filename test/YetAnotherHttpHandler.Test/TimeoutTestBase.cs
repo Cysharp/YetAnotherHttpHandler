@@ -14,7 +14,7 @@ public abstract class TimeoutTestBase
 
     protected TimeoutTestBase()
     {
-        _timeoutTokenSource = new CancellationTokenSource(UnexpectedTimeout);
+        _timeoutTokenSource = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken, new CancellationTokenSource(UnexpectedTimeout).Token);
         UnexpectedTimeoutOn = DateTimeOffset.UtcNow.Add(UnexpectedTimeout);
     }
 }

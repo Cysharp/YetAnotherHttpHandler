@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TestWebApp;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test.Helpers;
 

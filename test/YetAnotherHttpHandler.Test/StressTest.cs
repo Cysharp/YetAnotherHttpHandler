@@ -10,7 +10,6 @@ using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using TestWebApp;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
