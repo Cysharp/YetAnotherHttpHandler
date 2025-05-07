@@ -24,7 +24,7 @@ namespace Cysharp.Net.Http
         public static extern void yaha_free_byte_buffer(ByteBuffer* s);
 
         [DllImport(__DllName, EntryPoint = "yaha_init_runtime", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern YahaNativeRuntimeContext* yaha_init_runtime();
+        public static extern YahaNativeRuntimeContext* yaha_init_runtime(int worker_threads);
 
         [DllImport(__DllName, EntryPoint = "yaha_dispose_runtime", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_dispose_runtime(YahaNativeRuntimeContext* ctx);

@@ -180,6 +180,18 @@ namespace Cysharp.Net.Http
         /// </summary>
         public PipeOptions? ResponsePipeOptions { get => _settings.ResponsePipeOptions; set => _settings.ResponsePipeOptions = value; }
 
+        /// <summary>
+        /// Sets the number of worker threads to use for the tokio runtime. If null, the default number of threads (number of cores) will be used.
+        /// </summary>
+        /// <remarks>
+        /// The number of worker threads is set when the tokio runtime is initialized. This method should be called before any HTTP requests are made.
+        /// </remarks>
+        /// <param name="workerThreads"></param>
+        public static void SetWorkerThreads(int? workerThreads)
+        {
+            NativeRuntime.Instance.SetWorkerThreads(workerThreads);
+        }
+
         private NativeHttpHandlerCore SetupHandler()
         {
             var settings = _settings.Clone();

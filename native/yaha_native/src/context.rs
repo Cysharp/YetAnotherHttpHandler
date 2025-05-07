@@ -46,12 +46,17 @@ impl YahaNativeRuntimeContextInternal {
     pub fn from_raw_context(ctx: *mut YahaNativeRuntimeContext) -> &'static mut Self {
         unsafe { &mut *(ctx as *mut Self) }
     }
-    pub fn new() -> YahaNativeRuntimeContextInternal {
+    pub fn new(worker_threads: i32) -> YahaNativeRuntimeContextInternal {
+        let mut builder = Builder::new_multi_thread();
+        let mut builder = builder.enable_all();
+
+        // Set the number of worker threads. If not larger than 0, use the default number of threads. (= number of cores)
+        if worker_threads > 0 {
+            builder = builder.worker_threads(worker_threads as usize);
+        }
+
         YahaNativeRuntimeContextInternal {
-            runtime: Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap(),
+            runtime: builder.build().unwrap(),
         }
     }
 }

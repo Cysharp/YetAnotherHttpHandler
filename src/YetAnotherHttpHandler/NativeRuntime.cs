@@ -11,9 +11,15 @@ namespace Cysharp.Net.Http
         private readonly object _lock = new object();
         internal /* for unit testing */ int _refCount;
         private YahaRuntimeSafeHandle? _handle;
+        private int? _workerThreads = null;
 
         private NativeRuntime()
         { }
+
+        public void SetWorkerThreads(int? workerThreads)
+        {
+            _workerThreads = workerThreads;
+        }
 
         public unsafe YahaRuntimeSafeHandle Acquire()
         {
@@ -23,7 +29,7 @@ namespace Cysharp.Net.Http
                 if (_refCount == 1)
                 {
                     if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_runtime");
-                    var runtime = NativeMethods.yaha_init_runtime();
+                    var runtime = NativeMethods.yaha_init_runtime(_workerThreads ?? -1);
                     _handle = new YahaRuntimeSafeHandle(runtime);
                 }
 

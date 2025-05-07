@@ -321,6 +321,10 @@ Note:
   The actual HTTP requests will be redirected to `UnixDomainSocketPath` by YetAnotherHttpHandler internally.
 - When using Kestrel on the server, you need to set the `KestrelServerOptions.AllowAlternateSchemes` option to `true`.
 
+### Specifying the number of worker threads
+YetAnotherHttpHandler's communication processing is run on worker threads of the tokio runtime. The number of worker threads is determined based on the number of CPU cores by default.
+You can specify a number of worker threads using the `YetAnotherHttpHandler.SetWorkerThreads` method.
+
 ## Development
 ### Build & Tests
 

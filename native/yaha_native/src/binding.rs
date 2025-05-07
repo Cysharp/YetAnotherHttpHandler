@@ -49,8 +49,8 @@ pub unsafe extern "C" fn yaha_free_byte_buffer(s: *mut ByteBuffer) {
 }
 
 #[no_mangle]
-pub extern "C" fn yaha_init_runtime() -> *mut YahaNativeRuntimeContext {
-    let runtime = Box::new(YahaNativeRuntimeContextInternal::new());
+pub extern "C" fn yaha_init_runtime(worker_threads: i32) -> *mut YahaNativeRuntimeContext {
+    let runtime = Box::new(YahaNativeRuntimeContextInternal::new(worker_threads));
 
     Box::into_raw(runtime) as *mut YahaNativeRuntimeContext
 }
