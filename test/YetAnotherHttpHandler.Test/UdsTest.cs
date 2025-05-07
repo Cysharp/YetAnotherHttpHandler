@@ -1,10 +1,8 @@
 using System.Security.Cryptography.X509Certificates;
-using _YetAnotherHttpHandler.Test.Helpers.Testing;
 using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -45,7 +43,7 @@ public class UdsTest(ITestOutputHelper testOutputHelper) : Http2TestBase(testOut
 [OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
 public class UdsNotSupportedTest
 {
-    [ConditionalFact]
+    [Fact]
     public async Task Throw()
     {
         // Arrange

@@ -1,7 +1,6 @@
 using System.Net;
 using Cysharp.Net.Http;
 using Microsoft.AspNetCore.Builder;
-using Xunit.Abstractions;
 
 namespace _YetAnotherHttpHandler.Test;
 
