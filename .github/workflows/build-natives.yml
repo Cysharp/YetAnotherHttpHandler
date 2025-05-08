@@ -206,6 +206,24 @@ jobs:
             dotnet tool restore
             dotnet retest -- -c ${{ env._DOTNET_BUILD_CONFIG }} ../test/YetAnotherHttpHandler.Test
 
+  build-osx-universal:
+    name: Build Native library (osx-universal)
+    if: ${{ !inputs.build-only-linux }}
+    needs: [ build-osx-x64, build-osx-arm64 ]
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: Cysharp/Actions/.github/actions/checkout@main
+      - uses: Cysharp/Actions/.github/actions/download-artifact@main
+        with:
+          path: native/artifacts
+      - run: lipo -create -output native/artifacts/yaha_native.bundle native/artifacts/osx-x64/libyaha_native.dylib native/artifacts/osx-arm64/libyaha_native.dylib
+      - uses: Cysharp/Actions/.github/actions/upload-artifact@main
+        with:
+          name: osx-universal
+          path: native/artifacts/yaha_native.bundle
+          retention-days: 1
+
   build-ios-x64:
     name: Build Native library (ios-x64)
     if: ${{ !inputs.build-only-linux }}
@@ -327,6 +345,7 @@ jobs:
       - build-linux-x64
       - build-osx-x64
       - build-osx-arm64
+      - build-osx-universal
       - build-ios-x64
       - build-ios-arm64
       - build-android-arm
