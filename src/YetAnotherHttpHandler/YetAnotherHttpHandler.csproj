@@ -42,8 +42,11 @@
     <YahaNativeArtifactTarget Include="win-arm64-uwp" RustTarget="aarch64-uwp-windows-msvc" Prefix="" Ext=".dll" />
     <YahaNativeArtifactTarget Include="linux-x64" RustTarget="x86_64-unknown-linux-gnu" Prefix="lib" Ext=".so" />
     <YahaNativeArtifactTarget Include="linux-arm64" RustTarget="aarch64-unknown-linux-gnu" Prefix="lib" Ext=".so" />
+	  <!-- NOTE: For macOS, the binaries are converted to a bundle using `lipo` command, and the .dylib files are not included in the package -->
+    <!--
     <YahaNativeArtifactTarget Include="osx-x64" RustTarget="x86_64-apple-darwin" Prefix="lib" Ext=".dylib" />
     <YahaNativeArtifactTarget Include="osx-arm64" RustTarget="aarch64-apple-darwin" Prefix="lib" Ext=".dylib" />
+    -->
     <YahaNativeArtifactTarget Include="osx-universal" RustTarget="" Prefix="" Ext=".bundle" />
     <YahaNativeArtifactTarget Include="ios-x64" RustTarget="x86_64-apple-ios" Prefix="lib" Ext=".a" />
     <YahaNativeArtifactTarget Include="ios-arm64" RustTarget="aarch64-apple-ios" Prefix="lib" Ext=".a" />
