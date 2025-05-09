@@ -6,6 +6,7 @@ accepted = [
     "MPL-2.0",
     "OpenSSL",
     "Unicode-DFS-2016",
+    "CDLA-Permissive-2.0",
 ]
 
 workarounds = [
