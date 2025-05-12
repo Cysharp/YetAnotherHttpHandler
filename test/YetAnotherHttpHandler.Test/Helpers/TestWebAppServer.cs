@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,11 +16,16 @@ public class TestWebAppServer : IAsyncDisposable
     private readonly Task _appTask;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly TaskCompletionSource _waitForAppStarted;
+    private readonly ConcurrentDictionary<string, bool> _activeConnectionsById = new();
+    private int _activeConnections;
 
     public int Port { get; }
     public bool IsSecure { get; }
 
     public string BaseUri => $"{(IsSecure ? "https" : "http")}://localhost:{Port}";
+
+    public int ActiveConnections => _activeConnections;
+    public IReadOnlyList<string> ActiveConnectionIds => _activeConnectionsById.Keys.ToArray();
 
     private TestWebAppServer(int port, TestWebAppServerListenMode listenMode, ITestOutputHelper? testOutputHelper, Func<WebApplicationBuilder, WebApplication> webAppBuilder, Action<WebApplicationBuilder>? configure)
     {
@@ -51,6 +58,21 @@ public class TestWebAppServer : IAsyncDisposable
                 {
                     listenOptions.UseHttps();
                 }
+
+                listenOptions.Use(async (ctx, next) =>
+                {
+                    try
+                    {
+                        Interlocked.Increment(ref _activeConnections);
+                        _activeConnectionsById.TryAdd(ctx.ConnectionId, true);
+                        await next();
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref _activeConnections);
+                        _activeConnectionsById.TryRemove(ctx.ConnectionId, out _);
+                    }
+                });
             });
         });
         if (testOutputHelper is not null)

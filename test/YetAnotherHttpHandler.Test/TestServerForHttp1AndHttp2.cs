@@ -24,6 +24,13 @@ class TestServerForHttp1AndHttp2 : ITestServerBuilder
 
         var app = builder.Build();
 
+        // ConnectionId header
+        app.Use((ctx, next) =>
+        {
+            ctx.Response.Headers["x-connection-id"] = ctx.Connection.Id;
+            return next(ctx);
+        });
+
         // SessionState
         app.Use((ctx, next) =>
         {

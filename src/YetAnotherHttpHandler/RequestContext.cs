@@ -78,6 +78,14 @@ namespace Cysharp.Net.Http
                 _handle.Free();
                 _handle = default;
                 _fullyCompleted.Set();
+
+                // RequestContextHandle can be released after all the processes using it are complete.
+                if (_hasRequestContextHandleRef)
+                {
+                    Debug.Assert(!_requestContextHandle.IsClosed);
+                    _requestContextHandle.DangerousRelease();
+                }
+                _requestContextHandle.Dispose();
             }
         }
 
@@ -341,14 +349,6 @@ namespace Cysharp.Net.Http
                 //       However, caution is needed with the invocation order and timing of callbacks, as well as the handling of locks, since the finalizer thread may become blocked.
                 _fullyCompleted.Wait();
             }
-
-            // RequestContextHandle can be released after all the processes using it are complete.
-            if (_hasRequestContextHandleRef)
-            {
-                Debug.Assert(!_requestContextHandle.IsClosed);
-                _requestContextHandle.DangerousRelease();
-            }
-            _requestContextHandle.Dispose();
         }
     }
 }

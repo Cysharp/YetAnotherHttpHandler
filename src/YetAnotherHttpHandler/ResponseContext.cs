@@ -115,6 +115,7 @@ namespace Cysharp.Net.Http
                 WaitForLatestFlush();
                 _pipe.Writer.Complete();
                 _completed = true;
+                _tokenRegistration.Dispose();
             }
         }
 
@@ -150,6 +151,7 @@ namespace Cysharp.Net.Http
                 WaitForLatestFlush();
                 _pipe.Writer.Complete(ex);
                 _completed = true;
+                _tokenRegistration.Dispose();
             }
         }
 
@@ -164,6 +166,7 @@ namespace Cysharp.Net.Http
                 WaitForLatestFlush();
                 _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
                 _completed = true;
+                _tokenRegistration.Dispose();
             }
         }
 
