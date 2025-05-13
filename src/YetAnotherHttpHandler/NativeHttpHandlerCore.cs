@@ -592,7 +592,7 @@ namespace Cysharp.Net.Http
                         {
                             requestContext.CompleteAsFailed(UnsafeUtilities.GetStringFromUtf8Bytes(buf->AsSpan()), h2ErrorCode);
                         }
-                        catch
+                        finally
                         {
                             NativeMethods.yaha_free_byte_buffer(buf);
                         }
