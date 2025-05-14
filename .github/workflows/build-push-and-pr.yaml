@@ -19,15 +19,20 @@ env:
 jobs:
   run-build:
     name: Build Libraries
+    permissions:
+      contents: read
     uses: ./.github/workflows/build-natives.yml
     with:
       build-config: debug
       build-only-linux: false
       update-unity-native: false
+
   build-unity:
     name: Build Unity package
     if: ${{ (github.event_name == 'push' && github.repository_owner == 'Cysharp') || startsWith(github.event.pull_request.head.label, 'Cysharp:') }}
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Load secrets

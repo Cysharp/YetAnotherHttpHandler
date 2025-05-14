@@ -15,6 +15,8 @@ on:
 jobs:
   update-packagejson:
     name: Update package.json
+    permissions:
+      contents: read
     uses: Cysharp/Actions/.github/workflows/update-packagejson.yaml@main
     with:
       file-path: ./src/YetAnotherHttpHandler/package.json
@@ -26,6 +28,8 @@ jobs:
   create-release:
     name: Create Release
     needs: [update-packagejson]
+    permissions:
+      contents: write
     uses: Cysharp/Actions/.github/workflows/create-release.yaml@main
     with:
       commit-id: ${{ needs.update-packagejson.outputs.sha }}
@@ -40,6 +44,8 @@ jobs:
     name: Cleanup package.json branch
     if: ${{ needs.update-packagejson.outputs.is-branch-created == 'true' }}
     needs: [update-packagejson]
+    permissions:
+      contents: write
     uses: Cysharp/Actions/.github/workflows/clean-packagejson-branch.yaml@main
     with:
       branch: ${{ needs.update-packagejson.outputs.branch-name }}

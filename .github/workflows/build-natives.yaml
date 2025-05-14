@@ -40,6 +40,8 @@ jobs:
   build-win-x64:
     name: Build Native library (win-x64)
     if: ${{ !inputs.build-only-linux }}
+    permissions:
+      contents: read
     runs-on: windows-2022
     timeout-minutes: 30
     defaults:
@@ -62,6 +64,8 @@ jobs:
   build-win-arm64:
     name: Build Native library (win-arm64)
     if: ${{ !inputs.build-only-linux }}
+    permissions:
+      contents: read
     runs-on: windows-2022
     timeout-minutes: 30
     defaults:
@@ -87,6 +91,8 @@ jobs:
   build-win-arm64-uwp:
     name: Build Native library (win-arm64-uwp)
     if: ${{ !inputs.build-only-linux }}
+    permissions:
+      contents: read
     runs-on: windows-2022
     timeout-minutes: 30
     defaults:
@@ -113,6 +119,8 @@ jobs:
 
   build-linux-x64:
     name: Build Native library (linux-x64)
+    permissions:
+      contents: read
     runs-on: ubuntu-24.04
     container:
       # Needs to lock glibc version to 2.31 (Issue #30)
@@ -149,7 +157,7 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
         with:
           dotnet-version: 8.0.x
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@9d7e65c320fdb52dcd45ffaa68deb6c02c8754d9 # v1.12.0
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
@@ -164,6 +172,8 @@ jobs:
   build-osx-x64:
     name: Build Native library (osx-x64)
     if: ${{ !inputs.build-only-linux }}
+    permissions:
+      contents: read
     runs-on: macos-13 # Intel
     timeout-minutes: 30
     defaults:
@@ -187,7 +197,9 @@ jobs:
   build-osx-arm64:
     name: Build Native library (osx-arm64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest # Apple Silicon
+    permissions:
+      contents: read
+    runs-on: macos-15 # Apple Silicon
     timeout-minutes: 30
     defaults:
       run:
@@ -210,7 +222,9 @@ jobs:
     name: Build Native library (osx-universal)
     if: ${{ !inputs.build-only-linux }}
     needs: [ build-osx-x64, build-osx-arm64 ]
-    runs-on: macos-latest
+    permissions:
+      contents: read
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
@@ -227,7 +241,9 @@ jobs:
   build-ios-x64:
     name: Build Native library (ios-x64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest
+    permissions:
+      contents: read
+    runs-on: macos-15
     timeout-minutes: 30
     defaults:
       run:
@@ -245,7 +261,9 @@ jobs:
   build-ios-arm64:
     name: Build Native library (ios-arm64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: macos-latest
+    permissions:
+      contents: read
+    runs-on: macos-15
     timeout-minutes: 30
     defaults:
       run:
@@ -263,7 +281,9 @@ jobs:
   build-android-arm:
     name: Build Native library (android-arm)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
       run:
@@ -288,7 +308,9 @@ jobs:
   build-android-arm64:
     name: Build Native library (android-arm64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
       run:
@@ -313,7 +335,9 @@ jobs:
   build-android-x64:
     name: Build Native library (android-x64)
     if: ${{ !inputs.build-only-linux }}
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
       run:
@@ -351,7 +375,10 @@ jobs:
       - build-android-arm
       - build-android-arm64
       - build-android-x64
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
@@ -370,7 +397,9 @@ jobs:
     name: Update pre-built libraries for Unity
     if: ${{ inputs.update-unity-native && (inputs.build-only-linux && needs.build-dotnet.result == 'success' || success()) }}
     needs: [ build-dotnet ]
-    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
