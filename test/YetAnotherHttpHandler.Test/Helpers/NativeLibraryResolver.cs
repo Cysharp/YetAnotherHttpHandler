@@ -10,6 +10,11 @@ public class NativeLibraryResolver
     {
         NativeLibrary.SetDllImportResolver(typeof(Cysharp.Net.Http.YetAnotherHttpHandler).Assembly, (name, assembly, path) =>
         {
+            if (!name.Contains("yaha_native") && !name.Contains("Cysharp.Net.Http.YetAnotherHttpHandler.Native"))
+            {
+                return nint.Zero;
+            }
+
             var ext = "";
             var prefix = "";
             var platform = "";

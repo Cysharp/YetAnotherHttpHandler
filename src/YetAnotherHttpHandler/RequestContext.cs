@@ -21,6 +21,7 @@ namespace Cysharp.Net.Http
         private readonly bool _hasRequestContextHandleRef;
         private GCHandle _handle;
 
+        private bool _handleReleased;
         internal YahaContextSafeHandle _ctxHandle;
         internal YahaRequestContextSafeHandle _requestContextHandle;
 
@@ -69,6 +70,9 @@ namespace Cysharp.Net.Http
             }
         }
 
+        /// <summary>
+        /// Release the managed allocation of RequestContext. This method does not release the native handle, so Dispose must be called separately.
+        /// </summary>
         public void Release()
         {
             Debug.Assert(_handle.IsAllocated);
@@ -77,7 +81,7 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Releasing state");
                 _handle.Free();
                 _handle = default;
-                _fullyCompleted.Set();
+                _fullyCompleted.Set(); // Finalizer thread can release the native handles.
             }
         }
 
@@ -125,6 +129,7 @@ namespace Cysharp.Net.Http
             finally
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Completing RunReadRequestLoopAsync");
+                TryReleaseNativeHandles();
             }
         }
 
@@ -309,8 +314,34 @@ namespace Cysharp.Net.Http
             _cancellationTokenSource.Cancel(); // Stop reading the request body.
         }
 
+        private void TryReleaseNativeHandles()
+        {
+            Debug.Assert(!_handle.IsAllocated);
+            UnsafeUtilities.RequireRunningOnManagedThread();
+
+            lock (_handleLock)
+            {
+                if (_handleReleased)
+                {
+                    return;
+                }
+
+                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Releasing native handles");
+                // RequestContextHandle can be released after all the processes using it are complete.
+                if (_hasRequestContextHandleRef)
+                {
+                    Debug.Assert(!_requestContextHandle.IsClosed);
+                    _requestContextHandle.DangerousRelease();
+                }
+                _requestContextHandle.Dispose();
+
+                _handleReleased = true;
+            }
+        }
+
         public void Dispose()
         {
+            UnsafeUtilities.RequireRunningOnManagedThread();
             Dispose(true);
             GC.SuppressFinalize(this);
         }
@@ -342,13 +373,7 @@ namespace Cysharp.Net.Http
                 _fullyCompleted.Wait();
             }
 
-            // RequestContextHandle can be released after all the processes using it are complete.
-            if (_hasRequestContextHandleRef)
-            {
-                Debug.Assert(!_requestContextHandle.IsClosed);
-                _requestContextHandle.DangerousRelease();
-            }
-            _requestContextHandle.Dispose();
+            TryReleaseNativeHandles();
         }
     }
 }

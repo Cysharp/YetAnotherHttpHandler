@@ -110,7 +110,8 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
     }
 
     // NOTE: Currently, this test can only be run on Windows.
-    [Fact(Skip = "Due to the state remaining from Http2Test.Cancel_Post_SendingBody_Duplex, this test fails. Enable it after fixing that issue.")]
+    [Fact]
+    [OSSkipCondition(OperatingSystems.MacOSX | OperatingSystems.Linux)]
     public async Task SetWorkerThreads()
     {
         GC.Collect();

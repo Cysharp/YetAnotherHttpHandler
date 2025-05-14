@@ -617,6 +617,10 @@ namespace Cysharp.Net.Http
             finally
             {
                 requestContext.Release();
+
+                // NOTE: We need to dispose the request context in the thread pool.
+                //       If we call Dispose on the native thread, we will release the native handles and crash.
+                ThreadPool.UnsafeQueueUserWorkItem(static r => ((RequestContext)r).Dispose(), requestContext);
             }
         }
 

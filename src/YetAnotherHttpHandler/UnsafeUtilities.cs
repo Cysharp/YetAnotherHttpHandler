@@ -1,6 +1,6 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -58,6 +58,73 @@ namespace Cysharp.Net.Http
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             static bool IsAsciiCodePoint(uint value) => value <= 0x7Fu;
+        }
+
+        [Conditional("DEBUG")]
+        public static void RequireRunningOnManagedThread()
+        {
+            // NOTE: This check logic is working only on Windows.
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return;
+            }
+
+            var threadName = GetCurrentThreadName();
+            if (threadName == "tokio-runtime-worker")
+            {
+                Environment.FailFast($"The current thread is the tokio worker thread.");
+            }
+
+            static string GetCurrentThreadName()
+            {
+                const uint THREAD_QUERY_LIMITED_INFORMATION = 0x0800;
+
+                var threadId = GetCurrentThreadId();
+                var threadName = string.Empty;
+                var threadHandle = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, false, threadId);
+
+                if (threadHandle != IntPtr.Zero)
+                {
+                    try
+                    {
+                        IntPtr threadDescriptionPtr;
+                        var result = GetThreadDescription(threadHandle, out threadDescriptionPtr);
+
+                        if (result >= 0 && threadDescriptionPtr != IntPtr.Zero)
+                        {
+                            try
+                            {
+                                threadName = Marshal.PtrToStringUni(threadDescriptionPtr);
+                            }
+                            finally
+                            {
+                                LocalFree(threadDescriptionPtr);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        CloseHandle(threadHandle);
+                    }
+                }
+
+                return threadName ?? string.Empty;
+
+                [DllImport("kernel32.dll", SetLastError = true)]
+                static extern bool CloseHandle(IntPtr hObject);
+
+                [DllImport("kernel32.dll", SetLastError = true)]
+                static extern uint GetCurrentThreadId();
+
+                [DllImport("kernel32.dll", SetLastError = true)]
+                static extern IntPtr OpenThread(uint dwDesiredAccess, bool bInheritHandle, uint dwThreadId);
+
+                [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+                static extern int GetThreadDescription(IntPtr hThread, out IntPtr ppszThreadDescription);
+
+                [DllImport("kernel32.dll")]
+                static extern IntPtr LocalFree(IntPtr hMem);
+            }
         }
     }
 

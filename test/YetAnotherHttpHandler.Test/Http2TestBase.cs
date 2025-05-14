@@ -307,7 +307,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     public async Task Cancel_Post_SendingBody_Duplex()
     {
         // Arrange
-        using var httpHandler = CreateHandler();
+        /*using*/ var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
         await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
 
@@ -320,13 +320,29 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
             Version = HttpVersion.Version20,
             Content = content,
         };
+        
         var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken);
+        var connectionId = response.Headers.TryGetValues("x-connection-id", out var values) ? string.Join(',', values) : string.Empty;
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
         var ex = await Record.ExceptionAsync(async () => await response.Content.ReadAsByteArrayAsync(cts.Token).WaitAsync(TimeoutToken));
+
+        pipe.Writer.Complete();
+        httpHandler.Dispose();
+        httpClient.Dispose();
+        response = null;
+        httpHandler = null;
+        httpClient = null;
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        Thread.Sleep(100);
+        GC.Collect();
+        Thread.Sleep(100);
 
         // Assert
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
         Assert.Equal(cts.Token, operationCanceledException.CancellationToken);
+        Assert.DoesNotContain(connectionId, server.ActiveConnectionIds);
     }
 #endif
 
