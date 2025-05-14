@@ -129,7 +129,6 @@ namespace Cysharp.Net.Http
             finally
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Completing RunReadRequestLoopAsync");
-                TryReleaseNativeHandles();
             }
         }
 
