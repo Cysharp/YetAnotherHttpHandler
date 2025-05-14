@@ -16,7 +16,8 @@ jobs:
   update-packagejson:
     name: Update package.json
     permissions:
-      contents: read
+      actions: read
+      contents: write
     uses: Cysharp/Actions/.github/workflows/update-packagejson.yaml@main
     with:
       file-path: ./src/YetAnotherHttpHandler/package.json
