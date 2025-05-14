@@ -337,6 +337,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         GC.WaitForPendingFinalizers();
         Thread.Sleep(100);
         GC.Collect();
+        Thread.Sleep(100);
 
         // Assert
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
