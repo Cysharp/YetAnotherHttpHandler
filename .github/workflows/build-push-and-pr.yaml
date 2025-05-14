@@ -21,7 +21,7 @@ jobs:
     name: Build Libraries
     permissions:
       contents: read
-    uses: ./.github/workflows/build-natives.yml
+    uses: ./.github/workflows/build-natives.yaml
     with:
       build-config: debug
       build-only-linux: false
