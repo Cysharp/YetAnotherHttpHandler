@@ -20,7 +20,7 @@ jobs:
   run-build:
     name: Build Libraries
     permissions:
-      contents: read
+      contents: write
     uses: ./.github/workflows/build-natives.yaml
     with:
       build-config: debug
