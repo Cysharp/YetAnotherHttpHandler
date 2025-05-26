@@ -252,6 +252,8 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - run: rustup target add x86_64-apple-ios
       - run: cargo build --target x86_64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: 12.0
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
           name: ios-x64
@@ -272,6 +274,8 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/checkout@main
       - run: rustup target add aarch64-apple-ios
       - run: cargo build --target aarch64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: 12.0
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
           name: ios-arm64
