@@ -402,7 +402,7 @@ jobs:
     if: ${{ inputs.update-unity-native && (inputs.build-only-linux && needs.build-dotnet.result == 'success' || success()) }}
     needs: [ build-dotnet ]
     permissions:
-      contents: read
+      contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
