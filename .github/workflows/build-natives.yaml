@@ -157,7 +157,7 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
         with:
           dotnet-version: 8.0.x
-      - uses: actions-rust-lang/setup-rust-toolchain@9d7e65c320fdb52dcd45ffaa68deb6c02c8754d9 # v1.12.0
+      - uses: actions-rust-lang/setup-rust-toolchain@fb51252c7ba57d633bc668f941da052e410add48 # v1.13.0
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
