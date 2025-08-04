@@ -325,6 +325,15 @@ Note:
 YetAnotherHttpHandler's communication processing is run on worker threads of the tokio runtime. The number of worker threads is determined based on the number of CPU cores by default.
 You can specify a number of worker threads using the `YetAnotherHttpHandler.SetWorkerThreads` method.
 
+## Troubleshoot
+### System.DllNotFoundException occurs when executing a request on Windows
+
+When attempting to execute a request (yaha_init_runtime), the following exception message may be displayed:
+
+> System.DllNotFoundException: Unable to load DLL 'Cysharp.Net.Http.YetAnotherHttpHandler.Native' or one of its dependencies: The specified module could not be found. (0x8007007E)
+
+This may be because the Visual C++ Redistributable Package (vcruntime140.dll) is not installed. [Please download and install it from Microsoft's website](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170).
+
 ## Development
 ### Build & Tests
 
