@@ -48,6 +48,7 @@
     <YahaNativeArtifactTarget Include="osx-universal" RustTarget="" Prefix="" Ext=".bundle" />
     <YahaNativeArtifactTarget Include="ios-x64" RustTarget="x86_64-apple-ios" Prefix="lib" Ext=".a" />
     <YahaNativeArtifactTarget Include="ios-arm64" RustTarget="aarch64-apple-ios" Prefix="lib" Ext=".a" />
+    <YahaNativeArtifactTarget Include="ios-arm64-sim" RustTarget="aarch64-apple-ios-sim" Prefix="lib" Ext=".a" />
     <YahaNativeArtifactTarget Include="android-arm" RustTarget="armv7-linux-androideabi" Prefix="lib" Ext=".so" />
     <YahaNativeArtifactTarget Include="android-arm64" RustTarget="aarch64-linux-android" Prefix="lib" Ext=".so" />
     <YahaNativeArtifactTarget Include="android-x64" RustTarget="x86_64-linux-android" Prefix="lib" Ext=".so" />
