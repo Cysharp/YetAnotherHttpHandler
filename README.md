@@ -17,11 +17,11 @@ The handler is built on top of [hyper](https://hyper.rs/) and [Rustls](https://g
 
 - Unity 2021.3 (LTS) or later
 
-Architecture/Platform | Windows | macOS | Linux | Android | iOS
--- | -- | -- | -- | -- | --
-<strong>x64 (x86_64)</strong> | ✔ | ✔ | ☁ | ☁ | ☁
-<strong>arm64 (aarch64, Apple Silicon)</strong> | ☁ | ✔ | 📆 | ✔ | ✔
-<strong>armv7</strong> | - | - | - | ☁ | -
+Architecture/Platform | Windows | Windows (UWP) | macOS | Linux | Android | iOS | iOS (Simulator)
+-- | -- | -- | -- | -- | -- | -- | --
+<strong>x64 (x86_64)</strong> | ✔ | - | ✔ | ☁ | ☁ | ☁ | -
+<strong>arm64 (aarch64, Apple Silicon)</strong> | ☁ | ☁ | ✔ | 📆 | ✔ | ✔ | ☁
+<strong>armv7</strong> | - | - | - | - | ☁ | - | -
 
 - ✔ (Tier 1): Verify that it works, and active development support.
 - ☁ (Tier 2): The build is available, but not confirmed to work.
