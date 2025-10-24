@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Pipelines;
 using System.Net;
@@ -112,11 +112,13 @@ namespace Cysharp.Net.Http
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response completed. (_completed={_completed})");
             lock (_writeLock)
             {
+                if (_completed) return;
+
                 WaitForLatestFlush();
                 _pipe.Writer.Complete();
                 _completed = true;
-                _tokenRegistration.Dispose();
             }
+            _tokenRegistration.Dispose();
         }
 
         public void CompleteAsFailed(string errorMessage, uint h2ErrorCode)
@@ -125,6 +127,8 @@ namespace Cysharp.Net.Http
 
             lock (_writeLock)
             {
+                if (_completed) return;
+
                 Exception ex = new IOException(errorMessage);
                 if (h2ErrorCode != 0)
                 {
@@ -151,8 +155,9 @@ namespace Cysharp.Net.Http
                 WaitForLatestFlush();
                 _pipe.Writer.Complete(ex);
                 _completed = true;
-                _tokenRegistration.Dispose();
             }
+
+            _tokenRegistration.Dispose();
         }
 
         public void Cancel()
@@ -161,13 +166,16 @@ namespace Cysharp.Net.Http
 
             lock (_writeLock)
             {
+                if (_completed) return;
+
                 _requestContext.TryAbort();
                 _responseTask.TrySetCanceled(_cancellationToken);
                 WaitForLatestFlush();
                 _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
                 _completed = true;
-                _tokenRegistration.Dispose();
             }
+
+            _tokenRegistration.Dispose();
         }
 
         public async Task<HttpResponseMessage> GetResponseAsync()
