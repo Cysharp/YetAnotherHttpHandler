@@ -174,7 +174,7 @@ jobs:
     if: ${{ !inputs.build-only-linux }}
     permissions:
       contents: read
-    runs-on: macos-13 # Intel
+    runs-on: macos-15-intel # Intel
     timeout-minutes: 30
     defaults:
       run:
