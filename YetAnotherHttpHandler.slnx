@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/perf/">
+    <Project Path="perf/PerformanceCheck/PerformanceCheck.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="README.md" />
+    <File Path="THIRD-PARTY-NOTICES" />
+  </Folder>
+  <Folder Name="/Solution Items/GitHub Actions/">
+    <File Path=".github/workflows/build-natives.yml" />
+    <File Path=".github/workflows/build-push-and-pr.yml" />
+    <File Path=".github/workflows/build-release.yml" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="test/YetAnotherHttpHandler.StandaloneTestServer/YetAnotherHttpHandler.StandaloneTestServer.csproj" />
+    <Project Path="test/YetAnotherHttpHandler.Test/YetAnotherHttpHandler.Test.csproj" />
+  </Folder>
+  <Project Path="src/YetAnotherHttpHandler/YetAnotherHttpHandler.csproj" />
+</Solution>
