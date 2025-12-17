@@ -1,3 +1,4 @@
+﻿using HttpClientTestServer.Launcher;
 using Microsoft.AspNetCore.Builder;
 
 namespace _YetAnotherHttpHandler.Test;
@@ -18,10 +19,19 @@ public abstract class UseTestServerTestBase : TimeoutTestBase, IDisposable
         });
     }
 
-    protected async Task<TestWebAppServer> LaunchServerAsync<T>(TestWebAppServerListenMode listenMode, Action<WebApplicationBuilder>? configure = null)
-        where T : ITestServerBuilder
+    protected virtual TestServerOptions ConfigureServerOptions(TestServerOptions options)
+        => options;
+
+    protected Task<ITestServer> LaunchServerAsync(TestServerListenMode listenMode)
+        => LaunchServerAsync(ConfigureServerOptions(TestServerOptions.CreateFromListenMode(listenMode)));
+
+    protected async Task<ITestServer> LaunchServerAsync(TestServerOptions serverOptions)
     {
-        return await TestWebAppServer.LaunchAsync<T>(listenMode, TestOutputHelper, TimeoutToken, configure);
+        return await InProcessTestServer.LaunchAsync(
+            ConfigureServerOptions(serverOptions),
+            new TestOutputLoggerProvider(TestOutputHelper),
+            TimeoutToken
+        );
     }
 
     public void Dispose()

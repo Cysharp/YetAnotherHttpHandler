@@ -17,5 +17,10 @@
     <Project Path="test/YetAnotherHttpHandler.StandaloneTestServer/YetAnotherHttpHandler.StandaloneTestServer.csproj" />
     <Project Path="test/YetAnotherHttpHandler.Test/YetAnotherHttpHandler.Test.csproj" />
   </Folder>
+  <Folder Name="/tests/external/">
+    <Project Path="external/HttpClientTestServer/src/HttpClientTestServer.Abstractions/HttpClientTestServer.Abstractions.csproj" />
+    <Project Path="external/HttpClientTestServer/src/HttpClientTestServer.Launcher.Container/HttpClientTestServer.Launcher.Container.csproj" />
+    <Project Path="external/HttpClientTestServer/src/HttpClientTestServer/HttpClientTestServer.csproj" />
+  </Folder>
   <Project Path="src/YetAnotherHttpHandler/YetAnotherHttpHandler.csproj" />
 </Solution>

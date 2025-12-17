@@ -1,4 +1,4 @@
-#define ENABLE_STRESS_TEST
+﻿#define ENABLE_STRESS_TEST
 
 #if ENABLE_STRESS_TEST
 using System.Security.Cryptography;
@@ -7,9 +7,13 @@ using System.Text;
 using Cysharp.Net.Http;
 using Grpc.Core;
 using Grpc.Net.Client;
+using HttpClientTestServer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using TestWebApp;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using EchoRequest = TestWebApp.EchoRequest;
+using Greeter = TestWebApp.Greeter;
+using HelloRequest = TestWebApp.HelloRequest;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -31,27 +35,17 @@ public class StressTest : UseTestServerTestBase
         };
     }
 
-    protected Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null)
-        where T : ITestServerBuilder
+    protected Task<ITestServer> LaunchServerAsyncCore(TestServerOptions? serverOptions = default)
     {
-        return LaunchServerAsync<T>(TestWebAppServerListenMode.SecureHttp2Only, builder =>
+        return LaunchServerAsync((serverOptions ?? new(ListenHttpProtocols.Http2, true)).With(x =>
         {
-            // Use self-signed certificate for testing purpose.
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                //options.Limits.Http2.MaxFrameSize = 1024 * 1024;
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-
-            configure?.Invoke(builder);
-        });
+            x.IsSecure = true;
+            x.HttpProtocols = ListenHttpProtocols.Http2;
+        }));
     }
 
-    protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
-        => LaunchServerAsyncCore<T>(configure);
+    protected Task<ITestServer> LaunchServerAsync<T>(TestServerOptions? serverOptions = default)
+        => LaunchServerAsyncCore(serverOptions);
 
     [Fact]
     public async Task Grpc_Duplex_Concurrency()

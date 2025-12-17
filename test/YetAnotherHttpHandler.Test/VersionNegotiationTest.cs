@@ -16,14 +16,14 @@ public class VersionNegotiationTest(ITestOutputHelper testOutputHelper) : UseTes
 
         var listenMode =
             (serverIsHttp11 && serverIsHttp20)
-                ? (serverIsHttps ? TestWebAppServerListenMode.SecureHttp1AndHttp2 : throw new InvalidOperationException("To listen to HTTP/1 and HTTP/2 on a single port, TLS is required."))
+                ? (serverIsHttps ? TestServerListenMode.SecureHttp1AndHttp2 : throw new InvalidOperationException("To listen to HTTP/1 and HTTP/2 on a single port, TLS is required."))
             : serverIsHttp11
-                ? (serverIsHttps ? TestWebAppServerListenMode.SecureHttp1Only : TestWebAppServerListenMode.InsecureHttp1Only)
+                ? (serverIsHttps ? TestServerListenMode.SecureHttp1Only : TestServerListenMode.InsecureHttp1Only)
             : serverIsHttp20
-                ? (serverIsHttps ? TestWebAppServerListenMode.SecureHttp2Only : TestWebAppServerListenMode.InsecureHttp2Only)
+                ? (serverIsHttps ? TestServerListenMode.SecureHttp2Only : TestServerListenMode.InsecureHttp2Only)
             : throw new InvalidOperationException();
 
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(listenMode);
+        await using var server = await LaunchServerAsync(listenMode);
         using var httpHandler = new YetAnotherHttpHandler()
         {
             Http2Only = criteria.ClientHttp2Only,

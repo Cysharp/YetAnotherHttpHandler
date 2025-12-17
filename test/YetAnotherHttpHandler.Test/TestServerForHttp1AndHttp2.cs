@@ -14,7 +14,7 @@ namespace _YetAnotherHttpHandler.Test;
 class TestServerForHttp1AndHttp2 : ITestServerBuilder
 {
     private const string SessionStateKey = "SessionState";
-    public const string SessionStateHeaderKey = "x-yahatest-session-id";
+    public const string SessionStateHeaderKey = "x-test-session-id";
 
     record SessionStateFeature(ConcurrentDictionary<string, object> Items);
 

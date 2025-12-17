@@ -15,7 +15,7 @@ public class BackPressureTest(ITestOutputHelper testOutputHelper) : UseTestServe
     {
         using var httpHandler = new YetAnotherHttpHandler();
         using var client = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         var numRequests = Environment.ProcessorCount + 1; // more than the number of tokio worker threads
 
