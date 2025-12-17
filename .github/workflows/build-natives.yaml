@@ -174,7 +174,7 @@ jobs:
     if: ${{ !inputs.build-only-linux }}
     permissions:
       contents: read
-    runs-on: macos-13 # Intel
+    runs-on: macos-15-intel # Intel
     timeout-minutes: 30
     defaults:
       run:
@@ -411,7 +411,7 @@ jobs:
         with:
           path: native/artifacts
       - run: ls -lFaR native/artifacts
-      - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.sln --include-symbols --include-source -o ./publish
+      - run: dotnet pack -c ${{ env._DOTNET_BUILD_CONFIG }} ./YetAnotherHttpHandler.slnx --include-symbols --include-source -o ./publish
       #- run: dotnet test -c ${{ env._DOTNET_BUILD_CONFIG }} ./test/YetAnotherHttpHandler.Packaging.Test
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
