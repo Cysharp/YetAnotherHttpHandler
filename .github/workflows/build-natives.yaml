@@ -432,6 +432,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
         with:
           path: native/artifacts
