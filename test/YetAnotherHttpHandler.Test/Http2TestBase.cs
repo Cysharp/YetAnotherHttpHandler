@@ -393,7 +393,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/slow-response-headers")
         {
             Version = HttpVersion.Version20,
-            Headers = {  { TestServerForHttp1AndHttp2.SessionStateHeaderKey, id } }
+            Headers = {  { "x-test-session-id" /*SessionStateHeaderKey*/, id } }
         };
 
         // The server responds after one second. But the client cancels the request before receiving response headers.

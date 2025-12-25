@@ -35,17 +35,12 @@ public class StressTest : UseTestServerTestBase
         };
     }
 
-    protected Task<ITestServer> LaunchServerAsyncCore(TestServerOptions? serverOptions = default)
-    {
-        return LaunchServerAsync((serverOptions ?? new(ListenHttpProtocols.Http2, true)).With(x =>
+    protected Task<ITestServer> LaunchServerAsync()
+        => LaunchServerAsync(new TestServerOptions(ListenHttpProtocols.Http2, true).With(x =>
         {
             x.IsSecure = true;
             x.HttpProtocols = ListenHttpProtocols.Http2;
         }));
-    }
-
-    protected Task<ITestServer> LaunchServerAsync<T>(TestServerOptions? serverOptions = default)
-        => LaunchServerAsyncCore(serverOptions);
 
     [Fact]
     public async Task Grpc_Duplex_Concurrency()
@@ -56,7 +51,7 @@ public class StressTest : UseTestServerTestBase
 
         var requestStringSuffix = CreateRandomString(1024 * 32 /* UTF-8 = 32KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -114,7 +109,7 @@ public class StressTest : UseTestServerTestBase
 
         var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -175,7 +170,7 @@ public class StressTest : UseTestServerTestBase
 
         var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -243,7 +238,7 @@ public class StressTest : UseTestServerTestBase
         var hash = SHA1.HashData(Encoding.UTF8.GetBytes(data));
 
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
