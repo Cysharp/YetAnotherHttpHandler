@@ -163,8 +163,6 @@ jobs:
         with:
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
-        with:
-          dotnet-version: 8.0.x
       - uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
@@ -218,6 +216,7 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
           submodules: true
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add aarch64-apple-darwin
       - run: cargo build --target aarch64-apple-darwin --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
