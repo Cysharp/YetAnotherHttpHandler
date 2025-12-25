@@ -14,7 +14,6 @@
     <File Path=".github/workflows/build-release.yml" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="test/YetAnotherHttpHandler.StandaloneTestServer/YetAnotherHttpHandler.StandaloneTestServer.csproj" />
     <Project Path="test/YetAnotherHttpHandler.Test/YetAnotherHttpHandler.Test.csproj" />
   </Folder>
   <Folder Name="/tests/external/">
