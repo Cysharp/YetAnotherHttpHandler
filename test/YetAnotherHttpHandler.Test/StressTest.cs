@@ -1,4 +1,4 @@
-#define ENABLE_STRESS_TEST
+﻿#define ENABLE_STRESS_TEST
 
 #if ENABLE_STRESS_TEST
 using System.Security.Cryptography;
@@ -7,9 +7,13 @@ using System.Text;
 using Cysharp.Net.Http;
 using Grpc.Core;
 using Grpc.Net.Client;
+using HttpClientTestServer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using TestWebApp;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using EchoRequest = TestWebApp.EchoRequest;
+using Greeter = TestWebApp.Greeter;
+using HelloRequest = TestWebApp.HelloRequest;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -31,27 +35,12 @@ public class StressTest : UseTestServerTestBase
         };
     }
 
-    protected Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null)
-        where T : ITestServerBuilder
-    {
-        return LaunchServerAsync<T>(TestWebAppServerListenMode.SecureHttp2Only, builder =>
+    protected Task<ITestServer> LaunchServerAsync()
+        => LaunchServerAsync(new TestServerOptions(ListenHttpProtocols.Http2, true).With(x =>
         {
-            // Use self-signed certificate for testing purpose.
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                //options.Limits.Http2.MaxFrameSize = 1024 * 1024;
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-
-            configure?.Invoke(builder);
-        });
-    }
-
-    protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
-        => LaunchServerAsyncCore<T>(configure);
+            x.IsSecure = true;
+            x.HttpProtocols = ListenHttpProtocols.Http2;
+        }));
 
     [Fact]
     public async Task Grpc_Duplex_Concurrency()
@@ -62,7 +51,7 @@ public class StressTest : UseTestServerTestBase
 
         var requestStringSuffix = CreateRandomString(1024 * 32 /* UTF-8 = 32KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -120,7 +109,7 @@ public class StressTest : UseTestServerTestBase
 
         var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -181,7 +170,7 @@ public class StressTest : UseTestServerTestBase
 
         var data = CreateRandomString(1024 * 64 /* UTF-8 = 64KB */);
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -249,7 +238,7 @@ public class StressTest : UseTestServerTestBase
         var hash = SHA1.HashData(Encoding.UTF8.GetBytes(data));
 
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act

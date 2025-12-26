@@ -1,0 +1,3 @@
+[submodule "external/HttpClientTestServer"]
+	path = external/HttpClientTestServer
+	url = https://github.com/Cysharp/HttpClientTestServer.git

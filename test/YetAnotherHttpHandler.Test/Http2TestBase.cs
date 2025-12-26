@@ -1,5 +1,4 @@
-using Microsoft.AspNetCore.Builder;
-using System.IO.Pipelines;
+﻿using System.IO.Pipelines;
 using System.Net;
 using System.Net.Http.Headers;
 using Cysharp.Net.Http;
@@ -12,10 +11,8 @@ namespace _YetAnotherHttpHandler.Test;
 public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTestServerTestBase(testOutputHelper)
 {
     protected abstract YetAnotherHttpHandler CreateHandler();
-    protected abstract Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder;
 
-    protected Task<TestWebAppServer> LaunchServerAsync<T>(Action<WebApplicationBuilder>? configure = null) where T : ITestServerBuilder
-        => LaunchServerAsyncCore<T>(configure);
+    protected abstract Task<ITestServer> LaunchServerAsync();
 
     [Fact]
     public async Task Get_Ok()
@@ -23,7 +20,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
@@ -45,7 +42,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/not-found")
@@ -67,7 +64,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var content = new ByteArrayContent(new byte[] { 1, 2, 3, 45, 67 });
@@ -93,7 +90,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var content = new ByteArrayContent(new byte[] { 0 });
@@ -113,7 +110,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         Assert.Equal("foo", response.Headers.TryGetValues("x-header-1", out var values) ? string.Join(',', values) : null);
         Assert.False(responseBodyTask.IsCompleted);
     }
-    
+
     // NOTE: SocketHttpHandler waits for the completion of sending the request body before the response headers.
     //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/SocketsHttpHandler/Http2Connection.cs#L1980-L1988
     //       https://github.com/dotnet/runtime/blob/v7.0.0/src/libraries/System.Net.Http/src/System/Net/Http/HttpContent.cs#L343-L349
@@ -147,7 +144,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var pipe = new Pipe();
@@ -188,7 +185,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var pipe = new Pipe();
@@ -230,7 +227,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var content = new ByteArrayContent(new byte[] { 1, 2, 3, 45, 67 });
@@ -256,7 +253,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var content = new ByteArrayContent(Enumerable.Range(0, 1024 * 1024).Select(x => (byte)(x % 255)).ToArray());
@@ -279,7 +276,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         using var httpHandler = CreateHandler();
         //using var httpHandler = new SocketsHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var pipe = new Pipe();
@@ -309,7 +306,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         /*using*/ var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var pipe = new Pipe();
@@ -320,7 +317,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
             Version = HttpVersion.Version20,
             Content = content,
         };
-        
+
         var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken);
         var connectionId = response.Headers.TryGetValues("x-connection-id", out var values) ? string.Join(',', values) : string.Empty;
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
@@ -342,7 +339,14 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Assert
         var operationCanceledException = Assert.IsAssignableFrom<OperationCanceledException>(ex);
         Assert.Equal(cts.Token, operationCanceledException.CancellationToken);
-        Assert.DoesNotContain(connectionId, server.ActiveConnectionIds);
+
+        using var handler2 = CreateHandler();
+        using var httpClient2 = new HttpClient(handler2);
+        httpClient2.DefaultRequestVersion = HttpVersion.Version20;
+        httpClient2.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrHigher;
+        var activeConnectionIdsCsv = await httpClient2.GetStringAsync($"{server.BaseUri}/connection-state/active-connections");
+        var activeConnectionIds = activeConnectionIdsCsv.Split(',');
+        Assert.Single(activeConnectionIds);
     }
 #endif
 
@@ -352,7 +356,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var pipe = new Pipe();
@@ -382,16 +386,16 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var id = Guid.NewGuid().ToString();
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/slow-response-headers")
         {
             Version = HttpVersion.Version20,
-            Headers = {  { TestServerForHttp1AndHttp2.SessionStateHeaderKey, id } }
+            Headers = {  { "x-test-session-id" /*SessionStateHeaderKey*/, id } }
         };
-        
+
         // The server responds after one second. But the client cancels the request before receiving response headers.
         var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         var ex = await Record.ExceptionAsync(async () => await httpClient.SendAsync(request, cts.Token).WaitAsync(TimeoutToken));
@@ -413,7 +417,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var pipe = new Pipe();
@@ -441,7 +445,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
 
         // Act
@@ -457,7 +461,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
 
         // Act
@@ -495,7 +499,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         const int RequestCount = 10;
         const int Concurrency = 10;
         using var httpHandler = CreateHandler();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var channel = GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler });
 
         // Act
@@ -544,7 +548,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
     [Fact]
     public async Task Grpc_ShutdownAndDispose()
     {
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         for (var i = 0; i < 10; i++)
         {
@@ -593,7 +597,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpHandler = httpHandler }));
 
         // Act
@@ -626,7 +630,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler) { Timeout = TimeSpan.FromSeconds(3) };
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
 
         // Act
@@ -635,11 +639,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Assert
         Assert.IsType<RpcException>(ex);
         Assert.Equal(StatusCode.Cancelled, ((RpcException)ex).StatusCode);
-#if UNITY_2021_1_OR_NEWER
         Assert.IsType<OperationCanceledException>(((RpcException)ex).Status.DebugException);
-#else
-        Assert.IsType<TaskCanceledException>(((RpcException)ex).Status.DebugException);
-#endif
     }
 
     [Fact]
@@ -648,7 +648,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
 
         // Act
@@ -665,7 +665,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         // Arrange
         using var httpHandler = CreateHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         var client = new Greeter.GreeterClient(GrpcChannel.ForAddress(server.BaseUri, new GrpcChannelOptions() { HttpClient = httpClient }));
 
         // Act
@@ -687,7 +687,7 @@ public abstract class Http2TestBase(ITestOutputHelper testOutputHelper) : UseTes
         httpHandler.Http2KeepAliveWhileIdle = true;
 
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
 
         // Act
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")

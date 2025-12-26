@@ -9,10 +9,11 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>_$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\certs\*.*" LinkBase="Certificates">
+    <None Include="..\..\external\HttpClientTestServer\src\certs\*.*" LinkBase="Certificates">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -35,10 +36,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Grpc.AspNetCore" Version="2.49.0" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\external\HttpClientTestServer\src\HttpClientTestServer.Launcher.Container\HttpClientTestServer.Launcher.Container.csproj" />
+    <ProjectReference Include="..\..\external\HttpClientTestServer\src\HttpClientTestServer\HttpClientTestServer.csproj" />
     <ProjectReference Include="..\..\src\YetAnotherHttpHandler\YetAnotherHttpHandler.csproj" />
   </ItemGroup>
 

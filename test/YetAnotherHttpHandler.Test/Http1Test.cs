@@ -13,7 +13,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         // Act
         var ex = await Record.ExceptionAsync(async () => await httpClient.GetAsync($"http://localhost.exmample/"));
@@ -29,7 +29,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler() { Http2Only = true };
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         // Act
         var ex = await Record.ExceptionAsync(async () => (await httpClient.GetAsync($"{server.BaseUri}/")).EnsureSuccessStatusCode());
@@ -51,17 +51,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
             RootCertificates = File.ReadAllText("./Certificates/localhost.crt")
         };
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.SecureHttp1Only, builder =>
-        {
-            // Use self-signed certificate for testing purpose.
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-        });
+        await using var server = await LaunchServerAsync(TestServerListenMode.SecureHttp1Only);
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
         {
             Version = HttpVersion.Version20,
@@ -84,7 +74,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
         var request = new HttpRequestMessage(HttpMethod.Get, $"{server.BaseUri}/")
         {
             Version = HttpVersion.Version20,
@@ -107,7 +97,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/");
@@ -125,7 +115,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/not-found");
@@ -143,7 +133,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/response-headers");
@@ -161,7 +151,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/ハロー");
@@ -178,7 +168,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
         var pipe = new Pipe();
         var content = new StreamContent(pipe.Reader.AsStream());
         var cts = new CancellationTokenSource();
@@ -201,7 +191,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
         // Arrange
         using var httpHandler = new Cysharp.Net.Http.YetAnotherHttpHandler();
         var httpClient = new HttpClient(httpHandler) { Timeout = TimeSpan.FromSeconds(2) };
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp1Only);
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
         var pipe = new Pipe();
         var content = new StreamContent(pipe.Reader.AsStream());
         var cts = new CancellationTokenSource();
@@ -227,17 +217,7 @@ public class Http1Test(ITestOutputHelper testOutputHelper) : UseTestServerTestBa
             RootCertificates = File.ReadAllText("./Certificates/localhost.crt")
         };
         var httpClient = new HttpClient(httpHandler);
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.SecureHttp1Only, builder =>
-        {
-            // Use self-signed certificate for testing purpose.
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-        });
+        await using var server = await LaunchServerAsync(TestServerListenMode.SecureHttp1Only);
 
         // Act
         var response = await httpClient.GetAsync($"{server.BaseUri}/");

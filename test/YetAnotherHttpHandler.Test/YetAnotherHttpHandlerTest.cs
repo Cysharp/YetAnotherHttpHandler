@@ -44,7 +44,7 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
             // Arrange
             var httpHandler = new YetAnotherHttpHandler() { Http2Only = true };
             var httpClient = new HttpClient(httpHandler);
-            await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>(TestWebAppServerListenMode.InsecureHttp2Only);
+            await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp2Only);
 
             // Act
             var pipe = new Pipe();

@@ -49,6 +49,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: cargo build --target x86_64-pc-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
@@ -73,6 +75,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add aarch64-pc-windows-msvc
       - run: |
@@ -100,6 +104,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup toolchain install nightly-2024-07-10-x86_64-pc-windows-msvc
       - run: rustup component add rust-src --toolchain nightly-2024-07-10-x86_64-pc-windows-msvc
@@ -154,9 +160,9 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
       - uses: Cysharp/Actions/.github/actions/checkout@main
-      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
         with:
-          dotnet-version: 8.0.x
+          submodules: true
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
@@ -181,6 +187,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add x86_64-apple-darwin
       - run: cargo build --target x86_64-apple-darwin --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
@@ -206,6 +214,9 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add aarch64-apple-darwin
       - run: cargo build --target aarch64-apple-darwin --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
@@ -228,6 +239,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
         with:
           path: native/artifacts
@@ -250,6 +263,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - run: rustup target add x86_64-apple-ios
       - run: cargo build --target x86_64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
         env:
@@ -272,6 +287,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - run: rustup target add aarch64-apple-ios
       - run: cargo build --target aarch64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
         env:
@@ -294,6 +311,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - run: rustup target add aarch64-apple-ios-sim
       - run: cargo build --target aarch64-apple-ios-sim --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
         env:
@@ -316,6 +335,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - name: Use latest Android NDK
         run: |
           echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
@@ -343,6 +364,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - name: Use latest Android NDK
         run: |
           echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
@@ -370,6 +393,8 @@ jobs:
         working-directory: native
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
       - name: Use latest Android NDK
         run: |
           echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
@@ -407,6 +432,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          submodules: true
+      - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
         with:
           path: native/artifacts

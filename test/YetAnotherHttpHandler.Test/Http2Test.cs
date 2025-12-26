@@ -1,7 +1,6 @@
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Security.Cryptography.X509Certificates;
 using Cysharp.Net.Http;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
+using HttpClientTestServer;
 
 namespace _YetAnotherHttpHandler.Test;
 
@@ -17,29 +16,14 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
         };
     }
 
-    protected override Task<TestWebAppServer> LaunchServerAsyncCore<T>(Action<WebApplicationBuilder>? configure = null)
-    {
-        return LaunchServerAsync<T>(TestWebAppServerListenMode.SecureHttp2Only, builder =>
-        {
-            // Use self-signed certificate for testing purpose.
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                //options.Limits.Http2.MaxFrameSize = 1024 * 1024;
-                options.ConfigureHttpsDefaults(options =>
-                {
-                    options.ServerCertificate = new X509Certificate2("Certificates/localhost.pfx");
-                });
-            });
-
-            configure?.Invoke(builder);
-        });
-    }
+    protected override Task<ITestServer> LaunchServerAsync()
+        => LaunchServerAsync(new TestServerOptions(ListenHttpProtocols.Http2, isSecure: true));
 
     [Fact]
     public async Task SelfSignedCertificate_NotTrusted()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = false }; // We need to verify server certificate.
         var httpClient = new HttpClient(httpHandler);
 
@@ -55,7 +39,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
     public async Task SelfSignedCertificate_NotTrusted_SkipValidation()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var httpHandler = new YetAnotherHttpHandler() { SkipCertificateVerification = true };
         var httpClient = new HttpClient(httpHandler);
 
@@ -72,7 +56,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
     public async Task SelfSignedCertificate_Trusted_CustomRootCA()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var httpHandler = new YetAnotherHttpHandler()
         {
             // We need to verify server certificate.
@@ -94,7 +78,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
     public async Task CustomCertificateVerificationHandler_Success()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var httpHandler = new YetAnotherHttpHandler()
         {
             OnVerifyServerCertificate = (name, certificate, now) =>
@@ -118,7 +102,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
     public async Task CustomCertificateVerificationHandler_Failure()
     {
         // Arrange
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var httpHandler = new YetAnotherHttpHandler()
         {
             OnVerifyServerCertificate = (name, certificate, now) =>
@@ -142,7 +126,7 @@ public class Http2Test(ITestOutputHelper testOutputHelper) : Http2TestBase(testO
     {
         // Arrange
         byte[] receivedCertificate = Array.Empty<byte>();
-        await using var server = await LaunchServerAsync<TestServerForHttp1AndHttp2>();
+        await using var server = await LaunchServerAsync();
         using var httpHandler = new YetAnotherHttpHandler()
         {
             OnVerifyServerCertificate = (name, certificate, now) =>
