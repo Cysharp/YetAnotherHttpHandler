@@ -31,6 +31,9 @@ on:
       update-unity-native:
         required: true
         type: boolean
+      checkout-ref:
+        required: false
+        type: string
 
 env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
@@ -50,13 +53,16 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: cargo build --target x86_64-pc-windows-msvc --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
           name: win-x64
-          path: native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+          path: |
+            native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+            native/target/x86_64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.pdb
           retention-days: 1
       - name: Run tests
         run: |
@@ -76,6 +82,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add aarch64-pc-windows-msvc
@@ -85,7 +92,9 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
           name: win-arm64
-          path: native/target/aarch64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+          path: |
+            native/target/aarch64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+            native/target/aarch64-pc-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.pdb
           retention-days: 1
       #- name: Run tests
       #  run: |
@@ -105,6 +114,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup toolchain install nightly-2024-07-10-x86_64-pc-windows-msvc
@@ -116,7 +126,9 @@ jobs:
       - uses: Cysharp/Actions/.github/actions/upload-artifact@main
         with:
           name: win-arm64-uwp
-          path: native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+          path: |
+            native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.dll
+            native/target/aarch64-uwp-windows-msvc/${{ env._RUST_BUILD_CONFIG }}/yaha_native.pdb
           retention-days: 1
       #- name: Run tests
       #  run: |
@@ -161,6 +173,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - uses: actions-rust-lang/setup-rust-toolchain@2fcdc490d667999e01ddbbf0f2823181beef6b39 # v1.15.0
@@ -188,6 +201,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add x86_64-apple-darwin
@@ -215,6 +229,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - run: rustup target add aarch64-apple-darwin
@@ -240,6 +255,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
         with:
@@ -264,6 +280,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - run: rustup target add x86_64-apple-ios
       - run: cargo build --target x86_64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
@@ -288,6 +305,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - run: rustup target add aarch64-apple-ios
       - run: cargo build --target aarch64-apple-ios --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
@@ -298,7 +316,7 @@ jobs:
           name: ios-arm64
           path: native/target/aarch64-apple-ios/${{ env._RUST_BUILD_CONFIG }}/libyaha_native.a
           retention-days: 1
-          
+
   build-ios-arm64-sim:
     name: Build Native library (ios-arm64-sim)
     if: ${{ !inputs.build-only-linux }}
@@ -312,6 +330,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - run: rustup target add aarch64-apple-ios-sim
       - run: cargo build --target aarch64-apple-ios-sim --profile ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
@@ -336,6 +355,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - name: Use latest Android NDK
         run: |
@@ -365,6 +385,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - name: Use latest Android NDK
         run: |
@@ -394,6 +415,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - name: Use latest Android NDK
         run: |
@@ -433,6 +455,7 @@ jobs:
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
         with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
@@ -457,6 +480,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: Cysharp/Actions/.github/actions/checkout@main
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
       - uses: Cysharp/Actions/.github/actions/download-artifact@main
         with:
           name: nuget-packages
