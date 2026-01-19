@@ -20,6 +20,9 @@ on:
         required: true
         default: false
         type: boolean
+      checkout-ref:
+        required: false
+        type: string
   workflow_call:
     inputs:
       build-config:
@@ -31,9 +34,6 @@ on:
       update-unity-native:
         required: true
         type: boolean
-      checkout-ref:
-        required: false
-        type: string
 
 env:
   _RUST_BUILD_CONFIG: ${{ inputs.build-config == 'debug' && 'debug' || 'release' }}
