@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -25,13 +25,14 @@ namespace Cysharp.Net.Http
         {
             lock (_lock)
             {
-                _refCount++;
-                if (_refCount == 1)
+                if (_refCount == 0)
                 {
                     if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"yaha_init_runtime");
                     var runtime = NativeMethods.yaha_init_runtime(_workerThreads ?? -1);
                     _handle = new YahaRuntimeSafeHandle(runtime);
                 }
+
+                _refCount++;
 
                 return _handle!;
             }
