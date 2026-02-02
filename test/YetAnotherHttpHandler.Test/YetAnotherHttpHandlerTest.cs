@@ -1,4 +1,4 @@
-using Cysharp.Net.Http;
+﻿using Cysharp.Net.Http;
 using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Net;
@@ -108,6 +108,41 @@ public class YetAnotherHttpHandlerTest(ITestOutputHelper testOutputHelper) : Use
         // Handler and HttpClient are disposed here. Reference count of NativeRuntime should be 0.
         Assert.Equal(0, NativeRuntime.Instance._refCount);
     }
+
+    // NOTE: This test needs to be run individually with the native library not loaded
+#if FALSE
+    [Fact]
+    public async Task InitializationFailure_DllNotFound()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+
+        // Pre-condition
+        Assert.Equal(0, NativeRuntime.Instance._refCount);
+
+        // Temporarily replace the resolver to make the library not found. This test cannot be run in parallel.
+        var originalResolver = NativeLibraryResolver.Resolver;
+        try
+        {
+            NativeLibraryResolver.Resolver = (name, assembly, path) => nint.Zero;
+
+            await Assert.ThrowsAsync<DllNotFoundException>(() => new HttpClient(new YetAnotherHttpHandler()).SendAsync(new HttpRequestMessage(HttpMethod.Get, "http://localhost.invalid/")));
+
+            // DllNotFoundException is thrown even after the initialization failure
+            await Assert.ThrowsAsync<DllNotFoundException>(() => new HttpClient(new YetAnotherHttpHandler()).SendAsync(new HttpRequestMessage(HttpMethod.Get, "http://localhost.invalid/")));
+
+            // Reference count does not increase
+            Assert.Equal(0, NativeRuntime.Instance._refCount);
+        }
+        finally
+        {
+            NativeLibraryResolver.Resolver = originalResolver;
+        }
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+    }
+#endif
 
     // NOTE: Currently, this test can only be run on Windows.
     [Fact]
