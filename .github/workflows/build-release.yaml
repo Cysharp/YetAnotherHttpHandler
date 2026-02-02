@@ -23,6 +23,7 @@ jobs:
       file-path: ./src/YetAnotherHttpHandler/package.json
       tag: ${{ inputs.tag }}
       dry-run: ${{ inputs.dry-run }}
+      ref: ${{ github.ref }}
 
   # release
   create-release:
