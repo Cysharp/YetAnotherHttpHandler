@@ -185,7 +185,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.checkout-ref || github.ref }}
           submodules: true
       - uses: Cysharp/Actions/.github/actions/setup-dotnet@main
-      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
+      - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
       - run: cargo build --target x86_64-unknown-linux-gnu --profile ${PROFILE}
         env:
           PROFILE: ${{ env._RUST_BUILD_CONFIG == 'debug' && 'dev' || env._RUST_BUILD_CONFIG }}
