@@ -13,6 +13,9 @@ namespace Cysharp.Net.Http
 {
     internal class RequestContext : IDisposable
     {
+        private readonly NativeHttpHandlerCore _owner;
+        private readonly object _disposeLock = new object();
+        private bool _disposed;
         private readonly Pipe _pipe = new(PipeOptions.Default);
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly int _requestSequence;
@@ -34,8 +37,9 @@ namespace Cysharp.Net.Http
         public PipeWriter Writer => _pipe.Writer;
         public IntPtr Handle => GCHandle.ToIntPtr(_handle);
 
-        internal RequestContext(YahaContextSafeHandle ctx, YahaRequestContextSafeHandle requestContext, HttpRequestMessage requestMessage, int requestSequence, PipeOptions? responsePipeOptions,  CancellationToken cancellationToken)
+        internal RequestContext(NativeHttpHandlerCore owner, YahaContextSafeHandle ctx, YahaRequestContextSafeHandle requestContext, HttpRequestMessage requestMessage, int requestSequence, PipeOptions? responsePipeOptions,  CancellationToken cancellationToken)
         {
+            _owner = owner;
             _ctxHandle = ctx;
             _requestContextHandle = requestContext;
             _response = new ResponseContext(requestMessage, this, responsePipeOptions, cancellationToken);
@@ -49,14 +53,21 @@ namespace Cysharp.Net.Http
 
         internal void Start(bool hasBody)
         {
-            if (hasBody)
+            lock (_disposeLock)
             {
-                _readRequestTask = RunReadRequestLoopAsync(_cancellationTokenSource.Token);
-            }
-            else
-            {
-                if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] The request has no body. Complete immediately.");
-                TryCompleteBody();
+                // A very fast response can finish before request_begin returns.
+                if (_disposed)
+                {
+                    return;
+                }
+                if (hasBody)
+                {
+                    _readRequestTask = RunReadRequestLoopAsync(_cancellationTokenSource.Token);
+                }
+                else
+                {
+                    TryCompleteBody();
+                }
             }
         }
 
@@ -75,9 +86,14 @@ namespace Cysharp.Net.Http
         /// </summary>
         public void Release()
         {
-            Debug.Assert(_handle.IsAllocated);
             lock (_handleLock)
             {
+                // Native completion and handler shutdown both own a cleanup path.
+                // Shutdown only calls Release after callbacks have been disabled and drained.
+                if (!_handle.IsAllocated)
+                {
+                    return;
+                }
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Releasing state");
                 _handle.Free();
                 _handle = default;
@@ -141,7 +157,7 @@ namespace Cysharp.Net.Http
             {
                 // TODO:
                 retryAfter += retryInterval;
-                Thread.Sleep(Math.Min(1000, retryAfter));
+                _cancellationTokenSource.Token.WaitHandle.WaitOne(Math.Min(1000, retryAfter));
             }
         }
 
@@ -352,27 +368,36 @@ namespace Cysharp.Net.Http
 
         private void Dispose(bool disposing)
         {
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{_requestSequence}:State:0x{Handle:X}] Dispose RequestContext: disposing={disposing}");
-
-            // Abort the request and dispose the request context handle whether called from manual Dispose or the finalizer.
-            TryAbort();
-
-            if (disposing)
+            lock (_disposeLock)
             {
-                _cancellationTokenSource.Cancel();
-                _cancellationTokenSource.Dispose();
-                // DO NOT Dispose `_ctx` here.
-            }
-            else
-            {
-                // Executing within the finalizer thread.
-                // NOTE: Waits by blocking until the request is completed on the native side.
-                //       If not waited here, issues such as crashes may occur when callbacks are invoked after the .NET side is destroyed by Unity's Domain Reload.
-                //       However, caution is needed with the invocation order and timing of callbacks, as well as the handling of locks, since the finalizer thread may become blocked.
+                if (_disposed)
+                {
+                    return;
+                }
+
+                TryAbort();
                 _fullyCompleted.Wait();
-            }
+                _cancellationTokenSource.Cancel();
 
-            TryReleaseNativeHandles();
+                // The upload loop also calls native methods. Join it before
+                // releasing handles or disposing its cancellation source.
+                if (_readRequestTask != null)
+                {
+                    _readRequestTask.GetAwaiter().GetResult();
+                }
+                else
+                {
+                    TryCompleteBody();
+                }
+
+                TryReleaseNativeHandles();
+                if (disposing)
+                {
+                    _cancellationTokenSource.Dispose();
+                }
+                _disposed = true;
+                _owner.RemoveRequest(this);
+            }
         }
     }
 }

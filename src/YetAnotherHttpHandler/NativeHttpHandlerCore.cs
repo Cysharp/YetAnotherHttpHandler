@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.IO.Pipelines;
@@ -22,8 +23,25 @@ namespace Cysharp.Net.Http
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
         private bool _disposed = false;
+        private readonly object _disposeLock = new object();
+        private readonly ConcurrentDictionary<int, RequestContext> _requests = new ConcurrentDictionary<int, RequestContext>();
         private PipeOptions? _responsePipeOptions;
 
+        [ThreadStatic]
+        private static int _callbackDepth;
+
+        internal static void ThrowIfInCallback()
+        {
+            if (_callbackDepth != 0)
+            {
+                throw new InvalidOperationException("Cannot synchronously dispose a handler from a native callback. Dispose it after the callback returns.");
+            }
+        }
+
+        internal void RemoveRequest(RequestContext request)
+        {
+            _requests.TryRemove(request.RequestSequence, out _);
+        }
         // NOTE: We need to keep the callback delegates in advance.
         //       The delegates are kept on the Rust side, so it will crash if they are garbage collected.
         private static readonly unsafe NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate OnStatusCodeAndHeaderReceiveCallback = OnStatusCodeAndHeaderReceive;
@@ -50,7 +68,7 @@ namespace Cysharp.Net.Http
             catch
             {
                 // NOTE: If the initialization fails, we need to release the runtime.
-                NativeRuntime.Instance.Release();
+                Dispose();
                 throw;
             }
             finally
@@ -237,8 +255,19 @@ namespace Cysharp.Net.Http
 
             static async Task SendBodyAsync(HttpContent requestContent, PipeWriter writer, CancellationToken cancellationToken)
             {
-                await requestContent.CopyToAsync(writer.AsStream()).ConfigureAwait(false); // TODO: cancel
-                await writer.CompleteAsync().ConfigureAwait(false);
+                Exception? error = null;
+                try
+                {
+                    await requestContent.CopyToAsync(writer.AsStream()).ConfigureAwait(false); // TODO: cancel
+                }
+                catch (Exception ex)
+                {
+                    error = ex;
+                }
+                finally
+                {
+                    await writer.CompleteAsync(error).ConfigureAwait(false);
+                }
             }
         }
 
@@ -270,6 +299,14 @@ namespace Cysharp.Net.Http
                     reqCtxHandle.DangerousAddRef(ref addRefReqContext);
 
                     return UnsafeSend(_handle, reqCtxHandle, requestSequence, request, cancellationToken);
+                }
+                catch
+                {
+                    // Header/URI validation can fail before a managed request
+                    // is registered. Do not leave its parent/runtime references
+                    // waiting for a SafeHandle finalizer after handler disposal.
+                    reqCtxHandle.Dispose();
+                    throw;
                 }
                 finally
                 {
@@ -340,8 +377,9 @@ namespace Cysharp.Net.Http
             NativeMethods.yaha_request_set_has_body(ctx, reqCtx, request.Content != null);
 
             // Prepare a request context
-            var requestContextManaged = new RequestContext(_handle, reqCtxHandle, request, requestSequence, _responsePipeOptions, cancellationToken);
+            var requestContextManaged = new RequestContext(this, _handle, reqCtxHandle, request, requestSequence, _responsePipeOptions, cancellationToken);
             requestContextManaged.Allocate();
+            _requests.TryAdd(requestSequence, requestContextManaged);
             if (cancellationToken.IsCancellationRequested)
             {
                 // Dispose the request context immediately.
@@ -385,6 +423,19 @@ namespace Cysharp.Net.Http
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate))]
         private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, IntPtr state, int statusCode, YahaHttpVersion version)
+        {
+            _callbackDepth++;
+            try
+            {
+                _OnStatusCodeAndHeaderReceive(reqSeq, state, statusCode, version);
+            }
+            finally
+            {
+                _callbackDepth--;
+            }
+        }
+
+        private static unsafe void _OnStatusCodeAndHeaderReceive(int reqSeq, IntPtr state, int statusCode, YahaHttpVersion version)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Status code and headers received: StatusCode={statusCode}; Version={version}");
 
@@ -438,6 +489,19 @@ namespace Cysharp.Net.Http
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_client_config_set_server_certificate_verification_handler_handler_delegate))]
         private static unsafe bool OnServerCertificateVerification(IntPtr callbackState, byte* serverNamePtr, UIntPtr /*nuint*/ serverNameLength, byte* certificateDerPtr, UIntPtr /*nuint*/ certificateDerLength, ulong now)
         {
+            _callbackDepth++;
+            try
+            {
+                return _OnServerCertificateVerification(callbackState, serverNamePtr, serverNameLength, certificateDerPtr, certificateDerLength, now);
+            }
+            finally
+            {
+                _callbackDepth--;
+            }
+        }
+
+        private static unsafe bool _OnServerCertificateVerification(IntPtr callbackState, byte* serverNamePtr, UIntPtr /*nuint*/ serverNameLength, byte* certificateDerPtr, UIntPtr /*nuint*/ certificateDerLength, ulong now)
+        {
             var serverName = UnsafeUtilities.GetStringFromUtf8Bytes(new ReadOnlySpan<byte>(serverNamePtr, (int)serverNameLength));
             var certificateDer = new ReadOnlySpan<byte>(certificateDerPtr, (int)certificateDerLength);
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"OnServerCertificateVerification: State=0x{callbackState:X}; ServerName={serverName}; CertificateDer.Length={certificateDer.Length}; Now={now}");
@@ -464,6 +528,19 @@ namespace Cysharp.Net.Http
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
         private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf, nuint taskHandle)
+        {
+            _callbackDepth++;
+            try
+            {
+                _OnReceive(reqSeq, state, length, buf, taskHandle);
+            }
+            finally
+            {
+                _callbackDepth--;
+            }
+        }
+
+        private static unsafe void _OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf, nuint taskHandle)
         {
             try
             {
@@ -524,6 +601,19 @@ namespace Cysharp.Net.Http
 
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
         private static unsafe void OnComplete(int reqSeq, IntPtr state, CompletionReason reason, uint h2ErrorCode)
+        {
+            _callbackDepth++;
+            try
+            {
+                _OnComplete(reqSeq, state, reason, h2ErrorCode);
+            }
+            finally
+            {
+                _callbackDepth--;
+            }
+        }
+
+        private static unsafe void _OnComplete(int reqSeq, IntPtr state, CompletionReason reason, uint h2ErrorCode)
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response completed: Reason={reason}; H2ErrorCode=0x{h2ErrorCode:x}");
 
@@ -630,23 +720,41 @@ namespace Cysharp.Net.Http
             GC.SuppressFinalize(this);
         }
 
-        private void Dispose(bool disposing)
+        private unsafe void Dispose(bool disposing)
         {
-            if (_disposed)
+            ThrowIfInCallback();
+            lock (_disposeLock)
             {
-                return;
-            }
+                if (_disposed)
+                {
+                    return;
+                }
 
-            if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Dispose {nameof(NativeHttpHandlerCore)}; disposing={disposing}");
+                // Close native callback admission before cancelling managed pipes.
+                // Existing callbacks and deferred flush acknowledgements are
+                // drained while their managed state is still alive.
+                NativeMethods.yaha_context_disable_callbacks(_handle.DangerousGet());
+                var requests = _requests.Values;
+                foreach (var request in requests)
+                {
+                    request.Response.Cancel();
+                }
 
-            NativeRuntime.Instance.Release(); // We always need to release runtime.
+                NativeMethods.yaha_context_wait_callbacks(_handle.DangerousGet());
 
-            if (disposing)
-            {
+                // Disabled callbacks no longer deliver OnComplete. Release
+                // their state here, and finish cleanup synchronously instead of
+                // relying on queued ThreadPool work during runtime shutdown.
+                foreach (var request in requests)
+                {
+                    request.Release();
+                    request.Dispose();
+                }
+
                 _handle.Dispose();
+                NativeRuntime.Instance.Release();
+                _disposed = true;
             }
-
-            _disposed = true;
         }
     }
 }

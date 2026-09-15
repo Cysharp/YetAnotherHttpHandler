@@ -164,6 +164,10 @@ namespace Cysharp.Net.Http
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{_requestContext.RequestSequence}] Response was cancelled");
 
+            // A disposing handler can cancel a response whose caller's token
+            // was never cancelled. Unblock backpressure BEFORE taking the lock:
+            // a completion callback may hold it while waiting for this flush.
+            _pipe.Writer.CancelPendingFlush();
             lock (_writeLock)
             {
                 if (_completed) return;

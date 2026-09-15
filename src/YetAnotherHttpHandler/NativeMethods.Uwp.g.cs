@@ -44,6 +44,12 @@ namespace Cysharp.Net.Http
         [DllImport(__DllName, EntryPoint = "yaha_dispose_context", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void yaha_dispose_context(YahaNativeContext* ctx);
 
+        [DllImport(__DllName, EntryPoint = "yaha_context_disable_callbacks", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_context_disable_callbacks(YahaNativeContext* ctx);
+
+        [DllImport(__DllName, EntryPoint = "yaha_context_wait_callbacks", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void yaha_context_wait_callbacks(YahaNativeContext* ctx);
+
         [DllImport(__DllName, EntryPoint = "yaha_client_config_add_root_certificates", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern nuint yaha_client_config_add_root_certificates(YahaNativeContext* ctx, StringBuffer* root_certs);
 
