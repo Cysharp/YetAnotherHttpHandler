@@ -734,6 +734,8 @@ namespace Cysharp.Net.Http
                 // Existing callbacks and deferred flush acknowledgements are
                 // drained while their managed state is still alive.
                 NativeMethods.yaha_context_disable_callbacks(_handle.DangerousGet());
+                // The owner's admission coordination guarantees no request can
+                // register after this snapshot and escape cancellation and release.
                 var requests = _requests.Values;
                 foreach (var request in requests)
                 {
