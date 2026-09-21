@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.IO.Pipelines;
@@ -720,7 +721,7 @@ namespace Cysharp.Net.Http
             GC.SuppressFinalize(this);
         }
 
-        private unsafe void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             ThrowIfInCallback();
             lock (_disposeLock)
@@ -730,32 +731,37 @@ namespace Cysharp.Net.Http
                     return;
                 }
 
-                // Close native callback admission before cancelling managed pipes.
-                // Existing callbacks and deferred flush acknowledgements are
-                // drained while their managed state is still alive.
-                NativeMethods.yaha_context_disable_callbacks(_handle.DangerousGet());
-                // The owner's admission coordination guarantees no request can
-                // register after this snapshot and escape cancellation and release.
-                var requests = _requests.Values;
-                foreach (var request in requests)
-                {
-                    request.Response.Cancel();
-                }
-
-                NativeMethods.yaha_context_wait_callbacks(_handle.DangerousGet());
-
-                // Disabled callbacks no longer deliver OnComplete. Release
-                // their state here, and finish cleanup synchronously instead of
-                // relying on queued ThreadPool work during runtime shutdown.
-                foreach (var request in requests)
-                {
-                    request.Release();
-                    request.Dispose();
-                }
-
+                var requests = _DisableAndDrainCallbacks();
+                _ReleaseDrainedRequests(requests);
                 _handle.Dispose();
                 NativeRuntime.Instance.Release();
                 _disposed = true;
+            }
+        }
+
+        private unsafe ICollection<RequestContext> _DisableAndDrainCallbacks()
+        {
+            NativeMethods.yaha_context_disable_callbacks(_handle.DangerousGet());
+            // The owner's admission coordination guarantees no request can
+            // register after this snapshot and escape cancellation and release.
+            var requests = _requests.Values;
+            foreach (var request in requests)
+            {
+                request.Response.Cancel();
+            }
+
+            NativeMethods.yaha_context_wait_callbacks(_handle.DangerousGet());
+            return requests;
+        }
+
+        private static void _ReleaseDrainedRequests(ICollection<RequestContext> requests)
+        {
+            // Disabled callbacks no longer deliver OnComplete, and runtime
+            // shutdown cannot rely on queued ThreadPool work for cleanup.
+            foreach (var request in requests)
+            {
+                request.Release();
+                request.Dispose();
             }
         }
     }

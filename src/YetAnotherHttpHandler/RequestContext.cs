@@ -89,7 +89,6 @@ namespace Cysharp.Net.Http
             lock (_handleLock)
             {
                 // Native completion and handler shutdown both own a cleanup path.
-                // Shutdown only calls Release after callbacks have been disabled and drained.
                 if (!_handle.IsAllocated)
                 {
                     return;
