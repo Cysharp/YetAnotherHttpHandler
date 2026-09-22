@@ -90,9 +90,22 @@ pub extern "C" fn yaha_init_context(
     Arc::into_raw(ctx) as *mut YahaNativeContext
 }
 
+/// Clones an owning reference that can outlive the managed SafeHandle.
+///
+/// # Safety
+/// `ctx` must come from `yaha_init_context`, with a strong reference kept alive
+/// for this call. Configuration must not be mutated while the clone is alive.
+unsafe fn clone_context(ctx: *const YahaNativeContext) -> Arc<YahaNativeContextInternal<'static>> {
+    let ptr = ctx as *const YahaNativeContextInternal;
+    unsafe {
+        Arc::increment_strong_count(ptr);
+        Arc::from_raw(ptr)
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
-    // Requests own an Arc as well, so native cleanup can outlive Dispose.
+    // Reclaim the managed owner's reference, releasing it when this call returns.
     let ctx = unsafe { Arc::from_raw(ctx as *const YahaNativeContextInternal) };
     ctx.callbacks.close();
     ctx.callbacks.wait();
@@ -504,13 +517,7 @@ pub extern "C" fn yaha_request_begin(
     req_ctx: *const YahaNativeRequestContext,
     state: NonZeroIsize
 ) -> bool {
-    // The configured context is immutable. Keep it alive independently of
-    // managed SafeHandles until this request future has been dropped.
-    let ctx = unsafe {
-        let ptr = ctx as *const YahaNativeContextInternal;
-        Arc::increment_strong_count(ptr);
-        Arc::from_raw(ptr)
-    };
+    let ctx = unsafe { clone_context(ctx) };
 
     // Begin request on async runtime.
     let body;
@@ -921,11 +928,7 @@ mod tests {
         let state = NonZeroIsize::new(&calls as *const _ as isize).unwrap();
         let runtime = yaha_init_runtime(1);
         let ctx = yaha_init_context(runtime, headers, receive, complete);
-        let retained = unsafe {
-            let ptr = ctx as *const YahaNativeContextInternal;
-            Arc::increment_strong_count(ptr);
-            Arc::from_raw(ptr)
-        };
+        let retained = unsafe { clone_context(ctx) };
         retained.notify_headers(1, state, 200, YahaHttpVersion::Http11);
         retained.notify_complete(1, state, CompletionReason::Success, 0);
         assert_eq!(calls.load(Ordering::SeqCst), 2);
