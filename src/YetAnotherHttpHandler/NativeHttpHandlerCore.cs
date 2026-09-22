@@ -31,6 +31,17 @@ namespace Cysharp.Net.Http
         [ThreadStatic]
         private static int _callbackDepth;
 
+        private readonly struct CallbackScope : IDisposable
+        {
+            public static CallbackScope Enter()
+            {
+                _callbackDepth++;
+                return default;
+            }
+
+            public void Dispose() => _callbackDepth--;
+        }
+
         internal static void ThrowIfInCallback()
         {
             if (_callbackDepth != 0)
@@ -425,19 +436,8 @@ namespace Cysharp.Net.Http
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_status_code_and_headers_receive_delegate))]
         private static unsafe void OnStatusCodeAndHeaderReceive(int reqSeq, IntPtr state, int statusCode, YahaHttpVersion version)
         {
-            _callbackDepth++;
-            try
-            {
-                _OnStatusCodeAndHeaderReceive(reqSeq, state, statusCode, version);
-            }
-            finally
-            {
-                _callbackDepth--;
-            }
-        }
+            using var _ = CallbackScope.Enter();
 
-        private static unsafe void _OnStatusCodeAndHeaderReceive(int reqSeq, IntPtr state, int statusCode, YahaHttpVersion version)
-        {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Status code and headers received: StatusCode={statusCode}; Version={version}");
 
             var requestContext = RequestContext.FromHandle(state);
@@ -490,19 +490,8 @@ namespace Cysharp.Net.Http
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_client_config_set_server_certificate_verification_handler_handler_delegate))]
         private static unsafe bool OnServerCertificateVerification(IntPtr callbackState, byte* serverNamePtr, UIntPtr /*nuint*/ serverNameLength, byte* certificateDerPtr, UIntPtr /*nuint*/ certificateDerLength, ulong now)
         {
-            _callbackDepth++;
-            try
-            {
-                return _OnServerCertificateVerification(callbackState, serverNamePtr, serverNameLength, certificateDerPtr, certificateDerLength, now);
-            }
-            finally
-            {
-                _callbackDepth--;
-            }
-        }
+            using var _ = CallbackScope.Enter();
 
-        private static unsafe bool _OnServerCertificateVerification(IntPtr callbackState, byte* serverNamePtr, UIntPtr /*nuint*/ serverNameLength, byte* certificateDerPtr, UIntPtr /*nuint*/ certificateDerLength, ulong now)
-        {
             var serverName = UnsafeUtilities.GetStringFromUtf8Bytes(new ReadOnlySpan<byte>(serverNamePtr, (int)serverNameLength));
             var certificateDer = new ReadOnlySpan<byte>(certificateDerPtr, (int)certificateDerLength);
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"OnServerCertificateVerification: State=0x{callbackState:X}; ServerName={serverName}; CertificateDer.Length={certificateDer.Length}; Now={now}");
@@ -530,19 +519,8 @@ namespace Cysharp.Net.Http
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_receive_delegate))]
         private static unsafe void OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf, nuint taskHandle)
         {
-            _callbackDepth++;
-            try
-            {
-                _OnReceive(reqSeq, state, length, buf, taskHandle);
-            }
-            finally
-            {
-                _callbackDepth--;
-            }
-        }
+            using var _ = CallbackScope.Enter();
 
-        private static unsafe void _OnReceive(int reqSeq, IntPtr state, UIntPtr length, byte* buf, nuint taskHandle)
-        {
             try
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response data received: Length={length}");
@@ -603,19 +581,8 @@ namespace Cysharp.Net.Http
         [MonoPInvokeCallback(typeof(NativeMethods.yaha_init_context_on_complete_delegate))]
         private static unsafe void OnComplete(int reqSeq, IntPtr state, CompletionReason reason, uint h2ErrorCode)
         {
-            _callbackDepth++;
-            try
-            {
-                _OnComplete(reqSeq, state, reason, h2ErrorCode);
-            }
-            finally
-            {
-                _callbackDepth--;
-            }
-        }
+            using var _ = CallbackScope.Enter();
 
-        private static unsafe void _OnComplete(int reqSeq, IntPtr state, CompletionReason reason, uint h2ErrorCode)
-        {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response completed: Reason={reason}; H2ErrorCode=0x{h2ErrorCode:x}");
 
             var requestContext = RequestContext.FromHandle(state);
