@@ -633,7 +633,7 @@ pub extern "C" fn yaha_request_begin(
                                             let (tx, rx) = oneshot::channel::<Result<(), String>>();
                                             let tx = Box::into_raw(Box::new(ResponseCompletion {
                                                 sender: tx,
-                                                _guard: guard.defer(),
+                                                _guard: guard.retain_for_deferred_ack(),
                                             })) as usize;
 
                                             (ctx.on_receive)(seq, state, data.len(), data.as_ptr(), tx);

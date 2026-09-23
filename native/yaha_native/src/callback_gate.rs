@@ -1,7 +1,5 @@
 use std::sync::{Arc, Condvar, Mutex};
 
-/// Admission is checked and counted under the same lock. Closing the gate
-/// prevents even entry into the managed reverse-P/Invoke wrapper.
 #[derive(Clone, Debug, Default)]
 pub struct CallbackGate(Arc<Inner>);
 
@@ -29,8 +27,6 @@ impl CallbackGate {
         Some(CallbackGuard(self.0.clone()))
     }
 
-    /// Separate closing from waiting so managed code can unblock pending
-    /// response flushes before waiting for their acknowledgements.
     pub fn close(&self) {
         self.0.state.lock().unwrap().closed = true;
     }
@@ -45,9 +41,7 @@ impl CallbackGate {
 }
 
 impl CallbackGuard {
-    /// Extend an already admitted callback to cover a deferred managed body
-    /// acknowledgement. This must remain possible if close races the callback.
-    pub fn defer(&self) -> Self {
+    pub fn retain_for_deferred_ack(&self) -> Self {
         self.0.state.lock().unwrap().active += 1;
         Self(self.0.clone())
     }
@@ -98,7 +92,7 @@ mod tests {
         let gate = CallbackGate::default();
         let guard = gate.enter().unwrap();
         gate.close();
-        let acknowledgement = guard.defer();
+        let acknowledgement = guard.retain_for_deferred_ack();
         drop(guard);
         let stopping = gate.clone();
         let (done_tx, done_rx) = mpsc::channel();
