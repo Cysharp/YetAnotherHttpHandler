@@ -216,14 +216,6 @@ namespace Cysharp.Net.Http
             }
         }
 
-        /// <summary>
-        /// Disables native callbacks, cancels pending requests and waits for
-        /// admitted callbacks to return before releasing their managed state.
-        /// </summary>
-        /// <remarks>
-        /// Call before shutting down the managed runtime. Synchronous disposal
-        /// from a native callback (including certificate verification) is not supported.
-        /// </remarks>
         protected override void Dispose(bool disposing)
         {
             NativeHttpHandlerCore.ThrowIfInCallback();
@@ -238,10 +230,7 @@ namespace Cysharp.Net.Http
             // certificate verification may try to send another request, which
             // must observe ObjectDisposedException instead of deadlocking.
             handler?.Dispose();
-            lock (_lifetimeLock)
-            {
-                _handler = null;
-            }
+            _handler = null;
         }
 
         private void ThrowIfDisposed()

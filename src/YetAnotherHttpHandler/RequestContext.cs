@@ -88,7 +88,6 @@ namespace Cysharp.Net.Http
         {
             lock (_handleLock)
             {
-                // Native completion and handler shutdown both own a cleanup path.
                 if (!_handle.IsAllocated)
                 {
                     return;
@@ -378,17 +377,7 @@ namespace Cysharp.Net.Http
                 _fullyCompleted.Wait();
                 _cancellationTokenSource.Cancel();
 
-                // The upload loop also calls native methods. Join it before
-                // releasing handles or disposing its cancellation source.
-                if (_readRequestTask != null)
-                {
-                    _readRequestTask.GetAwaiter().GetResult();
-                }
-                else
-                {
-                    TryCompleteBody();
-                }
-
+                _WaitForUploadLoopToStop();
                 TryReleaseNativeHandles();
                 if (disposing)
                 {
@@ -396,6 +385,18 @@ namespace Cysharp.Net.Http
                 }
                 _disposed = true;
                 _owner.RemoveRequest(this);
+            }
+        }
+
+        private void _WaitForUploadLoopToStop()
+        {
+            if (_readRequestTask != null)
+            {
+                _readRequestTask.GetAwaiter().GetResult();
+            }
+            else
+            {
+                TryCompleteBody();
             }
         }
     }
