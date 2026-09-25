@@ -143,9 +143,16 @@ impl YahaNativeContextInternal<'_> {
         let tls_config: rustls::ClientConfig;
         if let Some(server_certificate_verification_handler) = self.server_certificate_verification_handler {
             // Use custom certificate verification handler
+            let signature_algorithms =
+                rustls::crypto::ring::default_provider().signature_verification_algorithms;
             tls_config = tls_config_builder
                 .dangerous()
-                .with_custom_certificate_verifier(Arc::new(danger::CustomCerficateVerification { handler: server_certificate_verification_handler }))
+                .with_custom_certificate_verifier(Arc::new(
+                    danger::CustomCerficateVerification::new(
+                        server_certificate_verification_handler,
+                        signature_algorithms,
+                    ),
+                ))
                 .with_no_client_auth();
         } else if self.skip_certificate_verification.unwrap_or_default() {
             // Skip certificate verification
@@ -241,9 +248,10 @@ impl YahaNativeContextInternal<'_> {
 
 #[cfg(feature = "rustls")]
 mod danger {
-    use std::num::NonZeroIsize;
+    use std::{fmt, num::NonZeroIsize};
 
     use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified};
+    use rustls::crypto::WebPkiSupportedAlgorithms;
     use rustls::{DigitallySignedStruct, Error, SignatureScheme};
     use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 
@@ -252,9 +260,29 @@ mod danger {
     #[derive(Debug)]
     pub struct NoCertificateVerification {}
 
-    #[derive(Debug)]
     pub struct CustomCerficateVerification {
-        pub handler: (OnServerCertificateVerificationHandler, NonZeroIsize)
+        handler: (OnServerCertificateVerificationHandler, NonZeroIsize),
+        signature_algorithms: WebPkiSupportedAlgorithms,
+    }
+
+    impl CustomCerficateVerification {
+        pub fn new(
+            handler: (OnServerCertificateVerificationHandler, NonZeroIsize),
+            signature_algorithms: WebPkiSupportedAlgorithms,
+        ) -> Self {
+            Self {
+                handler,
+                signature_algorithms,
+            }
+        }
+    }
+
+    impl fmt::Debug for CustomCerficateVerification {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter
+                .debug_struct("CustomCerficateVerification")
+                .finish_non_exhaustive()
+        }
     }
 
     const ALL_SCHEMES: [SignatureScheme; 12] = [
@@ -293,24 +321,34 @@ mod danger {
 
         fn verify_tls12_signature(
             &self,
-            _message: &[u8],
-            _cert: &CertificateDer<'_>,
-            _dss: &DigitallySignedStruct,
+            message: &[u8],
+            cert: &CertificateDer<'_>,
+            dss: &DigitallySignedStruct,
         ) -> Result<HandshakeSignatureValid, Error> {
-            Ok(HandshakeSignatureValid::assertion())
+            rustls::crypto::verify_tls12_signature(
+                message,
+                cert,
+                dss,
+                &self.signature_algorithms,
+            )
         }
 
         fn verify_tls13_signature(
             &self,
-            _message: &[u8],
-            _cert: &CertificateDer<'_>,
-            _dss: &DigitallySignedStruct,
+            message: &[u8],
+            cert: &CertificateDer<'_>,
+            dss: &DigitallySignedStruct,
         ) -> Result<HandshakeSignatureValid, Error> {
-            Ok(HandshakeSignatureValid::assertion())
+            rustls::crypto::verify_tls13_signature(
+                message,
+                cert,
+                dss,
+                &self.signature_algorithms,
+            )
         }
 
         fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-            Vec::from(ALL_SCHEMES)
+            self.signature_algorithms.supported_schemes()
         }
     }
 
@@ -469,12 +507,13 @@ mod tests {
             let _ = connection.complete_io(&mut socket);
         });
 
-        let verifier = CustomCerficateVerification {
-            handler: (
+        let verifier = CustomCerficateVerification::new(
+            (
                 accept_server_certificate,
                 NonZeroIsize::new(1).expect("the callback state must be non-zero"),
             ),
-        };
+            rustls::crypto::ring::default_provider().signature_verification_algorithms,
+        );
         let client_config = ClientConfig::builder_with_protocol_versions(&[protocol_version])
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(verifier))
