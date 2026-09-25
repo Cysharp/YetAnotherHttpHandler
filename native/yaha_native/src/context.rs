@@ -389,3 +389,140 @@ pub fn to_internal<'a, T: Internalizable<U>, U>(v: *const T) -> &'a U {
 pub fn to_internal_arc<'a, T: Internalizable<U>, U>(v: *const T) -> Arc<U> {
     unsafe { Arc::from_raw(v as *const U) }
 }
+
+#[cfg(all(test, feature = "rustls"))]
+mod tests {
+    use std::{
+        io::{self, Cursor},
+        net::{TcpListener, TcpStream},
+        num::NonZeroIsize,
+        sync::Arc,
+        thread,
+        time::Duration,
+    };
+
+    use rustls::{
+        pki_types::{CertificateDer, PrivateKeyDer, ServerName},
+        ClientConfig, ClientConnection, ServerConfig, ServerConnection, SupportedProtocolVersion,
+    };
+
+    use super::danger::CustomCerficateVerification;
+
+    const CERTIFICATE_A: &[u8] = include_bytes!("../testdata/certificate-verify/cert-a.pem");
+    const PRIVATE_KEY_A: &[u8] = include_bytes!("../testdata/certificate-verify/key-a.pem");
+    const PRIVATE_KEY_B: &[u8] = include_bytes!("../testdata/certificate-verify/key-b.pem");
+
+    extern "C" fn accept_server_certificate(
+        _state: NonZeroIsize,
+        _server_name: *const u8,
+        _server_name_len: usize,
+        _certificate_der: *const u8,
+        _certificate_der_len: usize,
+        _now: u64,
+    ) -> bool {
+        true
+    }
+
+    fn certificate_chain() -> Vec<CertificateDer<'static>> {
+        rustls_pemfile::certs(&mut Cursor::new(CERTIFICATE_A))
+            .collect::<Result<Vec<_>, _>>()
+            .expect("the test certificate must be valid PEM")
+    }
+
+    fn private_key(pem: &'static [u8]) -> PrivateKeyDer<'static> {
+        rustls_pemfile::private_key(&mut Cursor::new(pem))
+            .expect("the test private key must be valid PEM")
+            .expect("the test private key must be present")
+    }
+
+    fn complete_handshake(
+        protocol_version: &'static SupportedProtocolVersion,
+        server_private_key: &'static [u8],
+    ) -> io::Result<(usize, usize)> {
+        let server_config = ServerConfig::builder_with_protocol_versions(&[protocol_version])
+            .with_no_client_auth()
+            // Supplying PRIVATE_KEY_B intentionally creates a server that presents
+            // CERTIFICATE_A but signs the TLS handshake with an unrelated RSA key.
+            .with_single_cert(certificate_chain(), private_key(server_private_key))
+            .expect("the test server key must be supported");
+
+        let listener =
+            TcpListener::bind("127.0.0.1:0").expect("the test server must bind to a loopback port");
+        let server_address = listener
+            .local_addr()
+            .expect("the test server must have a local address");
+
+        let server = thread::spawn(move || {
+            let (mut socket, _) = listener
+                .accept()
+                .expect("the test server must accept the client connection");
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .expect("the server read timeout must be configurable");
+            socket
+                .set_write_timeout(Some(Duration::from_secs(5)))
+                .expect("the server write timeout must be configurable");
+
+            let mut connection = ServerConnection::new(Arc::new(server_config))
+                .expect("the test server connection must be created");
+            // An error is expected when the client correctly rejects PRIVATE_KEY_B.
+            let _ = connection.complete_io(&mut socket);
+        });
+
+        let verifier = CustomCerficateVerification {
+            handler: (
+                accept_server_certificate,
+                NonZeroIsize::new(1).expect("the callback state must be non-zero"),
+            ),
+        };
+        let client_config = ClientConfig::builder_with_protocol_versions(&[protocol_version])
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(verifier))
+            .with_no_client_auth();
+
+        let mut socket = TcpStream::connect(server_address)
+            .expect("the test client must connect to the loopback server");
+        socket
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("the client read timeout must be configurable");
+        socket
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .expect("the client write timeout must be configurable");
+
+        let server_name =
+            ServerName::try_from("localhost").expect("localhost must be a valid DNS name");
+        let mut connection = ClientConnection::new(Arc::new(client_config), server_name)
+            .expect("the test client connection must be created");
+
+        let result = connection.complete_io(&mut socket);
+        drop(socket);
+        server
+            .join()
+            .expect("the test server thread must not panic");
+        result
+    }
+
+    #[test]
+    fn custom_verifier_accepts_matching_tls12_handshake_signature() {
+        complete_handshake(&rustls::version::TLS12, PRIVATE_KEY_A)
+            .expect("a TLS 1.2 signature made by the certificate key must be accepted");
+    }
+
+    #[test]
+    fn custom_verifier_rejects_mismatched_tls12_handshake_signature() {
+        complete_handshake(&rustls::version::TLS12, PRIVATE_KEY_B)
+            .expect_err("a TLS 1.2 signature made by an unrelated key must be rejected");
+    }
+
+    #[test]
+    fn custom_verifier_accepts_matching_tls13_handshake_signature() {
+        complete_handshake(&rustls::version::TLS13, PRIVATE_KEY_A)
+            .expect("a TLS 1.3 signature made by the certificate key must be accepted");
+    }
+
+    #[test]
+    fn custom_verifier_rejects_mismatched_tls13_handshake_signature() {
+        complete_handshake(&rustls::version::TLS13, PRIVATE_KEY_B)
+            .expect_err("a TLS 1.3 signature made by an unrelated key must be rejected");
+    }
+}
