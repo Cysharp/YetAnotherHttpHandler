@@ -477,6 +477,8 @@ mod tests {
         protocol_version: &'static SupportedProtocolVersion,
         server_private_key: &'static [u8],
     ) -> io::Result<(usize, usize)> {
+        // rustls 0.23+ rejects mismatched certificate/key pairs here. When upgrading from 0.22,
+        // use a custom certificate resolver so the negative tests still reach the handshake.
         let server_config = ServerConfig::builder_with_protocol_versions(&[protocol_version])
             .with_no_client_auth()
             // Supplying PRIVATE_KEY_B intentionally creates a server that presents
