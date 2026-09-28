@@ -457,14 +457,25 @@ pub unsafe extern "C" fn yaha_request_set_header(
     value: *const StringBuffer,
 ) -> bool {
     let mut req_ctx = crate::context::to_internal(req_ctx).lock().unwrap();
-    assert!(req_ctx.builder.is_some());
-
-    // TODO: Handle invalid header values
-    let builder = req_ctx.builder.take().unwrap();
-    req_ctx.builder = Some(builder.header(
-        HeaderName::from_bytes((*key).to_bytes()).unwrap(),
-        HeaderValue::from_bytes((*value).to_bytes()).unwrap(),
-    ));
+    let name = match HeaderName::from_bytes((*key).to_bytes()) {
+        Ok(name) => name,
+        Err(err) => {
+            req_ctx.last_error = Some(format!("Invalid HTTP header name: {err}"));
+            return false;
+        }
+    };
+    let value = match HeaderValue::from_bytes((*value).to_bytes()) {
+        Ok(value) => value,
+        Err(err) => {
+            req_ctx.last_error = Some(format!("Invalid HTTP header value: {err}"));
+            return false;
+        }
+    };
+    let Some(builder) = req_ctx.builder.take() else {
+        req_ctx.last_error = Some("The request has already started.".to_string());
+        return false;
+    };
+    req_ctx.builder = Some(builder.header(name, value));
 
     true
 }
@@ -851,5 +862,57 @@ pub extern "C" fn yaha_complete_task(task_handle: usize, error: *const StringBuf
     } else {
         let error = unsafe { (*error).to_str().to_string() };
         tx.send(Err(error)).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ptr::null;
+
+    use super::*;
+
+    unsafe fn set_header(req_ctx: *const YahaNativeRequestContext, name: &[u8], value: &[u8]) -> bool {
+        let name = StringBuffer::new(name.as_ptr(), name.len() as i32);
+        let value = StringBuffer::new(value.as_ptr(), value.len() as i32);
+        yaha_request_set_header(null(), req_ctx, &name, &value)
+    }
+
+    unsafe fn last_error(req_ctx: *const YahaNativeRequestContext) -> String {
+        let error = yaha_get_last_error(null(), req_ctx);
+        let bytes = Box::from_raw(error as *mut ByteBuffer).destroy_into_vec();
+        String::from_utf8(bytes).unwrap()
+    }
+
+    #[test]
+    fn invalid_header_value_returns_error_without_losing_builder() {
+        let req_ctx = unsafe { yaha_request_new(null(), 1) };
+
+        unsafe {
+            assert!(set_header(req_ctx, b"x-valid", b"before"));
+            assert!(!set_header(req_ctx, b"x-invalid", b"safe\r\nInjected: yes"));
+            assert!(last_error(req_ctx).contains("Invalid HTTP header value"));
+            assert!(set_header(req_ctx, b"x-valid-after", b"after"));
+
+            let req = crate::context::to_internal(req_ctx).lock().unwrap();
+            let headers = req.builder.as_ref().unwrap().headers_ref().unwrap();
+            assert_eq!(headers["x-valid"], "before");
+            assert_eq!(headers["x-valid-after"], "after");
+            assert!(!headers.contains_key("x-invalid"));
+            drop(req);
+
+            yaha_request_destroy(null(), req_ctx);
+        }
+    }
+
+    #[test]
+    fn invalid_header_name_returns_error_without_losing_builder() {
+        let req_ctx = unsafe { yaha_request_new(null(), 2) };
+
+        unsafe {
+            assert!(!set_header(req_ctx, b"bad name", b"value"));
+            assert!(last_error(req_ctx).contains("Invalid HTTP header name"));
+            assert!(set_header(req_ctx, b"x-valid", b"value"));
+            yaha_request_destroy(null(), req_ctx);
+        }
     }
 }
