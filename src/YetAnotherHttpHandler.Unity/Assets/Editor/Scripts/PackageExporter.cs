@@ -19,66 +19,69 @@ public static class PackageExporter
 
         var packagesYahaDependencies = new[] { "System.IO.Pipelines", "System.Runtime.CompilerServices.Unsafe" };
         var packagesGrpcNetClient = new[] { "Grpc.Net.Client" };
-        ExportNuGetPackage(packagesYahaDependencies, "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", Array.Empty<string>());
-        ExportNuGetPackage(packagesGrpcNetClient, "Grpc.Net.Client.Dependencies", packagesYahaDependencies);
+        var exports = new[]
+        {
+            (packageIds: packagesYahaDependencies, unityPackageName: "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", excludePackageIds: Array.Empty<string>()),
+            (packageIds: packagesGrpcNetClient, unityPackageName: "Grpc.Net.Client.Dependencies", excludePackageIds: packagesYahaDependencies),
+        };
+
+        foreach (var (packageIds, unityPackageName, excludePackageIds) in exports)
+        {
+            var fileName = $"{unityPackageName}.unitypackage";
+            var exportPath = "./" + fileName;
+
+            var packages = new HashSet<INugetPackageIdentifier>();
+            var installedPackages = InstalledPackagesManager.InstalledPackages.ToArray();
+            foreach (var package in installedPackages.Where(x => packageIds.Contains(x.Id)))
+            {
+                foreach (var dep in TraverseDependencies(installedPackages, package, includesSelf: true))
+                {
+                    if (excludePackageIds.Contains(dep.Id))
+                    {
+                        continue;
+                    }
+                    packages.Add(dep);
+                }
+            }
+
+            var assetPaths = packages
+                .Select(x =>
+                {
+                    var directory = GetPackageInstallDirectory(x);
+                    return "Assets" + directory.Substring(Application.dataPath.Length);
+                })
+                .ToArray();
+
+            UnityEngine.Debug.Log("Export below files" + Environment.NewLine + string.Join(Environment.NewLine, assetPaths));
+
+            AssetDatabase.ExportPackage(
+                assetPaths,
+                exportPath,
+                ExportPackageOptions.Recurse);
+
+            UnityEngine.Debug.Log("Export complete: " + Path.GetFullPath(exportPath));
+        }
 
         UnityEngine.Debug.Log("Build succeeded! All export complete!");
     }
 
-    private static void ExportNuGetPackage(IReadOnlyList<string> packageIds, string unityPackageName, IReadOnlyList<string> excludePackageIds)
+    static IEnumerable<INugetPackage> TraverseDependencies(IReadOnlyList<INugetPackage> installedPackages, INugetPackage package, bool includesSelf)
     {
-        string exportPath = $"./{unityPackageName}.unitypackage";
-
-        var packages = new HashSet<INugetPackageIdentifier>();
-        var installedPackages = InstalledPackagesManager.InstalledPackages.ToArray();
-        foreach (var package in installedPackages.Where(x => packageIds.Contains(x.Id)))
+        if (includesSelf)
         {
-            foreach (var dep in TraverseDependencies(installedPackages, package, includesSelf: true))
-            {
-                if (excludePackageIds.Contains(dep.Id))
-                {
-                    continue;
-                }
-                packages.Add(dep);
-            }
+            yield return package;
         }
 
-        var assetPaths = packages
-            .Select(x =>
-            {
-                var directory = GetPackageInstallDirectory(x);
-                return "Assets" + directory.Substring(Application.dataPath.Length);
-            })
-            .ToArray();
-
-        Debug.Log($"Exporting: {Path.GetFullPath(exportPath)}");
-        foreach (var package in assetPaths)
+        foreach (var dep in package.CurrentFrameworkDependencies)
         {
-            Debug.Log(package);
-        }
-
-        AssetDatabase.ExportPackage(assetPaths, exportPath, ExportPackageOptions.Recurse);
-
-        Debug.Log($"Export complete");
-
-        static IEnumerable<INugetPackage> TraverseDependencies(IReadOnlyList<INugetPackage> installedPackages, INugetPackage package, bool includesSelf)
-        {
-            if (includesSelf)
+            var depPackage = installedPackages.FirstOrDefault(x => x.Id == dep.Id);
+            if (depPackage != null)
             {
-                yield return package;
-            }
+                yield return depPackage;
 
-            foreach (var dep in package.CurrentFrameworkDependencies)
-            {
-                var depPackage = installedPackages.FirstOrDefault(x => x.Id == dep.Id);
-                if (depPackage != null)
+                foreach (var depDep in TraverseDependencies(installedPackages, depPackage, includesSelf: false))
                 {
-                    yield return depPackage;
-
-                    foreach (var depDep in TraverseDependencies(installedPackages, depPackage, includesSelf: false))
-                    {
-                        yield return depDep;
-                    }
+                    yield return depDep;
                 }
             }
         }
@@ -89,4 +92,5 @@ public static class PackageExporter
         return Path.Combine(ConfigurationManager.NugetConfigFile.RepositoryPath, $"{package.Id}.{package.Version}");
     }
 }
+
 #endif
