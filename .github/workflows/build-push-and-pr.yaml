@@ -1,5 +1,6 @@
 name: Build (Push/Pull request)
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -29,7 +30,7 @@ jobs:
 
   build-unity:
     name: Build Unity package
-    if: ${{ (github.event_name == 'push' && github.repository_owner == 'Cysharp') || startsWith(github.event.pull_request.head.label, 'Cysharp:') }}
+    if: ${{ ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.repository_owner == 'Cysharp') || startsWith(github.event.pull_request.head.label, 'Cysharp:') }}
     permissions:
       contents: read
     runs-on: ubuntu-24.04
