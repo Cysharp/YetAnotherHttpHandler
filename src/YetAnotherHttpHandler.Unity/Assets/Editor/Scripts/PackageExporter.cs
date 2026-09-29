@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 
 using System;
 using System.Collections.Generic;
@@ -21,6 +21,8 @@ public static class PackageExporter
         var packagesGrpcNetClient = new[] { "Grpc.Net.Client" };
         ExportNuGetPackage(packagesYahaDependencies, "Cysharp.Net.Http.YetAnotherHttpHandler.Dependencies", Array.Empty<string>());
         ExportNuGetPackage(packagesGrpcNetClient, "Grpc.Net.Client.Dependencies", packagesYahaDependencies);
+
+        UnityEngine.Debug.Log("Build succeeded! All export complete!");
     }
 
     private static void ExportNuGetPackage(IReadOnlyList<string> packageIds, string unityPackageName, IReadOnlyList<string> excludePackageIds)
