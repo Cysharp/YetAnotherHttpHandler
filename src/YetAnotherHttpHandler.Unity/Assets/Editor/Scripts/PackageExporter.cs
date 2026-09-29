@@ -59,6 +59,9 @@ public static class PackageExporter
                 exportPath,
                 ExportPackageOptions.Recurse);
 
+            if (!File.Exists(exportPath))
+                throw new Exception($"Package export failed: {exportPath}");
+
             UnityEngine.Debug.Log("Export complete: " + Path.GetFullPath(exportPath));
         }
 
