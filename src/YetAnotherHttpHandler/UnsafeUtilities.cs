@@ -156,7 +156,7 @@ namespace Cysharp.Net.Http
         {
             if (_buffer is not null)
             {
-                ArrayPool<byte>.Shared.Return(_buffer);
+                ArrayPool<byte>.Shared.Return(_buffer, clearArray: true);
             }
         }
     }
