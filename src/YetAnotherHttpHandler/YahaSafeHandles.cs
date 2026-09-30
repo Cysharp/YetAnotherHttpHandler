@@ -27,6 +27,7 @@ namespace Cysharp.Net.Http
     internal sealed unsafe class YahaContextSafeHandle : SafeHandle
     {
         private YahaRuntimeSafeHandle? _parent;
+        private GCHandle? _onVerifyServerCertificateHandle;
         private readonly int _instanceId;
 
         public override bool IsInvalid => handle == IntPtr.Zero;
@@ -50,17 +51,24 @@ namespace Cysharp.Net.Http
             }
         }
 
+        public void SetOnVerifyServerCertificateHandle(GCHandle handle)
+        {
+            if (_onVerifyServerCertificateHandle is not null) throw new InvalidOperationException("The handle has already been set.");
+            _onVerifyServerCertificateHandle = handle;
+        }
+
         protected override bool ReleaseHandle()
         {
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"[Id:{_instanceId}] yaha_dispose_context");
             NativeMethods.yaha_dispose_context((YahaNativeContext*)handle);
 
             _parent?.DangerousRelease();
+            _onVerifyServerCertificateHandle?.Free();
 
             return true;
         }
     }
-    
+
     internal sealed unsafe class YahaRequestContextSafeHandle : SafeHandle
     {
         private YahaContextSafeHandle? _parent;
