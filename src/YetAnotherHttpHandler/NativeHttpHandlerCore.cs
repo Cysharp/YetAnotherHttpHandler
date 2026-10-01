@@ -21,7 +21,6 @@ namespace Cysharp.Net.Http
 
         //private unsafe YahaNativeContext* _ctx;
         private readonly YahaContextSafeHandle _handle;
-        private GCHandle? _onVerifyServerCertificateHandle; // The handle must be released in Dispose if it is allocated.
         private bool _disposed = false;
         private PipeOptions? _responsePipeOptions;
 
@@ -85,10 +84,11 @@ namespace Cysharp.Net.Http
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Option '{nameof(settings.OnVerifyServerCertificate)}' = {onVerifyServerCertificate}");
 
                 // NOTE: We need to keep the handle to call in the static callback method.
-                //       The handle must be released in Dispose if it is allocated.
-                _onVerifyServerCertificateHandle = GCHandle.Alloc(onVerifyServerCertificate);
+                //       This handle has the same lifetime as the context and must be released at the same time.
+                var onVerifyServerCertificateHandle = GCHandle.Alloc(onVerifyServerCertificate);
+                _handle.SetOnVerifyServerCertificateHandle(onVerifyServerCertificateHandle);
 
-                NativeMethods.yaha_client_config_set_server_certificate_verification_handler(ctx, OnServerCertificateVerificationCallback, GCHandle.ToIntPtr(_onVerifyServerCertificateHandle.Value));
+                NativeMethods.yaha_client_config_set_server_certificate_verification_handler(ctx, OnServerCertificateVerificationCallback, GCHandle.ToIntPtr(onVerifyServerCertificateHandle));
             }
             if (settings.RootCertificates is { } rootCertificates)
             {
@@ -638,8 +638,6 @@ namespace Cysharp.Net.Http
             }
 
             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Info($"Dispose {nameof(NativeHttpHandlerCore)}; disposing={disposing}");
-
-            _onVerifyServerCertificateHandle?.Free();
 
             NativeRuntime.Instance.Release(); // We always need to release runtime.
 
