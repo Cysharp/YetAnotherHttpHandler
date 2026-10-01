@@ -527,7 +527,8 @@ namespace Cysharp.Net.Http
 
                 var bufSpan = new Span<byte>(buf, (int)length);
                 var requestContext = RequestContext.FromHandle(state);
-                var write = requestContext.Response.WriteAsync(bufSpan);
+                var response = requestContext.Response;
+                var write = response.WriteAsync(bufSpan, taskHandle);
 
                 if (write.IsCompleted)
                 {
@@ -547,11 +548,18 @@ namespace Cysharp.Net.Http
                         catch (Exception ex)
                         {
                             if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Error($"[ReqSeq:{reqSeq}:State:0x{state:X}] Failed to flush response data: {ex}");
-                            CompleteTask(taskHandle, ex.ToString());
+                            if (response.TryTakeDeferredAck(taskHandle))
+                            {
+                                CompleteTask(taskHandle, ex.ToString());
+                            }
                             return;
                         }
 
-                        CompleteTask(taskHandle);
+                        // Cancel may already have acknowledged the task.
+                        if (response.TryTakeDeferredAck(taskHandle))
+                        {
+                            CompleteTask(taskHandle);
+                        }
                     });
                 }
             }
@@ -562,7 +570,7 @@ namespace Cysharp.Net.Http
             }
         }
 
-        private static unsafe void CompleteTask(nuint taskHandle, string? error = null)
+        internal static unsafe void CompleteTask(nuint taskHandle, string? error = null)
         {
             if (error is null)
             {

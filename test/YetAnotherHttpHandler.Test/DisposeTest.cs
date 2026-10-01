@@ -69,6 +69,98 @@ public class DisposeTest(ITestOutputHelper testOutputHelper) : UseTestServerTest
         await _AssertRequestStoppedAsync(body.CopyToAsync(Stream.Null, TimeoutToken));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Dispose_DoesNotWaitForFlushContinuationOnDisposingThread(bool useWriterScheduler)
+    {
+        await using var server = await LaunchServerAsync(TestServerListenMode.InsecureHttp1Only);
+        var disposingThread = new DisposingThreadQueue();
+        using var handler = new YetAnotherHttpHandler
+        {
+            ResponsePipeOptions = useWriterScheduler
+                ? new PipeOptions(writerScheduler: disposingThread, pauseWriterThreshold: 1, resumeWriterThreshold: 1, useSynchronizationContext: false)
+                : new PipeOptions(pauseWriterThreshold: 1, resumeWriterThreshold: 1, useSynchronizationContext: true),
+        };
+        using var client = new HttpClient(handler, disposeHandler: false);
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(disposingThread);
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.GetAsync($"{server.BaseUri}/random?size=1048576", HttpCompletionOption.ResponseHeadersRead).WaitAsync(TimeoutToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+        using var _ = response;
+        using var body = await response.Content.ReadAsStreamAsync(TimeoutToken);
+        Assert.Equal(1, await body.ReadAsync(new byte[1], TimeoutToken));
+        // Let OnReceive hit backpressure and defer its acknowledgement.
+        await Task.Delay(200, TimeoutToken);
+
+        // The flush continuation is posted to the disposing thread, which is
+        // blocked in Dispose and cannot run it until Dispose returns.
+        var dispose = Task.Factory.StartNew(() =>
+        {
+            SynchronizationContext.SetSynchronizationContext(disposingThread);
+            handler.Dispose();
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        try
+        {
+            await dispose.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            // Unblock a deadlocked Dispose so a failure does not hang the run.
+            disposingThread.DrainOnThreadPool();
+        }
+
+        await _AssertRequestStoppedAsync(body.CopyToAsync(Stream.Null, TimeoutToken));
+    }
+
+    private sealed class DisposingThreadQueue : PipeScheduler
+    {
+        private readonly object _lock = new();
+        private readonly List<(Action<object?> Action, object? State)> _queue = new();
+        private bool _drained;
+
+        public override void Schedule(Action<object?> action, object? state)
+        {
+            lock (_lock)
+            {
+                if (!_drained)
+                {
+                    _queue.Add((action, state));
+                    return;
+                }
+            }
+            System.Threading.ThreadPool.UnsafeQueueUserWorkItem(action, state, preferLocal: false);
+        }
+
+        public void DrainOnThreadPool()
+        {
+            lock (_lock)
+            {
+                _drained = true;
+                foreach (var (action, state) in _queue)
+                {
+                    System.Threading.ThreadPool.UnsafeQueueUserWorkItem(action, state, preferLocal: false);
+                }
+                _queue.Clear();
+            }
+        }
+
+        public static implicit operator SynchronizationContext(DisposingThreadQueue queue) => new QueueSynchronizationContext(queue);
+    }
+
+    private sealed class QueueSynchronizationContext(DisposingThreadQueue queue) : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback d, object? state) => queue.Schedule(s => d(s), state);
+        public override SynchronizationContext CreateCopy() => this;
+    }
+
     [Fact]
     public async Task Dispose_UnblocksUploadToServerThatDoesNotRead()
     {

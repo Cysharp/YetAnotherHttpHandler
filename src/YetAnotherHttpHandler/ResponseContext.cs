@@ -21,6 +21,7 @@ namespace Cysharp.Net.Http
         private readonly object _writeLock = new object();
         private bool _completed = false;
         private Task<FlushResult>? _latestFlushTask;
+        private IntPtr _deferredAck;
 
         internal ResponseContext(HttpRequestMessage requestMessage, RequestContext requestContext, PipeOptions? pipeOptions, CancellationToken cancellationToken)
         {
@@ -44,7 +45,12 @@ namespace Cysharp.Net.Http
 #endif
         }
 
-        public ValueTask<FlushResult> WriteAsync(ReadOnlySpan<byte> data)
+        /// <summary>
+        /// Writes response data. When the flush does not complete synchronously, <paramref name="ackHandle"/>
+        /// is held as a deferred acknowledgement and must be claimed with <see cref="TryTakeDeferredAck"/>
+        /// before completing it; <see cref="Cancel"/> may claim and complete it first.
+        /// </summary>
+        public ValueTask<FlushResult> WriteAsync(ReadOnlySpan<byte> data, nuint ackHandle)
         {
             lock (_writeLock)
             {
@@ -64,8 +70,15 @@ namespace Cysharp.Net.Http
                 }
 
                 _latestFlushTask = flush.AsTask();
+                _deferredAck = (IntPtr)(nint)ackHandle;
                 return new ValueTask<FlushResult>(_latestFlushTask);
             }
+        }
+
+        public bool TryTakeDeferredAck(nuint ackHandle)
+        {
+            var handle = (IntPtr)(nint)ackHandle;
+            return Interlocked.CompareExchange(ref _deferredAck, IntPtr.Zero, handle) == handle;
         }
 
         public void SetHeader(ReadOnlySpan<byte> nameBytes, ReadOnlySpan<byte> valueBytes)
@@ -174,9 +187,23 @@ namespace Cysharp.Net.Http
 
                 _requestContext.TryAbort();
                 _responseTask.TrySetCanceled(_cancellationToken);
-                WaitForLatestFlush();
+                // Do not wait for the latest flush task: its continuation runs on
+                // the PipeOptions writer scheduler, which may be the thread calling
+                // Cancel (e.g. a main-thread scheduler during Dispose). No write can
+                // start while _writeLock is held, so cancelling here leaves no
+                // pending flush when the writer is completed.
+                _pipe.Writer.CancelPendingFlush();
                 _pipe.Writer.Complete(new OperationCanceledException(_cancellationToken));
                 _completed = true;
+            }
+
+            // Acknowledge a deferred OnReceive without waiting for its flush
+            // continuation; Dispose waits for every acknowledgement to be released.
+            // Covered by Dispose_DoesNotWaitForFlushContinuationOnDisposingThread.
+            var deferredAck = Interlocked.Exchange(ref _deferredAck, IntPtr.Zero);
+            if (deferredAck != IntPtr.Zero)
+            {
+                NativeHttpHandlerCore.CompleteTask((nuint)(nint)deferredAck, "The response was cancelled.");
             }
 
             _tokenRegistration.Dispose();
