@@ -45,7 +45,7 @@ public abstract class YahaUnityTestBase
 
     protected class TestServerForHttp1AndHttp2
     {
-        public const string SessionStateHeaderKey = "x-yahatest-session-id";
+        public const string SessionStateHeaderKey = "x-test-session-id";
     }
 
     [SetUp]
