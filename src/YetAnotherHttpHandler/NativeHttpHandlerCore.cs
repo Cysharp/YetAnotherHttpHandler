@@ -521,16 +521,20 @@ namespace Cysharp.Net.Http
         {
             using var _ = CallbackScope.Enter();
 
+            ResponseContext? response = null;
+            var ackDeferred = false;
             try
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Trace($"[ReqSeq:{reqSeq}:State:0x{state:X}] Response data received: Length={length}");
 
                 var bufSpan = new Span<byte>(buf, (int)length);
                 var requestContext = RequestContext.FromHandle(state);
-                var response = requestContext.Response;
-                var write = response.WriteAsync(bufSpan, taskHandle);
+                response = requestContext.Response;
+                var write = response.WriteAsync(bufSpan, taskHandle, out ackDeferred);
 
-                if (write.IsCompleted)
+                // A deferred flush may already be completed by Cancel, which also acknowledges
+                // the task, so branch on the deferral rather than write.IsCompleted.
+                if (!ackDeferred)
                 {
                     write.GetAwaiter().GetResult();
                     CompleteTask(taskHandle);
@@ -566,7 +570,10 @@ namespace Cysharp.Net.Http
             catch (Exception ex)
             {
                 if (YahaEventSource.Log.IsEnabled()) YahaEventSource.Log.Error($"[ReqSeq:{reqSeq}:State:0x{state:X}] Failed to flush response data: {ex}");
-                CompleteTask(taskHandle, ex.ToString());
+                if (!ackDeferred || response!.TryTakeDeferredAck(taskHandle))
+                {
+                    CompleteTask(taskHandle, ex.ToString());
+                }
             }
         }
 

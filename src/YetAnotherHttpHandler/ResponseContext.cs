@@ -47,11 +47,13 @@ namespace Cysharp.Net.Http
 
         /// <summary>
         /// Writes response data. When the flush does not complete synchronously, <paramref name="ackHandle"/>
-        /// is held as a deferred acknowledgement and must be claimed with <see cref="TryTakeDeferredAck"/>
-        /// before completing it; <see cref="Cancel"/> may claim and complete it first.
+        /// is held as a deferred acknowledgement (<paramref name="ackDeferred"/> is <c>true</c>) and must be
+        /// claimed with <see cref="TryTakeDeferredAck"/> before completing it, even if the returned task has
+        /// already completed; <see cref="Cancel"/> may claim and complete it first.
         /// </summary>
-        public ValueTask<FlushResult> WriteAsync(ReadOnlySpan<byte> data, nuint ackHandle)
+        public ValueTask<FlushResult> WriteAsync(ReadOnlySpan<byte> data, nuint ackHandle, out bool ackDeferred)
         {
+            ackDeferred = false;
             lock (_writeLock)
             {
                 if (_completed) return default;
@@ -71,6 +73,7 @@ namespace Cysharp.Net.Http
 
                 _latestFlushTask = flush.AsTask();
                 _deferredAck = (IntPtr)(nint)ackHandle;
+                ackDeferred = true;
                 return new ValueTask<FlushResult>(_latestFlushTask);
             }
         }
