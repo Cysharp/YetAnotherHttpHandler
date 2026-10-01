@@ -148,6 +148,14 @@ With these steps, your HttpClient is now compatible with HTTP/2.✨
 
 However, since it does not have features such as connection control by the number of streams, it is necessary to separate handler instances when explicitly creating different connections.
 
+### Disposing a handler
+
+`YetAnotherHttpHandler.Dispose()` rejects new requests and closes a native callback gate shared by response headers, response bodies, completion notifications and custom TLS certificate verification. It cancels pending requests and waits for admitted callbacks and outstanding body-flush acknowledgements before releasing their managed state. Repeated and concurrent disposal waits for the same cleanup.
+
+After `Dispose()` returns, this handler cannot invoke another managed callback. Native connection cleanup and OS DNS work may finish later; their native state remains alive independently. Other handlers sharing the runtime continue running. Disposal does not wait for all native work or arbitrary application continuations and `HttpContent` producers; it does stop the package's own upload loop.
+
+Dispose handlers **before** Unity/IL2CPP runtime cleanup or unload begins. The package does not automatically subscribe to application lifecycle events. Disposal can still block on an executing callback. Calling `Dispose()` synchronously inside a native callback, including `OnVerifyServerCertificate`, throws `InvalidOperationException` to prevent waiting for itself. A callback must also not wait for another thread to dispose the handler.
+
 ### Using gRPC (grpc-dotnet) library
 
 To use grpc-dotnet (Grpc.Net.Client), add the following additional libraries:
@@ -350,6 +358,8 @@ When debugging or running unit tests, the native library is loaded from the foll
 When creating a package, The following artifacts directory is used.
 
 - native/artifacts/{.NET RID}/{lib}yaha_native.{dll,so}
+
+Managed sources and native binaries must come from the same build. The callback gate requires `yaha_context_disable_callbacks`, `yaha_context_wait_callbacks` and a matching response-completion handle layout. Before distributing a Unity package, update the prebuilt libraries for every platform through the `Build Native Libraries` workflow with `update-unity-native` enabled.
 
 ```bash
 # Generate THIRD-PARTY-NOTICES using cargo-about
