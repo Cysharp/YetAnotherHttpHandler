@@ -12,8 +12,20 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  validate-release:
+    permissions:
+      contents: read
+    uses: Cysharp/Actions/.github/workflows/validate-release.yaml@main
+    with:
+      tag: ${{ inputs.tag }}
+
   update-packagejson:
+    needs: [validate-release]
     name: Update package.json
     permissions:
       actions: read
@@ -21,30 +33,27 @@ jobs:
     uses: Cysharp/Actions/.github/workflows/update-packagejson.yaml@main
     with:
       file-path: ./src/YetAnotherHttpHandler/package.json
-      tag: ${{ inputs.tag }}
+      tag: ${{ needs.validate-release.outputs.tag }}
       dry-run: ${{ inputs.dry-run }}
 
   # release
   create-release:
+    needs: [validate-release, update-packagejson]
     name: Create Release
-    needs: [update-packagejson]
     permissions:
       contents: write
-      id-token: write # required for NuGet Trusted Publish
     uses: Cysharp/Actions/.github/workflows/create-release.yaml@main
     with:
       commit-id: ${{ needs.update-packagejson.outputs.sha }}
       dry-run: ${{ inputs.dry-run }}
-      tag: ${{ inputs.tag }}
-      nuget-push: false
-      release-upload: false
-      release-format: '{0}'
+      tag: ${{ needs.validate-release.outputs.tag }}
+      release-format: "{0}"
     secrets: inherit
 
   cleanup:
     name: Cleanup package.json branch
-    if: ${{ needs.update-packagejson.outputs.is-branch-created == 'true' }}
-    needs: [update-packagejson]
+    if: ${{ always() && needs.update-packagejson.outputs.is-branch-created == 'true' }}
+    needs: [update-packagejson, create-release]
     permissions:
       contents: write
     uses: Cysharp/Actions/.github/workflows/clean-packagejson-branch.yaml@main
