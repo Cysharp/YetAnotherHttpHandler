@@ -63,6 +63,8 @@ namespace Cysharp.Net.Http
             NativeMethods.yaha_dispose_context((YahaNativeContext*)handle);
 
             _parent?.DangerousRelease();
+            // Native owners may still retain the context, but yaha_dispose_context has
+            // closed and drained its callback gate, so they never use this handle again.
             _onVerifyServerCertificateHandle?.Free();
 
             return true;

@@ -13,6 +13,7 @@ namespace Cysharp.Net.Http
     public class YetAnotherHttpHandler : HttpMessageHandler
     {
         private readonly NativeClientSettings _settings = new NativeClientSettings();
+        private readonly object _lifetimeLock = new object();
         private bool _disposed;
         private NativeHttpHandlerCore? _handler;
 
@@ -207,16 +208,29 @@ namespace Cysharp.Net.Http
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            ThrowIfDisposed();
-            var handler = _handler ?? SetupHandler();
-            return handler.SendAsync(request, cancellationToken);
+            lock (_lifetimeLock)
+            {
+                ThrowIfDisposed();
+                var handler = _handler ?? SetupHandler();
+                return handler.SendAsync(request, cancellationToken);
+            }
         }
 
         protected override void Dispose(bool disposing)
         {
-            _handler?.Dispose();
+            NativeHttpHandlerCore.ThrowIfInCallback();
+            NativeHttpHandlerCore? handler;
+            lock (_lifetimeLock)
+            {
+                _disposed = true;
+                handler = _handler;
+            }
+
+            // Do not hold the admission lock while joining callbacks: user
+            // certificate verification may try to send another request, which
+            // must observe ObjectDisposedException instead of deadlocking.
+            handler?.Dispose();
             _handler = null;
-            _disposed = true;
         }
 
         private void ThrowIfDisposed()
