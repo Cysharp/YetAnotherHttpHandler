@@ -3280,7 +3280,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------------------
 webpki-roots 0.26.11
 https://github.com/rustls/webpki-roots
-webpki-roots 1.0.0
+webpki-roots 1.0.10
 https://github.com/rustls/webpki-roots
 
 # Community Data License Agreement - Permissive - Version 2.0
