@@ -29,6 +29,8 @@ use hyperlocal::UnixConnector;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_util::sync::CancellationToken;
 
+use crate::callback_gate::CallbackGate;
+
 use crate::{primitives::{CompletionReason, YahaHttpVersion}};
 
 type OnStatusCodeAndHeadersReceive =
@@ -64,6 +66,7 @@ impl YahaNativeRuntimeContextInternal {
 pub struct YahaNativeContext;
 pub struct YahaNativeContextInternal<'a> {
     pub runtime: tokio::runtime::Handle,
+    pub callbacks: CallbackGate,
     pub client_builder: Option<client::legacy::Builder>,
     pub skip_certificate_verification: Option<bool>,
     pub server_certificate_verification_handler: Option<(OnServerCertificateVerificationHandler, NonZeroIsize)>,
@@ -96,6 +99,7 @@ impl YahaNativeContextInternal<'_> {
     ) -> Self {
         YahaNativeContextInternal {
             runtime: runtime_handle,
+            callbacks: CallbackGate::default(),
             tcp_client: None,
             client_builder: Some(Client::builder(TokioExecutor::new())),
             skip_certificate_verification: None,
@@ -112,6 +116,18 @@ impl YahaNativeContextInternal<'_> {
             uds_client: None,
             #[cfg(unix)]
             uds_socket_path: None,
+        }
+    }
+
+    pub fn notify_headers(&self, seq: i32, state: NonZeroIsize, status: i32, version: YahaHttpVersion) {
+        if let Some(_guard) = self.callbacks.enter() {
+            (self.on_status_code_and_headers_receive)(seq, state, status, version);
+        }
+    }
+
+    pub fn notify_complete(&self, seq: i32, state: NonZeroIsize, reason: CompletionReason, h2_error_code: u32) {
+        if let Some(_guard) = self.callbacks.enter() {
+            (self.on_complete)(seq, state, reason, h2_error_code);
         }
     }
 
@@ -151,6 +167,7 @@ impl YahaNativeContextInternal<'_> {
                     danger::CustomCerficateVerification::new(
                         server_certificate_verification_handler,
                         signature_algorithms,
+                        self.callbacks.clone(),
                     ),
                 ))
                 .with_no_client_auth();
@@ -256,6 +273,7 @@ mod danger {
     use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 
     use super::OnServerCertificateVerificationHandler;
+    use crate::callback_gate::CallbackGate;
 
     #[derive(Debug)]
     pub struct NoCertificateVerification {}
@@ -263,16 +281,19 @@ mod danger {
     pub struct CustomCerficateVerification {
         handler: (OnServerCertificateVerificationHandler, NonZeroIsize),
         signature_algorithms: WebPkiSupportedAlgorithms,
+        callbacks: CallbackGate,
     }
 
     impl CustomCerficateVerification {
         pub fn new(
             handler: (OnServerCertificateVerificationHandler, NonZeroIsize),
             signature_algorithms: WebPkiSupportedAlgorithms,
+            callbacks: CallbackGate,
         ) -> Self {
             Self {
                 handler,
                 signature_algorithms,
+                callbacks,
             }
         }
     }
@@ -308,6 +329,9 @@ mod danger {
             _ocsp_response: &[u8],
             now: UnixTime,
         ) -> Result<ServerCertVerified, Error> {
+            let Some(_guard) = self.callbacks.enter() else {
+                return Err(Error::InvalidCertificate(rustls::CertificateError::ApplicationVerificationFailure));
+            };
             let server_name = server_name.to_str();
             let server_name = server_name.as_bytes();
             let cetificate_der = end_entity.as_ref();
@@ -434,17 +458,22 @@ mod tests {
         io::{self, Cursor},
         net::{TcpListener, TcpStream},
         num::NonZeroIsize,
-        sync::Arc,
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
         thread,
         time::Duration,
     };
 
     use rustls::{
-        pki_types::{CertificateDer, PrivateKeyDer, ServerName},
+        client::danger::ServerCertVerifier,
+        pki_types::{CertificateDer, PrivateKeyDer, ServerName, UnixTime},
         ClientConfig, ClientConnection, ServerConfig, ServerConnection, SupportedProtocolVersion,
     };
 
     use super::danger::CustomCerficateVerification;
+    use crate::callback_gate::CallbackGate;
 
     const CERTIFICATE_A: &[u8] = include_bytes!("../testdata/certificate-verify/cert-a.pem");
     const PRIVATE_KEY_A: &[u8] = include_bytes!("../testdata/certificate-verify/key-a.pem");
@@ -515,6 +544,7 @@ mod tests {
                 NonZeroIsize::new(1).expect("the callback state must be non-zero"),
             ),
             rustls::crypto::ring::default_provider().signature_verification_algorithms,
+            CallbackGate::default(),
         );
         let client_config = ClientConfig::builder_with_protocol_versions(&[protocol_version])
             .dangerous()
@@ -565,5 +595,29 @@ mod tests {
     fn custom_verifier_rejects_mismatched_tls13_handshake_signature() {
         complete_handshake(&rustls::version::TLS13, PRIVATE_KEY_B)
             .expect_err("a TLS 1.3 signature made by an unrelated key must be rejected");
+    }
+
+    extern "C" fn verify(state: NonZeroIsize, _: *const u8, _: usize, _: *const u8, _: usize, _: u64) -> bool {
+        unsafe { &*(state.get() as *const AtomicUsize) }.fetch_add(1, Ordering::SeqCst);
+        true
+    }
+
+    #[test]
+    fn previously_created_tls_verifier_observes_closed_gate() {
+        let calls = AtomicUsize::new(0);
+        let callbacks = CallbackGate::default();
+        let verifier = CustomCerficateVerification::new(
+            (verify, NonZeroIsize::new(&calls as *const _ as isize).unwrap()),
+            rustls::crypto::ring::default_provider().signature_verification_algorithms,
+            callbacks.clone(),
+        );
+        let certificate = CertificateDer::from(&b"test certificate"[..]);
+        let name = ServerName::try_from("localhost").unwrap();
+        let now = UnixTime::since_unix_epoch(Duration::from_secs(0));
+        assert!(verifier.verify_server_cert(&certificate, &[], &name, &[], now).is_ok());
+        callbacks.close();
+        callbacks.wait();
+        assert!(verifier.verify_server_cert(&certificate, &[], &name, &[], now).is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
     }
 }

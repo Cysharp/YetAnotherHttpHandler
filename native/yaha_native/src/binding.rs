@@ -23,6 +23,12 @@ use crate::{
     primitives::WriteResult,
 };
 use futures_util::StreamExt;
+use crate::callback_gate::CallbackGuard;
+
+struct ResponseCompletion {
+    sender: oneshot::Sender<Result<(), String>>,
+    _guard: CallbackGuard,
+}
 
 
 #[no_mangle]
@@ -57,6 +63,9 @@ pub extern "C" fn yaha_init_runtime(worker_threads: i32) -> *mut YahaNativeRunti
 #[no_mangle]
 pub extern "C" fn yaha_dispose_runtime(ctx: *mut YahaNativeRuntimeContext) {
     let ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeRuntimeContextInternal) };
+    // Callback gates are already closed and drained. Native-only work (such
+    // as OS DNS resolution) can finish without blocking managed shutdown.
+    ctx.runtime.shutdown_background();
 }
 
 #[no_mangle]
@@ -72,25 +81,47 @@ pub extern "C" fn yaha_init_context(
     on_complete: extern "C" fn(req_seq: i32, state: NonZeroIsize, reason: CompletionReason, h2_error_code: u32),
 ) -> *mut YahaNativeContext {
     let runtime_ctx = YahaNativeRuntimeContextInternal::from_raw_context(runtime_ctx);
-    let ctx = Box::new(YahaNativeContextInternal::new(
+    let ctx = Arc::new(YahaNativeContextInternal::new(
         runtime_ctx.runtime.handle().clone(),
         on_status_code_and_headers_receive,
         on_receive,
         on_complete,
     ));
-    Box::into_raw(ctx) as *mut YahaNativeContext
+    Arc::into_raw(ctx) as *mut YahaNativeContext
+}
+
+/// Clones an owning reference that can outlive the managed SafeHandle.
+///
+/// # Safety
+/// `ctx` must come from `yaha_init_context`, with a strong reference kept alive
+/// for this call. Configuration must not be mutated while the clone is alive.
+unsafe fn clone_context(ctx: *const YahaNativeContext) -> Arc<YahaNativeContextInternal<'static>> {
+    let ptr = ctx as *const YahaNativeContextInternal;
+    unsafe {
+        Arc::increment_strong_count(ptr);
+        Arc::from_raw(ptr)
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn yaha_dispose_context(ctx: *mut YahaNativeContext) {
-    let mut ctx = unsafe { Box::from_raw(ctx as *mut YahaNativeContextInternal) };
-    ctx.on_complete = _sentinel_on_complete;
-    ctx.on_receive = _sentinel_on_receive;
-    ctx.on_status_code_and_headers_receive = _sentinel_on_status_code_and_headers_receive;
+    // Reclaim the managed owner's reference, releasing it when this call returns.
+    let ctx = unsafe { Arc::from_raw(ctx as *const YahaNativeContextInternal) };
+    ctx.callbacks.close();
+    ctx.callbacks.wait();
 }
-extern "C" fn _sentinel_on_complete(_: i32, _: NonZeroIsize, _: CompletionReason, _: u32) { panic!("The context has already disposed: on_complete"); }
-extern "C" fn _sentinel_on_receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8, _: usize) { panic!("The context has already disposed: on_receive"); }
-extern "C" fn _sentinel_on_status_code_and_headers_receive(_: i32, _: NonZeroIsize, _: i32, _: YahaHttpVersion) { panic!("The context has already disposed: on_status_code_and_headers_receive"); }
+
+#[no_mangle]
+pub extern "C" fn yaha_context_disable_callbacks(ctx: *const YahaNativeContext) {
+    let ctx = unsafe { &*(ctx as *const YahaNativeContextInternal) };
+    ctx.callbacks.close();
+}
+
+#[no_mangle]
+pub extern "C" fn yaha_context_wait_callbacks(ctx: *const YahaNativeContext) {
+    let ctx = unsafe { &*(ctx as *const YahaNativeContextInternal) };
+    ctx.callbacks.wait();
+}
 
 #[no_mangle]
 pub extern "C" fn yaha_client_config_add_root_certificates(
@@ -486,7 +517,7 @@ pub extern "C" fn yaha_request_begin(
     req_ctx: *const YahaNativeRequestContext,
     state: NonZeroIsize
 ) -> bool {
-    let ctx = YahaNativeContextInternal::from_raw_context(ctx);
+    let ctx = unsafe { clone_context(ctx) };
 
     // Begin request on async runtime.
     let body;
@@ -508,6 +539,7 @@ pub extern "C" fn yaha_request_begin(
     {
         let req_ctx = req_ctx.clone();
         ctx.runtime.clone().spawn(async move {
+            let ctx = &*ctx;
             let cancellation_token = {
                 let req_ctx = req_ctx.lock().unwrap();
                 req_ctx.cancellation_token.clone()
@@ -532,14 +564,14 @@ pub extern "C" fn yaha_request_begin(
                     let mut req_ctx = req_ctx.lock().unwrap();
                     req_ctx.last_error = Some("The client has not been built. You need to build it before sending the request.".to_string());
                 }
-                (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
+                ctx.notify_complete(seq, state, CompletionReason::Error, 0);
                 return;
             }
 
             // Send a request and wait for response status and headers.
             let res = select! {
                 _ = cancellation_token.cancelled() => {
-                    (ctx.on_complete)(seq, state, CompletionReason::Aborted, 0);
+                    ctx.notify_complete(seq, state, CompletionReason::Aborted, 0);
                     return;
                 }
                 res = ctx.request(req) => {
@@ -570,7 +602,7 @@ pub extern "C" fn yaha_request_begin(
                 req_ctx.response_status = res.status();
                 req_ctx.response_version = YahaHttpVersion::from(res.version());
             }
-            (ctx.on_status_code_and_headers_receive)(
+            ctx.notify_headers(
                 seq,
                 state,
                 res.status().as_u16() as i32,
@@ -585,7 +617,7 @@ pub extern "C" fn yaha_request_begin(
             while !body.is_end_stream() {
                 select! {
                     _ = cancellation_token.cancelled() => {
-                        (ctx.on_complete)(seq, state, CompletionReason::Aborted, 0);
+                        ctx.notify_complete(seq, state, CompletionReason::Aborted, 0);
                         return;
                     }
                     received = body.frame() => {
@@ -595,10 +627,17 @@ pub extern "C" fn yaha_request_begin(
                                     Ok(frame) => {
                                         if frame.is_data() {
                                             let data = frame.into_data().unwrap();
+                                            let Some(guard) = ctx.callbacks.enter() else {
+                                                return;
+                                            };
                                             let (tx, rx) = oneshot::channel::<Result<(), String>>();
-                                            let tx = Box::into_raw(Box::new(tx)) as usize;
+                                            let tx = Box::into_raw(Box::new(ResponseCompletion {
+                                                sender: tx,
+                                                _guard: guard.retain_for_deferred_ack(),
+                                            })) as usize;
 
                                             (ctx.on_receive)(seq, state, data.len(), data.as_ptr(), tx);
+                                            drop(guard);
                                             match rx.await {
                                                 Ok(result) => {
                                                     if let Err(err) = result {
@@ -607,7 +646,7 @@ pub extern "C" fn yaha_request_begin(
                                                             let mut req_ctx = req_ctx.lock().unwrap();
                                                             req_ctx.last_error = Some(err);
                                                         }
-                                                        (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
+                                                        ctx.notify_complete(seq, state, CompletionReason::Error, 0);
                                                         return;
                                                     }
                                                 },
@@ -617,7 +656,7 @@ pub extern "C" fn yaha_request_begin(
                                                         let mut req_ctx = req_ctx.lock().unwrap();
                                                         req_ctx.last_error = Some("on_receive() has not completed correctly.".to_string());
                                                     }
-                                                    (ctx.on_complete)(seq, state, CompletionReason::Error, 0);
+                                                    ctx.notify_complete(seq, state, CompletionReason::Error, 0);
                                                     return;
                                                 }
                                             }
@@ -659,7 +698,7 @@ pub extern "C" fn yaha_request_begin(
 
                                         let rc = reason.map(|r| u32::from(r));
 
-                                        (ctx.on_complete)(seq, state, CompletionReason::Error, rc.unwrap_or_default());
+                                        ctx.notify_complete(seq, state, CompletionReason::Error, rc.unwrap_or_default());
                                         return;
                                     }
                                 }
@@ -678,7 +717,7 @@ pub extern "C" fn yaha_request_begin(
                 req_ctx.try_complete();
             }
 
-            (ctx.on_complete)(seq, state, CompletionReason::Success, 0);
+            ctx.notify_complete(seq, state, CompletionReason::Success, 0);
 
             {
                 let mut req_ctx = req_ctx.lock().unwrap();
@@ -691,7 +730,7 @@ pub extern "C" fn yaha_request_begin(
     true
 }
 
-fn complete_with_error(ctx: &mut YahaNativeContextInternal, req_ctx: Arc<Mutex<YahaNativeRequestContextInternal>>, seq: i32, state: NonZeroIsize, err: hyper_util::client::legacy::Error) {
+fn complete_with_error(ctx: &YahaNativeContextInternal, req_ctx: Arc<Mutex<YahaNativeRequestContextInternal>>, seq: i32, state: NonZeroIsize, err: hyper_util::client::legacy::Error) {
     let mut h2_error_code = None;
 
     {
@@ -710,7 +749,7 @@ fn complete_with_error(ctx: &mut YahaNativeContextInternal, req_ctx: Arc<Mutex<Y
         }
     }
 
-    (ctx.on_complete)(seq, state, CompletionReason::Error, h2_error_code.unwrap_or_default());
+    ctx.notify_complete(seq, state, CompletionReason::Error, h2_error_code.unwrap_or_default());
 }
 
 #[no_mangle]
@@ -856,20 +895,74 @@ pub extern "C" fn yaha_request_destroy(
 
 #[no_mangle]
 pub extern "C" fn yaha_complete_task(task_handle: usize, error: *const StringBuffer) {
-    let tx = unsafe { Box::from_raw(task_handle as *mut oneshot::Sender<Result<(), String>>) };
+    let completion = unsafe { Box::from_raw(task_handle as *mut ResponseCompletion) };
+    let ResponseCompletion { sender: tx, _guard } = *completion;
     if error.is_null() {
-        tx.send(Ok(())).unwrap();
+        let _ = tx.send(Ok(()));
     } else {
         let error = unsafe { (*error).to_str().to_string() };
-        tx.send(Err(error)).unwrap();
+        let _ = tx.send(Err(error));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::ptr::null;
-
     use super::*;
+    use std::ptr::null;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::mpsc;
+
+    extern "C" fn headers(_: i32, state: NonZeroIsize, _: i32, _: YahaHttpVersion) {
+        unsafe { &*(state.get() as *const AtomicUsize) }.fetch_add(1, Ordering::SeqCst);
+    }
+
+    extern "C" fn complete(_: i32, state: NonZeroIsize, _: CompletionReason, _: u32) {
+        unsafe { &*(state.get() as *const AtomicUsize) }.fetch_add(1, Ordering::SeqCst);
+    }
+
+    extern "C" fn receive(_: i32, _: NonZeroIsize, _: usize, _: *const u8, _: usize) {}
+
+    #[test]
+    fn retained_context_suppresses_late_callbacks_after_managed_owner_is_released() {
+        let calls = AtomicUsize::new(0);
+        let state = NonZeroIsize::new(&calls as *const _ as isize).unwrap();
+        let runtime = yaha_init_runtime(1);
+        let ctx = yaha_init_context(runtime, headers, receive, complete);
+        let retained = unsafe { clone_context(ctx) };
+        retained.notify_headers(1, state, 200, YahaHttpVersion::Http11);
+        retained.notify_complete(1, state, CompletionReason::Success, 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+
+        yaha_context_disable_callbacks(ctx);
+        yaha_context_wait_callbacks(ctx);
+        yaha_dispose_context(ctx);
+        yaha_dispose_runtime(runtime);
+
+        // Simulate a request which still owns the context after Dispose.
+        retained.notify_headers(1, state, 200, YahaHttpVersion::Http11);
+        retained.notify_complete(1, state, CompletionReason::Aborted, 0);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn runtime_release_does_not_join_native_blocking_work() {
+        let runtime = yaha_init_runtime(1);
+        let handle = YahaNativeRuntimeContextInternal::from_raw_context(runtime).runtime.handle().clone();
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        handle.spawn_blocking(move || {
+            entered_tx.send(()).unwrap();
+            let released = release_rx.recv_timeout(Duration::from_secs(5)).is_ok();
+            done_tx.send(released).unwrap();
+        });
+        entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        yaha_dispose_runtime(runtime);
+        // A blocking Runtime drop would wait for the timeout and fail this test.
+        assert!(matches!(done_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        release_tx.send(()).unwrap();
+        assert!(done_rx.recv_timeout(Duration::from_secs(5)).unwrap());
+    }
 
     unsafe fn set_header(req_ctx: *const YahaNativeRequestContext, name: &[u8], value: &[u8]) -> bool {
         let name = StringBuffer::new(name.as_ptr(), name.len() as i32);
